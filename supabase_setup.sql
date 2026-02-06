@@ -1,0 +1,165 @@
+-- HSTメンバー冒険ゲーム用テーブル作成SQL
+-- Supabase SQL Editorで実行してください
+
+-- user_membersテーブル
+CREATE TABLE IF NOT EXISTS user_members (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  member_name TEXT NOT NULL,
+  member_emoji TEXT NOT NULL,
+  member_description TEXT,
+  rarity TEXT NOT NULL,
+  level INTEGER DEFAULT 1,
+  experience INTEGER DEFAULT 0,
+  hp INTEGER DEFAULT 100,
+  max_hp INTEGER DEFAULT 100,
+  attack INTEGER DEFAULT 10,
+  defense INTEGER DEFAULT 5,
+  speed INTEGER DEFAULT 5,
+  obtained_at TIMESTAMP DEFAULT NOW(),
+  is_favorite BOOLEAN DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_members_user_id ON user_members(user_id);
+
+-- user_progressテーブル
+CREATE TABLE IF NOT EXISTS user_progress (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  current_stage INTEGER DEFAULT 1,
+  total_battles INTEGER DEFAULT 0,
+  total_victories INTEGER DEFAULT 0,
+  total_defeats INTEGER DEFAULT 0,
+  highest_damage INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON user_progress(user_id);
+
+-- battle_logsテーブル
+CREATE TABLE IF NOT EXISTS battle_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  stage INTEGER NOT NULL,
+  party_members JSONB NOT NULL,
+  enemy_type TEXT NOT NULL,
+  result TEXT NOT NULL,
+  turns_taken INTEGER DEFAULT 0,
+  damage_dealt INTEGER DEFAULT 0,
+  damage_received INTEGER DEFAULT 0,
+  experience_gained INTEGER DEFAULT 0,
+  points_earned INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_battle_logs_user_id ON battle_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_battle_logs_created_at ON battle_logs(created_at DESC);
+
+-- RLS設定
+ALTER TABLE user_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE battle_logs ENABLE ROW LEVEL SECURITY;
+
+-- user_members RLS
+DROP POLICY IF EXISTS "Users can view own members" ON user_members;
+CREATE POLICY "Users can view own members" ON user_members
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own members" ON user_members;
+CREATE POLICY "Users can insert own members" ON user_members
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own members" ON user_members;
+CREATE POLICY "Users can update own members" ON user_members
+  FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own members" ON user_members;
+CREATE POLICY "Users can delete own members" ON user_members
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- user_progress RLS
+DROP POLICY IF EXISTS "Users can view own progress" ON user_progress;
+CREATE POLICY "Users can view own progress" ON user_progress
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own progress" ON user_progress;
+CREATE POLICY "Users can insert own progress" ON user_progress
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own progress" ON user_progress;
+CREATE POLICY "Users can update own progress" ON user_progress
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- battle_logs RLS
+DROP POLICY IF EXISTS "Users can view own battle logs" ON battle_logs;
+CREATE POLICY "Users can view own battle logs" ON battle_logs
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own battle logs" ON battle_logs;
+CREATE POLICY "Users can insert own battle logs" ON battle_logs
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- daily_missionsテーブル（デイリーミッション定義）
+CREATE TABLE IF NOT EXISTS daily_missions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  mission_type TEXT NOT NULL, -- 'battle_win', 'battle_complete', 'gacha_pull', 'stage_clear', 'level_up'
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  target_count INTEGER NOT NULL,
+  reward_points INTEGER DEFAULT 0,
+  reward_exp INTEGER DEFAULT 0,
+  difficulty TEXT DEFAULT 'normal', -- 'easy', 'normal', 'hard'
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- user_mission_progressテーブル（ユーザーのミッション進捗）
+CREATE TABLE IF NOT EXISTS user_mission_progress (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  mission_id UUID REFERENCES daily_missions(id) ON DELETE CASCADE,
+  current_count INTEGER DEFAULT 0,
+  completed BOOLEAN DEFAULT false,
+  claimed BOOLEAN DEFAULT false,
+  mission_date DATE NOT NULL, -- ミッションの日付（リセット用）
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, mission_id, mission_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_mission_progress_user_id ON user_mission_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_mission_progress_mission_date ON user_mission_progress(mission_date);
+CREATE INDEX IF NOT EXISTS idx_user_mission_progress_user_date ON user_mission_progress(user_id, mission_date);
+
+-- daily_missions RLS（全員が閲覧可能）
+ALTER TABLE daily_missions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view active missions" ON daily_missions;
+CREATE POLICY "Anyone can view active missions" ON daily_missions
+  FOR SELECT USING (is_active = true);
+
+-- user_mission_progress RLS
+ALTER TABLE user_mission_progress ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own mission progress" ON user_mission_progress;
+CREATE POLICY "Users can view own mission progress" ON user_mission_progress
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own mission progress" ON user_mission_progress;
+CREATE POLICY "Users can insert own mission progress" ON user_mission_progress
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own mission progress" ON user_mission_progress;
+CREATE POLICY "Users can update own mission progress" ON user_mission_progress
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- デフォルトミッションを挿入
+INSERT INTO daily_missions (mission_type, title, description, target_count, reward_points, reward_exp, difficulty) VALUES
+('battle_win', 'バトルマスター', 'バトルに5回勝利する', 5, 50, 100, 'easy'),
+('battle_complete', '戦士の道', 'バトルを10回完了する', 10, 100, 200, 'normal'),
+('gacha_pull', 'ガチャ好き', 'ガチャを3回引く', 3, 150, 0, 'easy'),
+('stage_clear', 'ステージクリア', 'ステージを3回クリアする', 3, 200, 300, 'normal'),
+('level_up', '成長の証', 'メンバーを1回レベルアップさせる', 1, 100, 150, 'easy'),
+('battle_win', '勝利の追求', 'バトルに10回勝利する', 10, 200, 400, 'hard'),
+('gacha_pull', 'ガチャマニア', 'ガチャを10回引く', 10, 500, 0, 'hard'),
+('stage_clear', '冒険者', 'ステージを10回クリアする', 10, 500, 1000, 'hard')
+ON CONFLICT DO NOTHING;
