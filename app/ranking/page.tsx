@@ -46,7 +46,7 @@ export default function RankingPage() {
       const formatted = data.map((entry: any, index) => ({
         rank: index + 1,
         user_id: entry.user_id,
-        display_name: entry.user?.display_name || '不明',
+        display_name: (entry.user as any)?.display_name || '不明',
         rating: entry.rating || 1000,
         wins: entry.wins || 0,
         losses: entry.losses || 0,
@@ -84,7 +84,7 @@ export default function RankingPage() {
             setMyRanking({
               rank: 0, // ランク外
               user_id: myStats.user_id,
-              display_name: myStats.user?.display_name || '不明',
+              display_name: (myStats.user as any)?.display_name || '不明',
               rating: myStats.rating || 1000,
               wins: myStats.wins || 0,
               losses: myStats.losses || 0,
