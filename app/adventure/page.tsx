@@ -72,10 +72,15 @@ export default function AdventurePage() {
       setCurrentStage(progressResult.data.current_stage);
     } else {
       // 初回作成（非同期で実行、ロードをブロックしない）
-      supabase
-        .from('user_progress')
-        .insert({ user_id: user.id, current_stage: 1 })
-        .catch(err => console.error('進行状況作成エラー:', err));
+      (async () => {
+        try {
+          await supabase
+            .from('user_progress')
+            .insert({ user_id: user.id, current_stage: 1 });
+        } catch (err) {
+          console.error('進行状況作成エラー:', err);
+        }
+      })();
     }
 
     setLoading(false);
