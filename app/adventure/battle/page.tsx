@@ -198,7 +198,23 @@ export default function BattlePage() {
       case 'heal':
         // HP回復
         const healAmount = member.skill_power || 30;
+        
+        // targetIndexの範囲チェック
+        if (targetIndex !== undefined) {
+          if (targetIndex < 0 || targetIndex >= newParty.length) {
+            alert('無効なターゲットです');
+            setIsPlayerTurn(true);
+            return;
+          }
+        }
+        
         const target = targetIndex !== undefined ? newParty[targetIndex] : newParty[memberIndex];
+        
+        if (!target) {
+          alert('ターゲットが見つかりません');
+          setIsPlayerTurn(true);
+          return;
+        }
         
         if (target.hp <= 0) {
           alert('戦闘不能のメンバーは回復できません');

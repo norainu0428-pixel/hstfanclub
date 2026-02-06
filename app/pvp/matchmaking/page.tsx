@@ -117,11 +117,17 @@ export default function MatchmakingPage() {
 
   async function getCurrentBattleLog(): Promise<string[]> {
     if (!battleId) return [];
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('pvp_battles')
       .select('battle_log')
       .eq('id', battleId)
-      .single();
+      .maybeSingle();
+    
+    if (error) {
+      console.error('バトルログ取得エラー:', error);
+      return [];
+    }
+    
     return data?.battle_log || [];
   }
 

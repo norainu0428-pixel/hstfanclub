@@ -45,14 +45,19 @@ export default function UserDetailPage() {
 
   async function loadUser() {
     // ユーザー情報取得
-    const { data: userData } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('profiles')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    if (userError) {
+      console.error('ユーザー情報取得エラー:', userError);
+      return;
+    }
 
     if (userData) {
-      setUser(userData as any);
+      setUser(userData as UserWithProfile);
     }
 
     // メンバー情報取得

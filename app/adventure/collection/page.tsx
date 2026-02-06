@@ -207,43 +207,56 @@ export default function CollectionPage() {
       totalExp += expFromMaterial;
     }
 
-    // ベースメンバーに経験値を付与してレベルアップ計算
-    const { updatedMember, levelUps } = calculateLevelUp(baseMember, totalExp);
+    try {
+      // ベースメンバーに経験値を付与してレベルアップ計算
+      const { updatedMember, levelUps } = calculateLevelUp(baseMember, totalExp);
 
-    // ベースメンバーを更新
-    await supabase
-      .from('user_members')
-      .update({
-        level: updatedMember.level,
-        experience: updatedMember.experience,
-        hp: updatedMember.hp,
-        max_hp: updatedMember.max_hp,
-        attack: updatedMember.attack,
-        defense: updatedMember.defense,
-        speed: updatedMember.speed,
-        current_hp: updatedMember.hp // HPも更新
-      })
-      .eq('id', baseMember.id);
+      // ベースメンバーを更新
+      const { error: updateError } = await supabase
+        .from('user_members')
+        .update({
+          level: updatedMember.level,
+          experience: updatedMember.experience,
+          hp: updatedMember.hp,
+          max_hp: updatedMember.max_hp,
+          attack: updatedMember.attack,
+          defense: updatedMember.defense,
+          speed: updatedMember.speed,
+          current_hp: updatedMember.hp // HPも更新
+        })
+        .eq('id', baseMember.id);
 
-    // 素材メンバーを削除
-    const materialIds = materialMembers.map(m => m.id);
-    await supabase
-      .from('user_members')
-      .delete()
-      .in('id', materialIds);
+      if (updateError) {
+        throw new Error(`ベースメンバーの更新に失敗しました: ${updateError.message}`);
+      }
 
-    // 成功メッセージ
-    const levelUpText = levelUps.length > 0 
-      ? `レベルアップ: Lv.${baseMember.level} → Lv.${updatedMember.level}！` 
-      : '';
-    alert(`合成成功！\n経験値 +${totalExp}\n${levelUpText}\n${materialMembers.length}体の素材メンバーを消費しました。`);
+      // 素材メンバーを削除
+      const materialIds = materialMembers.map(m => m.id);
+      const { error: deleteError } = await supabase
+        .from('user_members')
+        .delete()
+        .in('id', materialIds);
 
-    // 状態をリセット
-    setBaseMember(null);
-    setMaterialMembers([]);
+      if (deleteError) {
+        throw new Error(`素材メンバーの削除に失敗しました: ${deleteError.message}`);
+      }
 
-    // メンバーリストを再読み込み
-    await loadMembers();
+      // 成功メッセージ
+      const levelUpText = levelUps.length > 0 
+        ? `レベルアップ: Lv.${baseMember.level} → Lv.${updatedMember.level}！` 
+        : '';
+      alert(`合成成功！\n経験値 +${totalExp}\n${levelUpText}\n${materialMembers.length}体の素材メンバーを消費しました。`);
+
+      // 状態をリセット
+      setBaseMember(null);
+      setMaterialMembers([]);
+
+      // メンバーリストを再読み込み
+      await loadMembers();
+    } catch (error) {
+      console.error('合成エラー:', error);
+      alert(`合成に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    }
   }
 
   const rarityCount = {
@@ -340,7 +353,7 @@ export default function CollectionPage() {
               <label className="block text-sm font-bold mb-2">並び替え</label>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as 'level' | 'rarity' | 'obtained')}
                 className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
               >
                 <option value="level">レベル順</option>

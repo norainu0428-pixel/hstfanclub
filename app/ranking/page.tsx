@@ -63,7 +63,7 @@ export default function RankingPage() {
           setMyRanking(myEntry);
         } else {
           // ランク外の場合
-          const { data: myStats } = await supabase
+          const { data: myStats, error: myStatsError } = await supabase
             .from('pvp_stats')
             .select(`
               user_id,
@@ -74,7 +74,11 @@ export default function RankingPage() {
               user:profiles!pvp_stats_user_id_fkey(display_name)
             `)
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
+
+          if (myStatsError) {
+            console.error('自分の戦績取得エラー:', myStatsError);
+          }
 
           if (myStats) {
             setMyRanking({

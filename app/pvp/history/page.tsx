@@ -27,11 +27,15 @@ export default function PvPHistoryPage() {
     if (!user) return;
 
     // 戦績取得
-    const { data: statsData } = await supabase
+    const { data: statsData, error: statsError } = await supabase
       .from('pvp_stats')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (statsError) {
+      console.error('戦績取得エラー:', statsError);
+    }
 
     setStats(statsData);
 
@@ -59,7 +63,7 @@ export default function PvPHistoryPage() {
           ? battle.player2?.display_name || '不明'
           : battle.player1?.display_name || '不明';
         
-        const result = battle.winner_id === user.id 
+        const result: 'win' | 'loss' | 'draw' = battle.winner_id === user.id 
           ? 'win' 
           : battle.winner_id 
             ? 'loss' 
