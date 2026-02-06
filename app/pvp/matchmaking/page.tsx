@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
 
-export default function MatchmakingPage() {
+function MatchmakingContent() {
   const [party, setParty] = useState<Member[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<Member[]>([]);
   const [friendName, setFriendName] = useState('');
@@ -219,5 +219,17 @@ export default function MatchmakingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MatchmakingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center">
+        <div className="text-white text-xl">読み込み中...</div>
+      </div>
+    }>
+      <MatchmakingContent />
+    </Suspense>
   );
 }

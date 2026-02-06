@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
 import { getStageInfo } from '@/utils/stageGenerator';
 
-export default function StagePage() {
+function StageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -186,5 +186,17 @@ export default function StagePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StagePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+        <div className="text-white text-xl">読み込み中...</div>
+      </div>
+    }>
+      <StageContent />
+    </Suspense>
   );
 }

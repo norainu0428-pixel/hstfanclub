@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
@@ -10,7 +10,7 @@ import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
 
-export default function BattlePage() {
+function BattleContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -1098,5 +1098,17 @@ export default function BattlePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BattlePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-orange-500 text-xl">読み込み中...</div>
+      </div>
+    }>
+      <BattleContent />
+    </Suspense>
   );
 }
