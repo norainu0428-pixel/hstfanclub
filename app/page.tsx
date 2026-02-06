@@ -302,9 +302,12 @@ export default function Home() {
         <button
           onClick={async () => {
             console.log('Discordログイン開始');
+            const redirectUrl = typeof window !== 'undefined' 
+              ? `${window.location.origin}/auth/callback`
+              : '/auth/callback';
             await supabase.auth.signInWithOAuth({
               provider: 'discord',
-              options: { redirectTo: 'http://localhost:3000/auth/callback' },
+              options: { redirectTo: redirectUrl },
             });
           }}
           className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-bold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/50"
