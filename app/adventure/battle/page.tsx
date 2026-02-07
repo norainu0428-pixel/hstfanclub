@@ -116,7 +116,8 @@ function BattleContent() {
       .select('equipped_member_id, level, equipment_master(weapon_skill_type, weapon_skill_power, slot_type)')
       .in('equipped_member_id', partyIds);
     const weaponSkills: Record<string, { skill_type: string; skill_power: number }> = {};
-    (equipData || []).forEach((row: { equipped_member_id: string; level: number; equipment_master: { weapon_skill_type?: string | null; weapon_skill_power?: number | null; slot_type?: string } | null }) => {
+    type EquipRow = { equipped_member_id: string; level: number; equipment_master: { weapon_skill_type?: string | null; weapon_skill_power?: number | null; slot_type?: string } | null };
+    ((equipData || []) as EquipRow[]).forEach((row) => {
       const eq = row.equipment_master;
       if (!eq || eq.slot_type !== 'weapon' || row.level < 5 || !eq.weapon_skill_type) return;
       weaponSkills[row.equipped_member_id] = {
