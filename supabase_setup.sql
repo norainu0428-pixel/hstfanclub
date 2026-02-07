@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS user_members (
   defense INTEGER DEFAULT 5,
   speed INTEGER DEFAULT 5,
   obtained_at TIMESTAMP DEFAULT NOW(),
-  is_favorite BOOLEAN DEFAULT false
+  is_favorite BOOLEAN DEFAULT false,
+  locked BOOLEAN DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_members_user_id ON user_members(user_id);

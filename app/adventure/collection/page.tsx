@@ -48,6 +48,32 @@ export default function CollectionPage() {
     return ownerStatus;
   }
 
+  async function toggleLock(member: Member) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const newLocked = !member.locked;
+    const { error } = await supabase
+      .from('user_members')
+      .update({ locked: newLocked })
+      .eq('id', member.id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('ロック更新エラー:', error);
+      return;
+    }
+
+    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: newLocked } : m));
+    if (newLocked) {
+      if (baseMember?.id === member.id) setBaseMember(null);
+      setMaterialMembers(prev => prev.filter(m => m.id !== member.id));
+    } else {
+      if (baseMember?.id === member.id) setBaseMember(prev => prev ? { ...prev, locked: false } : null);
+      setMaterialMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: false } : m));
+    }
+  }
+
   async function loadMembers() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -184,6 +210,14 @@ export default function CollectionPage() {
   // 合成実行
   async function executeFusion() {
     if (!baseMember || materialMembers.length === 0) return;
+    if (baseMember.locked) {
+      alert('ロック中のメンバーは合成に使えません');
+      return;
+    }
+    if (materialMembers.some(m => m.locked)) {
+      alert('ロック中のメンバーは素材に使えません');
+      return;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -490,16 +524,18 @@ export default function CollectionPage() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {members.map(member => {
-              // 合成モードの場合、クリックで選択
+              // 合成モードの場合、クリックで選択（ロック中は選択不可）
               if (fusionMode) {
                 const isBase = baseMember?.id === member.id;
                 const isMaterial = materialMembers.some(m => m.id === member.id);
                 const materialIndex = materialMembers.findIndex(m => m.id === member.id);
+                const isLocked = member.locked === true;
                 
                 return (
                   <div
                     key={member.id}
                     onClick={() => {
+                      if (isLocked) return;
                       if (isBase) {
                         setBaseMember(null);
                       } else if (isMaterial) {
@@ -514,18 +550,27 @@ export default function CollectionPage() {
                         }
                       }
                     }}
-                    className="cursor-pointer"
+                    className={`${isLocked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
                   >
                     <MemberCard
                       member={member}
                       selected={isBase || isMaterial}
                       showStats={!fusionMode}
+                      showLockToggle={true}
+                      onLockToggle={toggleLock}
                     />
                   </div>
                 );
               }
               
-              return <MemberCard key={member.id} member={member} />;
+              return (
+                <MemberCard
+                  key={member.id}
+                  member={member}
+                  showLockToggle={true}
+                  onLockToggle={toggleLock}
+                />
+              );
             })}
           </div>
           {members.length === 0 && (

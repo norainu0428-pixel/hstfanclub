@@ -39,6 +39,7 @@ function BattleContent() {
   const [originalHp, setOriginalHp] = useState<{ [key: string]: number }>({}); // バトル開始時のHP（復元用）
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
+  const [autoMode, setAutoMode] = useState(false);
 
   useEffect(() => {
     initBattle();
@@ -308,6 +309,64 @@ function BattleContent() {
     };
     return names[skillType] || skillType;
   }
+
+  // AUTOモード: 自動で最適な行動を選択
+  function executeAutoAction() {
+    const aliveMembers = party.filter(m => m.hp > 0);
+    const aliveEnemies = enemies.filter(e => e.hp > 0);
+    if (aliveMembers.length === 0 || aliveEnemies.length === 0) return;
+
+    // 蘇生可能なメンバーを優先（HP0でreviveスキル持ち、未使用）
+    const revivableIndex = party.findIndex(m => 
+      m.hp <= 0 && m.skill_type === 'revive' && !memberReviveStatus[m.id] && !skillCooldown[m.id]
+    );
+    if (revivableIndex >= 0) {
+      useSkill(revivableIndex);
+      return;
+    }
+
+    // 最初の生存メンバーを選択
+    const memberIndex = party.findIndex(m => m.hp > 0);
+    if (memberIndex < 0) return;
+
+    const member = party[memberIndex];
+    const cd = skillCooldown[member.id] || 0;
+
+    // 回復: 味方のHPが70%未満の人がいる場合
+    if (member.skill_type === 'heal' && cd === 0) {
+      const lowHpAlly = party
+        .map((p, i) => ({ p, i }))
+        .filter(({ p }) => p.hp > 0 && p.hp < p.max_hp * 0.7)
+        .sort((a, b) => a.p.hp - b.p.hp)[0];
+      if (lowHpAlly) {
+        useSkill(memberIndex, lowHpAlly.i);
+        return;
+      }
+    }
+
+    // HSTパワー: 複数敵がいる場合
+    if (member.skill_type === 'hst_power' && cd === 0 && aliveEnemies.length > 0) {
+      useSkill(memberIndex);
+      return;
+    }
+
+    // 攻撃: HPが最も低い敵を狙う
+    const targetEnemyIndex = enemies.findIndex(e => e.hp > 0);
+    if (targetEnemyIndex >= 0) {
+      const lowestHpEnemyIndex = enemies
+        .map((e, i) => ({ e, i }))
+        .filter(({ e }) => e.hp > 0)
+        .sort((a, b) => a.e.hp - b.e.hp)[0]?.i ?? targetEnemyIndex;
+      playerAttack(memberIndex, lowestHpEnemyIndex);
+    }
+  }
+
+  // AUTOモード: プレイヤーターン時に自動実行
+  useEffect(() => {
+    if (!autoMode || !isPlayerTurn || battleResult || loading) return;
+    const timer = setTimeout(() => executeAutoAction(), 600);
+    return () => clearTimeout(timer);
+  }, [autoMode, isPlayerTurn, battleResult, loading, party, enemies, skillCooldown, memberReviveStatus]);
 
   async function playerAttack(memberIndex: number, enemyIndex: number) {
     if (!isPlayerTurn) return;
@@ -705,7 +764,18 @@ function BattleContent() {
       <div className="max-w-6xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-6">
-          <h1 className="text-3xl font-bold">⚔️ バトル - ステージ{stageId} - ターン {turn}</h1>
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <h1 className="text-3xl font-bold">⚔️ バトル - ステージ{stageId} - ターン {turn}</h1>
+            <button
+              onClick={() => setAutoMode(prev => !prev)}
+              className={`px-4 py-2 rounded-lg font-bold transition ${
+                autoMode ? 'bg-green-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+              title={autoMode ? 'AUTOモードON（クリックでOFF）' : 'AUTOモードOFF（クリックでON）'}
+            >
+              {autoMode ? '▶ AUTO' : 'AUTO'}
+            </button>
+          </div>
           {(() => {
             const stageInfo = getStageInfo(stageId);
             const avgPartyLevel = party.length > 0 

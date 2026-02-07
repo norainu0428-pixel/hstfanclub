@@ -121,7 +121,8 @@ CREATE TABLE IF NOT EXISTS user_members (
   skill_power INTEGER DEFAULT 0,
   revive_used BOOLEAN DEFAULT false,
   obtained_at TIMESTAMP DEFAULT NOW(),
-  is_favorite BOOLEAN DEFAULT false
+  is_favorite BOOLEAN DEFAULT false,
+  locked BOOLEAN DEFAULT false
 );
 
 -- 既存テーブルにカラムがなければ追加
@@ -129,6 +130,7 @@ ALTER TABLE user_members ADD COLUMN IF NOT EXISTS current_hp INTEGER;
 ALTER TABLE user_members ADD COLUMN IF NOT EXISTS skill_type TEXT;
 ALTER TABLE user_members ADD COLUMN IF NOT EXISTS skill_power INTEGER DEFAULT 0;
 ALTER TABLE user_members ADD COLUMN IF NOT EXISTS revive_used BOOLEAN DEFAULT false;
+ALTER TABLE user_members ADD COLUMN IF NOT EXISTS locked BOOLEAN DEFAULT false;
 
 -- current_hpをmax_hpで埋める
 UPDATE user_members SET current_hp = COALESCE(max_hp, hp) WHERE current_hp IS NULL;

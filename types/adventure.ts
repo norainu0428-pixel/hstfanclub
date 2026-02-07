@@ -16,6 +16,7 @@ export interface Member {
   speed: number;
   obtained_at: string;
   is_favorite: boolean;
+  locked?: boolean;
   skill_type?: string | null;
   skill_power?: number;
   revive_used?: boolean;

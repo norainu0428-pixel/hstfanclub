@@ -9,6 +9,8 @@ interface MemberCardProps {
   onClick?: () => void;
   selected?: boolean;
   showStats?: boolean;
+  showLockToggle?: boolean;
+  onLockToggle?: (member: Member) => void;
 }
 
 function getSkillName(skillType: string | null | undefined): string {
@@ -23,7 +25,7 @@ function getSkillName(skillType: string | null | undefined): string {
   return names[skillType] || skillType;
 }
 
-export default function MemberCard({ member, onClick, selected = false, showStats = true }: MemberCardProps) {
+export default function MemberCard({ member, onClick, selected = false, showStats = true, showLockToggle = false, onLockToggle }: MemberCardProps) {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'HST': return 'from-yellow-600 via-orange-600 to-red-600';
@@ -84,7 +86,23 @@ export default function MemberCard({ member, onClick, selected = false, showStat
 
       {/* お気に入り */}
       {member.is_favorite && (
-        <div className="absolute top-2 left-2 text-2xl">⭐</div>
+        <div className={`absolute top-2 text-2xl z-10 ${showLockToggle ? 'left-12' : 'left-2'}`}>⭐</div>
+      )}
+
+      {/* ロック（合成に使用不可） */}
+      {showLockToggle && onLockToggle && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onLockToggle(member);
+          }}
+          className={`absolute top-2 left-2 p-2 rounded-lg transition z-10 ${
+            member.locked ? 'bg-amber-500 text-white' : 'bg-gray-700/80 text-gray-400 hover:bg-gray-600'
+          }`}
+          title={member.locked ? 'ロック解除（合成に使える）' : 'ロック（合成に使えない）'}
+        >
+          {member.locked ? '🔒' : '🔓'}
+        </button>
       )}
 
       {/* メンバー画像（plate: HSTレア時はHSTフォルダ、それ以外は直下を使用） */}
@@ -196,6 +214,15 @@ export default function MemberCard({ member, onClick, selected = false, showStat
           </>
         )}
       </div>
+
+      {/* ロック中オーバーレイ（合成モードでロック時） */}
+      {member.locked && showLockToggle && (
+        <div className="absolute inset-0 bg-gray-900/70 flex items-center justify-center pointer-events-none">
+          <div className="bg-amber-500/90 text-white px-4 py-2 rounded-lg font-bold">
+            🔒 ロック中
+          </div>
+        </div>
+      )}
 
       {/* 選択中インジケーター */}
       {selected && (

@@ -142,9 +142,43 @@ export default function AdventurePage() {
     router.push(`/adventure/stages?party=${partyIds}&current=${currentStage}`);
   }
 
+  async function toggleLock(member: Member) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const newLocked = !member.locked;
+    const { error } = await supabase
+      .from('user_members')
+      .update({ locked: newLocked })
+      .eq('id', member.id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('ロック更新エラー:', error);
+      return;
+    }
+
+    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: newLocked } : m));
+    if (newLocked) {
+      if (baseMember?.id === member.id) setBaseMember(null);
+      setMaterialMembers(prev => prev.filter(m => m.id !== member.id));
+    } else {
+      if (baseMember?.id === member.id) setBaseMember(prev => prev ? { ...prev, locked: false } : null);
+      setMaterialMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: false } : m));
+    }
+  }
+
   // 合成実行
   async function executeFusion() {
     if (!baseMember || materialMembers.length === 0) return;
+    if (baseMember.locked) {
+      alert('ロック中のメンバーは合成に使えません');
+      return;
+    }
+    if (materialMembers.some(m => m.locked)) {
+      alert('ロック中のメンバーは素材に使えません');
+      return;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -423,15 +457,17 @@ export default function AdventurePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {members.map(member => {
               if (fusionMode) {
-                // 合成モードの場合
+                // 合成モードの場合（ロック中は選択不可）
                 const isBase = baseMember?.id === member.id;
                 const isMaterial = materialMembers.some(m => m.id === member.id);
                 const materialIndex = materialMembers.findIndex(m => m.id === member.id);
+                const isLocked = member.locked === true;
                 
                 return (
                   <div
                     key={member.id}
                     onClick={() => {
+                      if (isLocked) return;
                       if (isBase) {
                         setBaseMember(null);
                       } else if (isMaterial) {
@@ -446,12 +482,14 @@ export default function AdventurePage() {
                         }
                       }
                     }}
-                    className="cursor-pointer"
+                    className={isLocked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
                   >
                     <MemberCard
                       member={member}
                       selected={isBase || isMaterial}
                       showStats={true}
+                      showLockToggle={true}
+                      onLockToggle={toggleLock}
                     />
                   </div>
                 );
@@ -464,6 +502,8 @@ export default function AdventurePage() {
                   member={member}
                   onClick={() => addToParty(member)}
                   selected={party.some(m => m?.id === member.id)}
+                  showLockToggle={true}
+                  onLockToggle={toggleLock}
                 />
               );
             })}
