@@ -23,7 +23,10 @@ export interface Member {
   current_hp?: number;
 }
 
+export type EnemySkillType = 'heal' | 'revive' | 'attack_boost' | null;
+
 export interface Enemy {
+  id?: string;
   name: string;
   emoji: string;
   hp: number;
@@ -33,6 +36,9 @@ export interface Enemy {
   speed: number;
   experience_reward: number;
   points_reward: number;
+  /** ステージ60+のボス用スキル */
+  skill_type?: EnemySkillType;
+  skill_power?: number;
 }
 
 export interface BattleAction {

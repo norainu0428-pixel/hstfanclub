@@ -1,4 +1,4 @@
-import { Enemy } from '@/types/adventure';
+import { Enemy, EnemySkillType } from '@/types/adventure';
 
 // ステージ情報
 export interface StageInfo {
@@ -90,8 +90,8 @@ export function generateStageInfo(stage: number): StageInfo {
     bossMultiplier = 1.2; // 10の倍数は1.2倍
   }
   
-  // 敵ステータス: 推奨レベル+5相当の強さ（推奨レベルの5レベル上くらいで勝てる難易度）
-  const enemyLevel = recommendedLevel + 5;
+  // 敵ステータス: 推奨レベル+10相当の強さ（全難易度をかなり高めに）
+  const enemyLevel = recommendedLevel + 10;
   const baseStats = calculateEnemyStatsByLevel(enemyLevel);
   
   const enemies: Enemy[] = [];
@@ -115,12 +115,11 @@ export function generateStageInfo(stage: number): StageInfo {
     const isBoss = isBossStage && i === enemyCount - 1;
     const multiplier = isBoss ? bossMultiplier : 1;
     
-    // 推奨レベルに基づいてステータスを計算
-    // HP・防御は低め（敵を倒しやすく）、攻撃は高め（プレイヤーにダメージ入るように）
-    const hpRatio = isBoss ? 0.6 * multiplier : 0.5;
-    const defenseRatio = isBoss ? 0.6 * multiplier : 0.5;
-    const attackRatio = isBoss ? 1.5 * multiplier : 1.4;  // 敵の攻撃力は高め（プレイヤーHPが減る）
-    const speedRatio = isBoss ? 0.9 * multiplier : 0.85;
+    // 推奨レベルに基づいてステータスを計算（全難易度を高め、防御も強化）
+    const hpRatio = isBoss ? 0.9 * multiplier : 0.8;
+    const defenseRatio = isBoss ? 1.0 * multiplier : 0.9;  // 防御を強化（ダメージが入りにくく）
+    const attackRatio = isBoss ? 1.6 * multiplier : 1.5;
+    const speedRatio = isBoss ? 1.05 * multiplier : 1.0;
     
     const hp = Math.floor(baseStats.hp * hpRatio);
     const attack = Math.floor(baseStats.attack * attackRatio);
@@ -162,7 +161,22 @@ export function generateStageInfo(stage: number): StageInfo {
       enemyName = `${enemyType.name} Lv.${Math.floor(stage / 5) + 1}`;
     }
     
+    // ステージ60+のボスは強力なスキルを持つ
+    let skill_type: EnemySkillType = null;
+    let skill_power = 0;
+    if (stage >= 60 && isBoss) {
+      const bossSkills: { type: EnemySkillType; power: number }[] = [
+        { type: 'heal', power: Math.floor(hp * 0.3) },           // 自分or味方のHP30%回復
+        { type: 'revive', power: Math.floor(hp * 0.5) },          // 倒れた味方を50%HPで蘇生
+        { type: 'attack_boost', power: Math.floor(attack * 0.5) } // 攻撃力50%上昇
+      ];
+      const skillIndex = stage % bossSkills.length;
+      skill_type = bossSkills[skillIndex].type;
+      skill_power = bossSkills[skillIndex].power;
+    }
+    
     enemies.push({
+      id: `enemy_${stage}_${i}`,
       name: enemyName,
       emoji: enemyType.emoji,
       hp: hp,
@@ -171,7 +185,8 @@ export function generateStageInfo(stage: number): StageInfo {
       defense: defense,
       speed: speed,
       experience_reward: expReward,
-      points_reward: pointsReward
+      points_reward: pointsReward,
+      ...(skill_type && { skill_type, skill_power })
     });
   }
   

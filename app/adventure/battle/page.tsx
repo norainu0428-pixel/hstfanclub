@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
@@ -37,6 +37,9 @@ function BattleContent() {
   const [skillCooldown, setSkillCooldown] = useState<{ [key: string]: number }>({});
   const [attackBoost, setAttackBoost] = useState<{ [key: string]: number }>({}); // 攻撃力ブースト（次の攻撃まで）
   const [defenseBoost, setDefenseBoost] = useState<{ [key: string]: number }>({}); // 防御力ブースト（次の被ダメージまで）
+  const [enemySkillCooldown, setEnemySkillCooldown] = useState<{ [key: string]: number }>({});
+  const [enemyAttackBoost, setEnemyAttackBoost] = useState<{ [key: string]: number }>({});
+  const enemiesRef = useRef<Enemy[]>([]);
   const [originalHp, setOriginalHp] = useState<{ [key: string]: number }>({}); // バトル開始時のHP（復元用）
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
@@ -45,6 +48,10 @@ function BattleContent() {
   useEffect(() => {
     initBattle();
   }, []);
+
+  useEffect(() => {
+    enemiesRef.current = enemies;
+  }, [enemies]);
 
   // パーティ全滅チェック（useEffectで監視）
   useEffect(() => {
@@ -101,7 +108,9 @@ function BattleContent() {
 
     // 敵読み込み（ステージに応じて）
     const stageInfo = getStageInfo(stageId);
-    setEnemies(stageInfo.enemies.map(enemy => ({ ...enemy }))); // コピーを作成
+    const enemiesCopy = stageInfo.enemies.map(enemy => ({ ...enemy }));
+    setEnemies(enemiesCopy);
+    enemiesRef.current = enemiesCopy;
 
     addLog(`ステージ${stageId}の戦闘が始まった！（推奨レベル: ${stageInfo.recommendedLevel}）`);
     setLoading(false);
@@ -452,6 +461,15 @@ function BattleContent() {
               });
               return newCooldown;
             });
+            // 敵スキルクールダウン減少
+            setEnemySkillCooldown(current => {
+              const newCooldown: any = {};
+              Object.keys(current).forEach(key => {
+                const cd = current[key] - 1;
+                if (cd > 0) newCooldown[key] = cd;
+              });
+              return newCooldown;
+            });
             
             // 蘇生チェックの完了を待ってから全滅チェック（useEffectが検出する）
             setTimeout(() => {
@@ -474,8 +492,48 @@ function BattleContent() {
       const enemy = aliveEnemies[enemyIndex];
       
       setTimeout(() => {
-        // 最新のparty状態と防御力ブーストを取得
-        setParty(currentParty => {
+        // ステージ60+のボス: スキルを使用する場合がある
+        const currentEnemies = enemiesRef.current;
+        const skillCd = enemy.id ? (enemySkillCooldown[enemy.id] || 0) : 999;
+        const canUseSkill = stageId >= 60 && enemy.skill_type && skillCd === 0;
+
+        let useSkill = false;
+        if (canUseSkill) {
+          const deadEnemies = currentEnemies.filter(e => e.hp <= 0);
+          const damagedEnemies = currentEnemies.filter(e => e.hp > 0 && e.hp < e.max_hp);
+          if (enemy.skill_type === 'revive' && deadEnemies.length > 0) useSkill = Math.random() < 0.6;
+          else if (enemy.skill_type === 'heal' && damagedEnemies.length > 0) useSkill = Math.random() < 0.5;
+          else if (enemy.skill_type === 'attack_boost') useSkill = Math.random() < 0.5;
+        }
+
+        if (useSkill) {
+          setEnemySkillCooldown(prev => ({ ...prev, [enemy.id!]: 3 }));
+          if (enemy.skill_type === 'heal') {
+            const healTargets = currentEnemies.filter(e => e.hp > 0 && e.hp < e.max_hp);
+            const targets = healTargets.length > 0 ? healTargets : currentEnemies.filter(e => e.hp > 0);
+            const target = targets[Math.floor(Math.random() * targets.length)];
+            if (target) {
+              const healAmount = Math.min(enemy.skill_power || 0, target.max_hp - target.hp);
+              addLog(`${enemy.emoji} ${enemy.name}が回復魔法を発動！ ${target.name}のHPを${healAmount}回復！`);
+              const newEnemies = currentEnemies.map(e => e.id === target.id ? { ...e, hp: Math.min(e.max_hp, e.hp + healAmount) } : e);
+              setEnemies(newEnemies);
+            }
+          } else if (enemy.skill_type === 'revive') {
+            const deadEnemies = currentEnemies.filter(e => e.hp <= 0);
+            if (deadEnemies.length > 0) {
+              const target = deadEnemies[Math.floor(Math.random() * deadEnemies.length)];
+              addLog(`${enemy.emoji} ${enemy.name}が蘇生魔法を発動！ ${target.name}が復活した！`);
+              const newEnemies = currentEnemies.map(e => e.id === target.id ? { ...e, hp: Math.min(e.max_hp, enemy.skill_power || 0) } : e);
+              setEnemies(newEnemies);
+            }
+          } else if (enemy.skill_type === 'attack_boost') {
+            setEnemyAttackBoost(prev => ({ ...prev, [enemy.id!]: enemy.skill_power || 0 }));
+            addLog(`${enemy.emoji} ${enemy.name}が攻撃力上昇を発動！ 次の攻撃が強化される！`);
+          }
+          setTimeout(() => processEnemyAttack(enemyIndex + 1), 500);
+        } else {
+          // 通常攻撃
+          setParty(currentParty => {
           const currentAliveParty = currentParty.filter(m => m.hp > 0);
           if (currentAliveParty.length === 0) {
             handleDefeat();
@@ -484,55 +542,43 @@ function BattleContent() {
 
           const targetIndex = Math.floor(Math.random() * currentAliveParty.length);
           const target = currentAliveParty[targetIndex];
-          
           if (!target) {
-            // ターゲットが見つからない場合は次の敵の攻撃を処理
             processEnemyAttack(enemyIndex + 1);
             return currentParty;
           }
 
-          // 最新の防御力ブーストを取得してダメージ計算
           setDefenseBoost(currentDefenseBoost => {
             const defenseBoostAmount = currentDefenseBoost[target.id] || 0;
             const boostedDefense = target.defense + defenseBoostAmount;
-            const damage = calculateDamage(enemy.attack, boostedDefense);
+            const effectiveAttack = enemy.attack + (enemy.id ? (enemyAttackBoost[enemy.id] || 0) : 0);
+            const damage = calculateDamage(effectiveAttack, boostedDefense);
 
-            // 防御力ブーストを消費（使用後は削除）
+            // 攻撃力ブースト・防御力ブーストを消費
             const newDefenseBoost = { ...currentDefenseBoost };
-            if (newDefenseBoost[target.id]) {
-              delete newDefenseBoost[target.id];
+            if (newDefenseBoost[target.id]) delete newDefenseBoost[target.id];
+            if (enemy.id && enemyAttackBoost[enemy.id]) {
+              setEnemyAttackBoost(prev => { const n = { ...prev }; delete n[enemy.id!]; return n; });
             }
 
             const boostText = defenseBoostAmount > 0 ? `（防御力+${defenseBoostAmount}で軽減）` : '';
             addLog(`${enemy.emoji} ${enemy.name}の攻撃${boostText}！ ${target.member_emoji} ${target.member_name}に${damage}ダメージ！`);
 
-            // パーティのHPを更新
             setParty(partyState => {
               const updatedParty = partyState.map(m => 
-                m.id === target.id 
-                  ? { ...m, hp: Math.max(m.hp - damage, 0) }
-                  : m
+                m.id === target.id ? { ...m, hp: Math.max(m.hp - damage, 0) } : m
               );
-
-              // STARY蘇生チェック
               const targetMemberIndex = updatedParty.findIndex(m => m.id === target.id);
               if (targetMemberIndex >= 0 && updatedParty[targetMemberIndex].hp <= 0) {
-                setTimeout(() => {
-                  checkAutoRevive(targetMemberIndex);
-                }, 300);
+                setTimeout(() => checkAutoRevive(targetMemberIndex), 300);
               }
-
-              // 次の敵の攻撃を処理
               processEnemyAttack(enemyIndex + 1);
-
               return updatedParty;
             });
-
             return newDefenseBoost;
           });
-
           return currentParty;
         });
+        }
       }, enemyIndex * 500);
     };
 
