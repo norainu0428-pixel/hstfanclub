@@ -68,13 +68,13 @@ export const MAX_LEVELS: { [key: string]: number } = {
 
 // レベルアップ時のステータス上昇
 export const LEVEL_UP_STATS: { [key: string]: { hp: number, attack: number, defense: number, speed: number } } = {
-  'HST': { hp: 20, attack: 7, defense: 4, speed: 4 },
-  'stary': { hp: 20, attack: 6, defense: 4, speed: 4 },
-  'legendary': { hp: 15, attack: 5, defense: 3, speed: 3 },
-  'ultra-rare': { hp: 12, attack: 4, defense: 2, speed: 2 },
-  'super-rare': { hp: 10, attack: 3, defense: 2, speed: 2 },
-  'rare': { hp: 8, attack: 3, defense: 1, speed: 1 },
-  'common': { hp: 6, attack: 2, defense: 1, speed: 1 }
+  'HST': { hp: 20, attack: 5, defense: 4, speed: 4 },
+  'stary': { hp: 20, attack: 5, defense: 4, speed: 4 },
+  'legendary': { hp: 15, attack: 4, defense: 3, speed: 3 },
+  'ultra-rare': { hp: 12, attack: 3, defense: 2, speed: 2 },
+  'super-rare': { hp: 10, attack: 2, defense: 2, speed: 2 },
+  'rare': { hp: 8, attack: 2, defense: 1, speed: 1 },
+  'common': { hp: 6, attack: 1, defense: 1, speed: 1 }
 };
 
 // 必要経験値計算

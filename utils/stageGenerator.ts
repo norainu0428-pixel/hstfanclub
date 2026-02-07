@@ -90,8 +90,9 @@ export function generateStageInfo(stage: number): StageInfo {
     bossMultiplier = 1.2; // 10の倍数は1.2倍
   }
   
-  // 推奨レベルに基づいて基本ステータスを計算
-  const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
+  // 敵ステータス: 推奨レベル+5相当の強さ（推奨レベルの5レベル上くらいで勝てる難易度）
+  const enemyLevel = recommendedLevel + 5;
+  const baseStats = calculateEnemyStatsByLevel(enemyLevel);
   
   const enemies: Enemy[] = [];
   

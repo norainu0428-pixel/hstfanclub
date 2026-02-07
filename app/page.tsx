@@ -60,7 +60,7 @@ export default function Home() {
           description: 'チームリーダー',
           rarity: 'common',
           hp: 60,
-          attack: 16,
+          attack: 10,
           defense: 8,
           speed: 10
         },
@@ -70,7 +70,7 @@ export default function Home() {
           description: 'エースプレイヤー',
           rarity: 'common',
           hp: 60,
-          attack: 16,
+          attack: 10,
           defense: 8,
           speed: 10
         },
@@ -80,7 +80,7 @@ export default function Home() {
           description: 'ストラテジスト',
           rarity: 'common',
           hp: 60,
-          attack: 16,
+          attack: 10,
           defense: 8,
           speed: 10
         }
@@ -143,14 +143,14 @@ export default function Home() {
         
         const baseStats = {
           hp: 200,
-          attack: 65,
+          attack: 50,
           defense: 30,
           speed: 40
         };
 
         const growthPerLevel = {
           hp: 20,
-          attack: 6,
+          attack: 5,
           defense: 4,
           speed: 4
         };
