@@ -244,6 +244,14 @@ export default function Home() {
 
           if (createError) {
             console.error('  fetchProfile: プロフィール作成エラー', createError);
+            // プロフィール作成失敗時もユーザーは表示する（ログイン状態は維持）
+            setUser(user);
+            setProfile(null);
+            setLoading(false);
+            clearTimeout(timeout);
+            // エラーメッセージを表示
+            setAuthError(`プロフィール作成に失敗しました: ${createError.message}`);
+            return;
           } else {
             profile = newProfile;
             console.log('  fetchProfile: プロフィール作成完了', profile);
@@ -315,6 +323,11 @@ export default function Home() {
                   3. シークレットモードで試してください<br />
                   4. Supabase → URL Configuration に <code className="bg-black/30 px-1">https://hstfanclub.vercel.app/auth/callback</code> が追加されているか確認
                 </>
+              ) : authError.includes('プロフィール作成に失敗') ? (
+                <>
+                  <strong>対処法：</strong><br />
+                  Supabase Dashboard → SQL Editor で <code className="bg-black/30 px-1">supabase_fix_new_user_login.sql</code> を実行してください。新規ユーザーのプロフィール作成が有効になります。
+                </>
               ) : (
                 'Supabaseの認証設定（Redirect URLs）を確認してください。'
               )}
@@ -345,6 +358,17 @@ export default function Home() {
     <div className="min-h-screen p-8 bg-black text-white">
       <h1 className="text-4xl font-bold mb-6 text-orange-500">HSTファンクラブ</h1>
       
+      {authError && (
+        <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+          <p className="font-bold mb-2">エラー</p>
+          <p>{authError}</p>
+          {authError.includes('プロフィール作成に失敗') && (
+            <p className="mt-2 text-xs text-gray-400">
+              Supabase Dashboard → SQL Editor で <code className="bg-black/30 px-1">supabase_fix_new_user_login.sql</code> を実行してください。
+            </p>
+          )}
+        </div>
+      )}
       {profile ? (
         <div className="border border-orange-500/30 bg-gray-900 p-4 rounded-lg mb-6 shadow-lg shadow-orange-500/10">
           <p className="text-white">ようこそ、<span className="text-orange-500 font-bold">{profile.display_name}</span>さん</p>
