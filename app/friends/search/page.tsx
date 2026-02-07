@@ -42,16 +42,27 @@ export default function PlayerSearchPage() {
 
     const { data: { user } } = await supabase.auth.getUser();
     const myId = user?.id ?? currentUserId;
+    if (!myId) {
+      alert('ログインしてください');
+      setLoading(false);
+      return;
+    }
 
-    // プレイヤー検索: 表示名と user_id（フレンドID）の両方で検索
-    const { data: players } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, membership_tier, avatar_url')
-      .or(`display_name.ilike.%${term}%,user_id.ilike.${term}%`)
-      .neq('user_id', myId || '')
-      .limit(20);
+    // RPC で検索（RLS をバイパスして確実に結果を取得）
+    const { data: players, error } = await supabase.rpc('search_profiles_for_friends', {
+      p_search_term: term,
+      p_exclude_user_id: myId
+    });
 
-    if (!players) {
+    if (error) {
+      console.error('search_profiles_for_friends error:', error);
+      alert('検索に失敗しました: ' + error.message + '（supabase_friend_fix.sql の RPC を実行してください）');
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    if (!players || players.length === 0) {
       setResults([]);
       setLoading(false);
       return;
@@ -205,8 +216,8 @@ export default function PlayerSearchPage() {
         ) : !loading && searchTerm.trim() ? (
           <div className="bg-white rounded-2xl p-6 shadow-2xl text-center text-gray-600">
             <p className="font-bold mb-2">検索結果が見つかりませんでした</p>
-            <p className="text-sm">・表示名・フレンドIDで検索できます</p>
-            <p className="text-sm">・Supabase で supabase_friend_fix.sql を実行済みか確認してください</p>
+            <p className="text-sm">・表示名の一部、またはフレンドID（先頭8文字以上）で検索できます</p>
+            <p className="text-sm">・該当するプレイヤーがいない可能性があります</p>
           </div>
         ) : null}
 
