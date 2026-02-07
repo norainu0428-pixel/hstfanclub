@@ -90,8 +90,8 @@ export function generateStageInfo(stage: number): StageInfo {
     bossMultiplier = 1.2; // 10の倍数は1.2倍
   }
   
-  // 敵ステータス: 推奨レベル+10相当の強さ（全難易度をかなり高めに）
-  const enemyLevel = recommendedLevel + 10;
+  // 敵ステータス: 推奨レベル+15相当の強さ（かなり厳しい難易度）
+  const enemyLevel = recommendedLevel + 15;
   const baseStats = calculateEnemyStatsByLevel(enemyLevel);
   
   const enemies: Enemy[] = [];
@@ -115,11 +115,11 @@ export function generateStageInfo(stage: number): StageInfo {
     const isBoss = isBossStage && i === enemyCount - 1;
     const multiplier = isBoss ? bossMultiplier : 1;
     
-    // 推奨レベルに基づいてステータスを計算（全難易度を高め、防御も強化）
-    const hpRatio = isBoss ? 0.9 * multiplier : 0.8;
-    const defenseRatio = isBoss ? 1.0 * multiplier : 0.9;  // 防御を強化（ダメージが入りにくく）
-    const attackRatio = isBoss ? 1.6 * multiplier : 1.5;
-    const speedRatio = isBoss ? 1.05 * multiplier : 1.0;
+    // 推奨レベルに基づいてステータスを計算（厳しい難易度）
+    const hpRatio = isBoss ? 1.1 * multiplier : 1.0;
+    const defenseRatio = isBoss ? 1.2 * multiplier : 1.1;  // 防御を高めに
+    const attackRatio = isBoss ? 1.8 * multiplier : 1.7;
+    const speedRatio = isBoss ? 1.2 * multiplier : 1.1;
     
     const hp = Math.floor(baseStats.hp * hpRatio);
     const attack = Math.floor(baseStats.attack * attackRatio);
