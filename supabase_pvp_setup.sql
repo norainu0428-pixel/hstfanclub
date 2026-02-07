@@ -52,3 +52,21 @@ BEGIN
   END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
+
+-- ========================================
+-- 対戦で相手のキャラを表示するため user_members の SELECT を許可
+-- （自分が参加している PvP バトルの player1_party / player2_party に含まれるメンバーを参照可能）
+-- ========================================
+DROP POLICY IF EXISTS "Users can view members in pvp battles" ON user_members;
+CREATE POLICY "Users can view members in pvp battles" ON user_members
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM pvp_battles pb
+      WHERE (pb.player1_id = auth.uid() OR pb.player2_id = auth.uid())
+      AND (
+        (pb.player1_party IS NOT NULL AND user_members.id = ANY(pb.player1_party))
+        OR
+        (pb.player2_party IS NOT NULL AND user_members.id = ANY(pb.player2_party))
+      )
+    )
+  );
