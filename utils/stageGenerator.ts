@@ -114,14 +114,17 @@ export function generateStageInfo(stage: number): StageInfo {
     const isBoss = isBossStage && i === enemyCount - 1;
     const multiplier = isBoss ? bossMultiplier : 1;
     
-    // 推奨レベルに基づいてステータスを計算（敵はプレイヤーより少し弱めに設定）
-    // 通常敵は推奨レベルの80%、ボスはmultiplierを適用
-    const enemyPowerRatio = isBoss ? 0.9 * multiplier : 0.8;
+    // 推奨レベルに基づいてステータスを計算
+    // HP・防御は低め（敵を倒しやすく）、攻撃は高め（プレイヤーにダメージ入るように）
+    const hpRatio = isBoss ? 0.6 * multiplier : 0.5;
+    const defenseRatio = isBoss ? 0.6 * multiplier : 0.5;
+    const attackRatio = isBoss ? 1.3 * multiplier : 1.2;  // 敵の攻撃力は高め（プレイヤーHPが減る）
+    const speedRatio = isBoss ? 0.9 * multiplier : 0.85;
     
-    const hp = Math.floor(baseStats.hp * enemyPowerRatio);
-    const attack = Math.floor(baseStats.attack * enemyPowerRatio);
-    const defense = Math.floor(baseStats.defense * enemyPowerRatio);
-    const speed = Math.floor(baseStats.speed * enemyPowerRatio);
+    const hp = Math.floor(baseStats.hp * hpRatio);
+    const attack = Math.floor(baseStats.attack * attackRatio);
+    const defense = Math.floor(baseStats.defense * defenseRatio);
+    const speed = Math.floor(baseStats.speed * speedRatio);
     
     // 経験値とポイント報酬（400ステージまで適切にスケール）
     // ポイント報酬は1勝利あたり10ポイント（全敵を倒した時の合計）

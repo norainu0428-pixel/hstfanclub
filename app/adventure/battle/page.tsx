@@ -7,6 +7,7 @@ import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
 import { getStageInfo } from '@/utils/stageGenerator';
 import { updateMissionProgress } from '@/utils/missionTracker';
+import { calculateDamage } from '@/utils/damage';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
 
@@ -384,8 +385,7 @@ function BattleContent() {
     // ダメージ計算（攻撃力ブーストを適用）
     const attackBoostAmount = attackBoost[member.id] || 0;
     const boostedAttack = member.attack + attackBoostAmount;
-    const baseDamage = boostedAttack - enemy.defense;
-    const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+    const damage = calculateDamage(boostedAttack, enemy.defense);
 
     // 攻撃力ブーストを消費（使用後は削除）
     if (attackBoost[member.id]) {
@@ -495,8 +495,7 @@ function BattleContent() {
           setDefenseBoost(currentDefenseBoost => {
             const defenseBoostAmount = currentDefenseBoost[target.id] || 0;
             const boostedDefense = target.defense + defenseBoostAmount;
-            const baseDamage = enemy.attack - boostedDefense;
-            const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+            const damage = calculateDamage(enemy.attack, boostedDefense);
 
             // 防御力ブーストを消費（使用後は削除）
             const newDefenseBoost = { ...currentDefenseBoost };

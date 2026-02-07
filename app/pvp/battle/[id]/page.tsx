@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
+import { calculateDamage } from '@/utils/damage';
 
 interface BattleState {
   id: string;
@@ -239,8 +240,7 @@ export default function PvPBattlePage() {
         return;
       }
 
-      const baseDamage = attackerMember.attack - targetMember.defense;
-      const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+      const damage = calculateDamage(attackerMember.attack, targetMember.defense);
       
       const newHp = Math.max(targetCurrentHp - damage, 0);
 
