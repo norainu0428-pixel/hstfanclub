@@ -90,8 +90,8 @@ export function generateStageInfo(stage: number): StageInfo {
     bossMultiplier = 1.2; // 10の倍数は1.2倍
   }
   
-  // 敵ステータス: ステージ1は易しく、それ以外は推奨レベル+15相当（厳しい難易度）
-  const enemyLevel = stage === 1 ? 1 : recommendedLevel + 15;
+  // 敵ステータス: ステージ1は易しく、それ以外は推奨レベル+10相当（やや緩め）
+  const enemyLevel = stage === 1 ? 1 : recommendedLevel + 10;
   const baseStats = calculateEnemyStatsByLevel(enemyLevel);
   
   const enemies: Enemy[] = [];
@@ -115,12 +115,12 @@ export function generateStageInfo(stage: number): StageInfo {
     const isBoss = isBossStage && i === enemyCount - 1;
     const multiplier = isBoss ? bossMultiplier : 1;
     
-    // ステージ1は易しく、それ以外は厳しい難易度
+    // ステージ1は易しく、それ以外はやや緩めの難易度
     const isStage1 = stage === 1;
-    const hpRatio = isStage1 ? (isBoss ? 0.6 : 0.5) : (isBoss ? 1.1 * multiplier : 1.0);
-    const defenseRatio = isStage1 ? (isBoss ? 0.5 : 0.45) : (isBoss ? 1.2 * multiplier : 1.1);
-    const attackRatio = isStage1 ? (isBoss ? 0.7 : 0.6) : (isBoss ? 1.8 * multiplier : 1.7);
-    const speedRatio = isStage1 ? (isBoss ? 0.7 : 0.6) : (isBoss ? 1.2 * multiplier : 1.1);
+    const hpRatio = isStage1 ? (isBoss ? 0.6 : 0.5) : (isBoss ? 1.05 * multiplier : 0.95);
+    const defenseRatio = isStage1 ? (isBoss ? 0.5 : 0.45) : (isBoss ? 1.15 * multiplier : 1.0);
+    const attackRatio = isStage1 ? (isBoss ? 0.7 : 0.6) : (isBoss ? 1.6 * multiplier : 1.5);
+    const speedRatio = isStage1 ? (isBoss ? 0.7 : 0.6) : (isBoss ? 1.1 * multiplier : 1.0);
     
     const hp = Math.floor(baseStats.hp * hpRatio);
     const attack = Math.floor(baseStats.attack * attackRatio);
@@ -215,17 +215,17 @@ export const EXTRA_STAGE_COUNT = 10;
 function generateExtraStageInfo(extraStageNum: number): StageInfo {
   const stage = EXTRA_STAGE_BASE + extraStageNum;
   const recommendedLevel = 60 + extraStageNum * 5; // Extra1=65, Extra10=110
-  const enemyLevel = recommendedLevel + 15;
+  const enemyLevel = recommendedLevel + 10; // やや緩め
   const baseStats = calculateEnemyStatsByLevel(enemyLevel);
   
   // 強力なボス1体（最強の敵タイプを使用）
   const enemyType = ENEMY_TYPES[Math.min(9 + extraStageNum, ENEMY_TYPES.length - 1)];
-  const bossMultiplier = 1.2 + (extraStageNum - 1) * 0.05; // Extra1=1.2, Extra10=1.65
+  const bossMultiplier = 1.15 + (extraStageNum - 1) * 0.04; // やや緩め
   
-  const hp = Math.floor(baseStats.hp * 1.2 * bossMultiplier);
-  const attack = Math.floor(baseStats.attack * 1.8 * bossMultiplier);
-  const defense = Math.floor(baseStats.defense * 1.2 * bossMultiplier);
-  const speed = Math.floor(baseStats.speed * 1.2 * bossMultiplier);
+  const hp = Math.floor(baseStats.hp * 1.1 * bossMultiplier);
+  const attack = Math.floor(baseStats.attack * 1.6 * bossMultiplier);
+  const defense = Math.floor(baseStats.defense * 1.1 * bossMultiplier);
+  const speed = Math.floor(baseStats.speed * 1.1 * bossMultiplier);
   
   const expReward = Math.floor((500 + extraStageNum * 200) * bossMultiplier);
   const pointsReward = Math.floor((20 + extraStageNum * 5) * bossMultiplier);
