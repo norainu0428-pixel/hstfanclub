@@ -32,22 +32,27 @@ export default function PlayerSearchPage() {
   }
 
   async function searchPlayers() {
-    if (!searchTerm.trim()) {
+    const term = searchTerm.trim();
+    if (!term) {
       alert('検索キーワードを入力してください');
       return;
     }
 
     setLoading(true);
 
-    // プレイヤー検索
+    const { data: { user } } = await supabase.auth.getUser();
+    const myId = user?.id ?? currentUserId;
+
+    // プレイヤー検索: 表示名と user_id（フレンドID）の両方で検索
     const { data: players } = await supabase
       .from('profiles')
       .select('user_id, display_name, membership_tier, avatar_url')
-      .ilike('display_name', `%${searchTerm}%`)
-      .neq('user_id', currentUserId)
+      .or(`display_name.ilike.%${term}%,user_id.ilike.${term}%`)
+      .neq('user_id', myId || '')
       .limit(20);
 
     if (!players) {
+      setResults([]);
       setLoading(false);
       return;
     }
@@ -56,19 +61,27 @@ export default function PlayerSearchPage() {
     const { data: friendships } = await supabase
       .from('friendships')
       .select('friend_id, status')
-      .eq('user_id', currentUserId)
+      .eq('user_id', myId)
       .in('friend_id', players.map(p => p.user_id));
 
     // フレンド申請チェック
     const { data: requests } = await supabase
       .from('friend_requests')
       .select('receiver_id')
-      .eq('sender_id', currentUserId)
+      .eq('sender_id', myId)
       .eq('status', 'pending')
       .in('receiver_id', players.map(p => p.user_id));
 
     const friendIds = new Set(friendships?.filter(f => f.status === 'accepted').map(f => f.friend_id) || []);
     const pendingIds = new Set(requests?.map(r => r.receiver_id) || []);
+
+    // 双方向の friendships もチェック（friend_id が自分側の行）
+    const { data: revFriendships } = await supabase
+      .from('friendships')
+      .select('user_id, status')
+      .eq('friend_id', myId)
+      .in('user_id', players.map(p => p.user_id));
+    revFriendships?.filter(f => f.status === 'accepted').forEach(f => friendIds.add(f.user_id));
 
     const resultsWithStatus = players.map(player => ({
       ...player,
@@ -128,8 +141,8 @@ export default function PlayerSearchPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && searchPlayers()}
-              placeholder="プレイヤー名を入力..."
-              className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-3 text-lg"
+              placeholder="プレイヤー名 または フレンドID（先頭8文字以上）"
+              className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-3 text-lg text-gray-900 placeholder-gray-500 bg-white"
             />
             <button
               onClick={searchPlayers}
@@ -141,8 +154,14 @@ export default function PlayerSearchPage() {
           </div>
         </div>
 
+        {/* 自分のフレンドID表示 */}
+        <div className="bg-white/20 rounded-xl p-4 mb-6 text-white">
+          <p className="text-sm opacity-90">あなたのフレンドID（友達に教えて検索してもらおう）</p>
+          <p className="font-mono font-bold text-lg mt-1 break-all">{currentUserId || '読み込み中...'}</p>
+        </div>
+
         {/* 検索結果 */}
-        {results.length > 0 && (
+        {results.length > 0 ? (
           <div className="bg-white rounded-2xl p-6 shadow-2xl">
             <h2 className="text-xl font-bold mb-4">検索結果 ({results.length})</h2>
             <div className="space-y-3">
@@ -183,7 +202,13 @@ export default function PlayerSearchPage() {
               ))}
             </div>
           </div>
-        )}
+        ) : !loading && searchTerm.trim() ? (
+          <div className="bg-white rounded-2xl p-6 shadow-2xl text-center text-gray-600">
+            <p className="font-bold mb-2">検索結果が見つかりませんでした</p>
+            <p className="text-sm">・表示名・フレンドIDで検索できます</p>
+            <p className="text-sm">・Supabase で supabase_friend_fix.sql を実行済みか確認してください</p>
+          </div>
+        ) : null}
 
         {/* 戻るボタン */}
         <div className="text-center mt-8">
