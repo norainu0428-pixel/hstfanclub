@@ -13,6 +13,7 @@ interface RankingEntry {
   losses: number;
   total_battles: number;
   win_rate: number;
+  highest_cleared_stage: number;
 }
 
 export default function RankingPage() {
@@ -43,6 +44,18 @@ export default function RankingPage() {
       .limit(100);
 
     if (data) {
+      const userIds = data.map((e: { user_id: string }) => e.user_id);
+      const { data: progressList } = await supabase
+        .from('user_progress')
+        .select('user_id, current_stage')
+        .in('user_id', userIds);
+
+      const stageMap = new Map<string, number>();
+      (progressList || []).forEach((p: { user_id: string; current_stage?: number }) => {
+        const stage = p.current_stage ?? 1;
+        stageMap.set(p.user_id, Math.max(0, stage - 1));
+      });
+
       const formatted = data.map((entry: any, index) => ({
         rank: index + 1,
         user_id: entry.user_id,
@@ -51,7 +64,8 @@ export default function RankingPage() {
         wins: entry.wins || 0,
         losses: entry.losses || 0,
         total_battles: entry.total_battles || 0,
-        win_rate: entry.total_battles > 0 ? (entry.wins / entry.total_battles) * 100 : 0
+        win_rate: entry.total_battles > 0 ? (entry.wins / entry.total_battles) * 100 : 0,
+        highest_cleared_stage: stageMap.get(entry.user_id) ?? 0
       }));
 
       setRankings(formatted);
@@ -62,7 +76,6 @@ export default function RankingPage() {
         if (myEntry) {
           setMyRanking(myEntry);
         } else {
-          // ランク外の場合
           const { data: myStats, error: myStatsError } = await supabase
             .from('pvp_stats')
             .select(`
@@ -81,15 +94,26 @@ export default function RankingPage() {
           }
 
           if (myStats) {
+            const myStage = stageMap.get(myStats.user_id) ?? 0;
+            const { data: myProgress } = await supabase
+              .from('user_progress')
+              .select('current_stage')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            const myHighest = myProgress?.current_stage != null
+              ? Math.max(0, myProgress.current_stage - 1)
+              : 0;
+
             setMyRanking({
-              rank: 0, // ランク外
+              rank: 0,
               user_id: myStats.user_id,
               display_name: (myStats.user as any)?.display_name || '不明',
               rating: myStats.rating || 1000,
               wins: myStats.wins || 0,
               losses: myStats.losses || 0,
               total_battles: myStats.total_battles || 0,
-              win_rate: myStats.total_battles > 0 ? (myStats.wins / myStats.total_battles) * 100 : 0
+              win_rate: myStats.total_battles > 0 ? (myStats.wins / myStats.total_battles) * 100 : 0,
+              highest_cleared_stage: myStage ?? myHighest
             });
           }
         }
@@ -131,7 +155,7 @@ export default function RankingPage() {
                 {myRanking.rank > 0 ? getRankIcon(myRanking.rank) : 'ランク外'}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-4 gap-4 text-center">
               <div>
                 <div className="text-2xl font-bold">{myRanking.rating}</div>
                 <div className="text-xs opacity-90">レーティング</div>
@@ -143,6 +167,10 @@ export default function RankingPage() {
               <div>
                 <div className="text-2xl font-bold">{myRanking.win_rate.toFixed(1)}%</div>
                 <div className="text-xs opacity-90">勝率</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">ステージ{myRanking.highest_cleared_stage}</div>
+                <div className="text-xs opacity-90">最高クリア</div>
               </div>
             </div>
           </div>
@@ -180,9 +208,15 @@ export default function RankingPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-purple-600">{entry.rating}</div>
-                    <div className="text-xs text-gray-500">Rating</div>
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="text-sm font-bold text-gray-700">ステージ{entry.highest_cleared_stage}</div>
+                      <div className="text-xs text-gray-500">最高クリア</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-purple-600">{entry.rating}</div>
+                      <div className="text-xs text-gray-500">Rating</div>
+                    </div>
                   </div>
                 </div>
               ))}

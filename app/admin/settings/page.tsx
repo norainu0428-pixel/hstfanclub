@@ -155,8 +155,8 @@ export default function SettingsPage() {
 
   return (
     <AdminLayout>
-      <div>
-        <h1 className="text-3xl font-bold mb-8">システム設定</h1>
+      <div className="text-gray-900">
+        <h1 className="text-3xl font-bold mb-8 text-gray-900">システム設定</h1>
 
         <div className="space-y-6">
           {/* お知らせ管理 */}
@@ -187,7 +187,7 @@ export default function SettingsPage() {
 
           {/* プレミアム会員ガチャ確率調整 */}
           <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-            <h2 className="text-2xl font-bold mb-6">🎰 プレミアム会員ガチャ確率設定</h2>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">🎰 プレミアム会員ガチャ確率設定</h2>
             
             {rates.length === 0 ? (
               <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
@@ -208,19 +208,19 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full text-gray-900">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left font-bold">レアリティ</th>
-                        <th className="px-6 py-3 text-left font-bold">通常確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold">10連確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold">最終更新</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900">レアリティ</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900">通常確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900">10連確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900">最終更新</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody className="divide-y divide-gray-200">
                       {rates.map(rate => (
                         <tr key={rate.rarity}>
-                          <td className="px-6 py-4 font-bold">
+                          <td className="px-6 py-4 font-bold text-gray-900">
                             {getRarityLabel(rate.rarity)}
                           </td>
                           <td className="px-6 py-4">
@@ -231,9 +231,9 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.rate}
                               onChange={(e) => updateRate(rate.rarity, 'rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
                             />
-                            <span className="ml-2 text-gray-600">%</span>
+                            <span className="ml-2 text-gray-700">%</span>
                           </td>
                           <td className="px-6 py-4">
                             <input
@@ -243,11 +243,11 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.ten_pull_rate}
                               onChange={(e) => updateRate(rate.rarity, 'ten_pull_rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
                             />
-                            <span className="ml-2 text-gray-600">%</span>
+                            <span className="ml-2 text-gray-700">%</span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
+                          <td className="px-6 py-4 text-sm text-gray-800">
                             {new Date(rate.updated_at).toLocaleString('ja-JP')}
                           </td>
                         </tr>
@@ -262,7 +262,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2 text-gray-700">通常確率 合計</div>
+                    <div className="font-bold mb-2 text-gray-900">通常確率 合計</div>
                     <div className={`text-4xl font-bold ${
                       Math.abs(rates.reduce((sum, r) => sum + parseFloat(String(r.rate)), 0) - 100) < 0.01 
                         ? 'text-green-600' 
@@ -281,7 +281,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2 text-gray-700">10連確率 合計</div>
+                    <div className="font-bold mb-2 text-gray-900">10連確率 合計</div>
                     <div className={`text-4xl font-bold ${
                       Math.abs(rates.reduce((sum, r) => sum + parseFloat(String(r.ten_pull_rate)), 0) - 100) < 0.01 
                         ? 'text-green-600' 
@@ -302,7 +302,7 @@ export default function SettingsPage() {
 
           {/* 通常会員ガチャ確率調整 */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h2 className="text-2xl font-bold mb-6">🎲 通常会員ガチャ確率設定</h2>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">🎲 通常会員ガチャ確率設定</h2>
             
             {basicRates.length === 0 ? (
               <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
@@ -323,19 +323,19 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full text-gray-900">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left font-bold text-gray-700">レアリティ</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-700">通常確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-700">10連確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-700 text-xs">最終更新</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900">レアリティ</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900">通常確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900">10連確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-900 text-xs">最終更新</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {basicRates.map(rate => (
                         <tr key={rate.rarity} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 font-bold text-lg">
+                          <td className="px-6 py-4 font-bold text-lg text-gray-900">
                             {getRarityLabel(rate.rarity)}
                           </td>
                           <td className="px-6 py-4">
@@ -346,9 +346,9 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.rate}
                               onChange={(e) => updateBasicRate(rate.rarity, 'rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
                             />
-                            <span className="ml-2 text-gray-600">%</span>
+                            <span className="ml-2 text-gray-700">%</span>
                           </td>
                           <td className="px-6 py-4">
                             <input
@@ -358,11 +358,11 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.ten_pull_rate}
                               onChange={(e) => updateBasicRate(rate.rarity, 'ten_pull_rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
                             />
-                            <span className="ml-2 text-gray-600">%</span>
+                            <span className="ml-2 text-gray-700">%</span>
                           </td>
-                          <td className="px-6 py-4 text-xs text-gray-500">
+                          <td className="px-6 py-4 text-xs text-gray-800">
                             {new Date(rate.updated_at).toLocaleString('ja-JP')}
                           </td>
                         </tr>
@@ -383,7 +383,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2">通常確率 合計</div>
+                    <div className="font-bold mb-2 text-gray-900">通常確率 合計</div>
                     <div className={`text-3xl font-bold ${
                       Math.abs(basicTotalSingle - 100) < 0.01 ? 'text-green-600' : 'text-red-600'
                     }`}>
@@ -400,7 +400,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2">10連確率 合計</div>
+                    <div className="font-bold mb-2 text-gray-900">10連確率 合計</div>
                     <div className={`text-3xl font-bold ${
                       Math.abs(basicTotalTen - 100) < 0.01 ? 'text-green-600' : 'text-red-600'
                     }`}>

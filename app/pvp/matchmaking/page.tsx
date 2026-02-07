@@ -48,9 +48,8 @@ function MatchmakingContent() {
           .eq('player1_id', friendId)
           .eq('player2_id', user.id)
           .eq('status', 'waiting')
-          .order('created_at', { ascending: false })
           .limit(1);
-        const waitingBattle = waitingList?.[0];
+        const waitingBattle = Array.isArray(waitingList) ? waitingList[0] : null;
 
         if (waitingBattle?.id) {
           router.replace(`/pvp/matchmaking?friend=${friendId}&battle=${waitingBattle.id}`);
@@ -79,27 +78,31 @@ function MatchmakingContent() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 初期HPを設定
     const initialHp: { [key: string]: number } = {};
     selectedMembers.forEach(member => {
-      initialHp[member.id] = member.max_hp;
+      if (member?.id != null) initialHp[member.id] = Number(member.max_hp) || 100;
     });
+    const partyIds = selectedMembers.map(m => m?.id).filter((id): id is string => Boolean(id));
 
     // 既存のバトルに参加する場合
     if (battleId) {
+      const currentLog = await getCurrentBattleLog();
+      const newLog = Array.isArray(currentLog) ? [...currentLog, 'バトル開始！'] : ['バトル開始！'];
+
       const { error } = await supabase
         .from('pvp_battles')
         .update({
-          player2_party: selectedMembers.map(m => m.id),
+          player2_party: partyIds,
           player2_hp: initialHp,
           status: 'in_progress',
-          battle_log: [...(await getCurrentBattleLog()), 'バトル開始！']
+          battle_log: newLog
         })
-        .eq('id', battleId);
+        .eq('id', battleId)
+        .eq('player2_id', user.id);
 
       if (error) {
-        alert('バトルへの参加に失敗しました');
-        console.error(error);
+        console.error('pvp_battles update error:', error);
+        alert('バトルへの参加に失敗しました: ' + (error.message || 'エラーが発生しました'));
         return;
       }
 
@@ -107,24 +110,29 @@ function MatchmakingContent() {
       return;
     }
 
-    // 新しいバトルルーム作成
+    // 新しいバトルルーム作成（対戦相手が必須）
+    if (!friendId) {
+      alert('対戦相手を選んでからフレンドの「対戦する」で入り直してください');
+      return;
+    }
+
     const { data: battle, error } = await supabase
       .from('pvp_battles')
       .insert({
         player1_id: user.id,
         player2_id: friendId,
-        player1_party: selectedMembers.map(m => m.id),
+        player1_party: partyIds,
         player1_hp: initialHp,
         status: 'waiting',
         current_turn_player: user.id,
-        battle_log: [`${friendName}との対戦が開始されました！`]
+        battle_log: [friendName ? `${friendName}との対戦が開始されました！` : '対戦開始']
       })
       .select()
       .single();
 
     if (error || !battle) {
-      alert('バトルルームの作成に失敗しました');
-      console.error(error);
+      console.error('pvp_battles insert error:', error);
+      alert('バトルルームの作成に失敗しました: ' + (error?.message || 'エラーが発生しました'));
       return;
     }
 
