@@ -19,6 +19,12 @@ interface BattleState {
   current_turn_player: string;
   battle_log: string[];
   winner_id?: string;
+  player1_skill_cooldown?: { [key: string]: number };
+  player2_skill_cooldown?: { [key: string]: number };
+  player1_revive_used?: string[];
+  player2_revive_used?: string[];
+  player1_buffs?: { [key: string]: { attack?: number; defense?: number } };
+  player2_buffs?: { [key: string]: { attack?: number; defense?: number } };
 }
 
 interface PlayerInfo {
@@ -46,6 +52,25 @@ export default function PvPBattlePage() {
   const [battleResult, setBattleResult] = useState<{ won: boolean; winnerName: string } | null>(null);
   const currentUserRef = useRef<string>('');
   currentUserRef.current = currentUser;
+
+  function getSkillName(skillType: string | null | undefined): string {
+    if (!skillType) return '';
+    const names: { [key: string]: string } = {
+      'heal': '回復',
+      'revive': '自己蘇生',
+      'attack_boost': '攻撃強化',
+      'defense_boost': '防御強化',
+      'hst_power': 'HSTパワー'
+    };
+    return names[skillType] || skillType;
+  }
+
+  function getEffectiveSkill(member: Member): { skill_type: string; skill_power: number } | null {
+    if (member.skill_type) {
+      return { skill_type: member.skill_type, skill_power: member.skill_power ?? 0 };
+    }
+    return null;
+  }
 
   useEffect(() => {
     initBattle();
@@ -210,6 +235,7 @@ export default function PvPBattlePage() {
   async function executeAction() {
     if (!selectedAction || !battle || !player1 || !player2) return;
     if (selectedAction === 'attack' && (selectedMember === null || selectedTarget === null)) return;
+    if (selectedAction === 'skill' && selectedMember === null) return;
 
     const isPlayer1 = currentUser === battle.player1_id;
     const attacker = isPlayer1 ? player1 : player2;
@@ -218,6 +244,21 @@ export default function PvPBattlePage() {
     let newLog = [...battleLog];
     let newPlayer1Hp = { ...battle.player1_hp };
     let newPlayer2Hp = { ...battle.player2_hp };
+    let newPlayer1Buffs = { ...(battle.player1_buffs || {}) };
+    let newPlayer2Buffs = { ...(battle.player2_buffs || {}) };
+    let newPlayer1Cooldown = { ...(battle.player1_skill_cooldown || {}) };
+    let newPlayer2Cooldown = { ...(battle.player2_skill_cooldown || {}) };
+    let newPlayer1ReviveUsed = [...(battle.player1_revive_used || [])];
+    let newPlayer2ReviveUsed = [...(battle.player2_revive_used || [])];
+
+    // 自分のターンでクールダウンを1減らす（このターンで使うメンバー以外は事前に減らす）
+    const myCooldown = isPlayer1 ? newPlayer1Cooldown : newPlayer2Cooldown;
+    const nextCooldown: { [key: string]: number } = {};
+    for (const [mid, turns] of Object.entries(myCooldown)) {
+      const v = Math.max(0, turns - 1);
+      if (v > 0) nextCooldown[mid] = v;
+    }
+    if (isPlayer1) newPlayer1Cooldown = nextCooldown; else newPlayer2Cooldown = nextCooldown;
 
     if (selectedAction === 'attack' && selectedMember !== null && selectedTarget !== null) {
       const attackerMember = attacker.party[selectedMember];
@@ -245,8 +286,14 @@ export default function PvPBattlePage() {
         return;
       }
 
-      const damage = calculateDamage(attackerMember.attack, targetMember.defense);
-      
+      const myBuffs = isPlayer1 ? newPlayer1Buffs : newPlayer2Buffs;
+      const enemyBuffs = isPlayer1 ? newPlayer2Buffs : newPlayer1Buffs;
+      const attackBoost = myBuffs[attackerMember.id]?.attack ?? 0;
+      const defenseBoost = enemyBuffs[targetMember.id]?.defense ?? 0;
+
+      let damage = calculateDamage(attackerMember.attack + attackBoost, targetMember.defense);
+      damage = Math.max(0, damage - defenseBoost);
+
       const newHp = Math.max(targetCurrentHp - damage, 0);
 
       if (isPlayer1) {
@@ -255,13 +302,133 @@ export default function PvPBattlePage() {
         newPlayer1Hp[targetHpKey] = newHp;
       }
 
+      const boostText = attackBoost > 0 || defenseBoost > 0
+        ? `（攻撃+${attackBoost} 防御+${defenseBoost}）`
+        : '';
       newLog.push(
-        `${attackerMember.member_emoji} ${attackerMember.member_name}が ${targetMember.member_emoji} ${targetMember.member_name}に${damage}ダメージ！`
+        `${attackerMember.member_emoji} ${attackerMember.member_name}が ${targetMember.member_emoji} ${targetMember.member_name}に${damage}ダメージ！${boostText}`
       );
 
       if (newHp === 0) {
         newLog.push(`${targetMember.member_emoji} ${targetMember.member_name}は倒れた！`);
       }
+
+      // ブフ消費
+      const myBuffsNext = { ...myBuffs };
+      const enemyBuffsNext = { ...enemyBuffs };
+      if (attackBoost > 0 && myBuffsNext[attackerMember.id]) {
+        const b = { ...myBuffsNext[attackerMember.id] };
+        delete b.attack;
+        if (Object.keys(b).length === 0) delete myBuffsNext[attackerMember.id];
+        else myBuffsNext[attackerMember.id] = b;
+      }
+      if (defenseBoost > 0 && enemyBuffsNext[targetMember.id]) {
+        const b = { ...enemyBuffsNext[targetMember.id] };
+        delete b.defense;
+        if (Object.keys(b).length === 0) delete enemyBuffsNext[targetMember.id];
+        else enemyBuffsNext[targetMember.id] = b;
+      }
+      if (isPlayer1) { newPlayer1Buffs = myBuffsNext; newPlayer2Buffs = enemyBuffsNext; }
+      else { newPlayer2Buffs = myBuffsNext; newPlayer1Buffs = enemyBuffsNext; }
+    }
+
+    if (selectedAction === 'skill' && selectedMember !== null) {
+      const skillUser = attacker.party[selectedMember];
+      if (!skillUser) return;
+
+      const effectiveSkill = getEffectiveSkill(skillUser);
+      if (!effectiveSkill) {
+        alert('このメンバーはスキルを持っていません');
+        return;
+      }
+
+      const myCooldownNow = isPlayer1 ? newPlayer1Cooldown : newPlayer2Cooldown;
+      if ((myCooldownNow[skillUser.id] ?? 0) > 0) {
+        alert('スキルはクールダウン中です');
+        return;
+      }
+
+      const skillUserHp = isPlayer1
+        ? newPlayer1Hp[skillUser.id] ?? skillUser.max_hp
+        : newPlayer2Hp[skillUser.id] ?? skillUser.max_hp;
+
+      if (skillUserHp <= 0 && effectiveSkill.skill_type !== 'revive') {
+        alert('このメンバーは戦闘不能です');
+        return;
+      }
+
+      const myReviveUsed = isPlayer1 ? newPlayer1ReviveUsed : newPlayer2ReviveUsed;
+      if (effectiveSkill.skill_type === 'revive' && myReviveUsed.includes(skillUser.id)) {
+        alert('自己蘇生は既に使用済みです');
+        return;
+      }
+
+      switch (effectiveSkill.skill_type) {
+        case 'revive':
+          if (skillUserHp <= 0) {
+            const reviveHp = Math.floor(skillUser.max_hp * 0.5);
+            if (isPlayer1) newPlayer1Hp[skillUser.id] = reviveHp;
+            else newPlayer2Hp[skillUser.id] = reviveHp;
+            if (isPlayer1) newPlayer1ReviveUsed = [...newPlayer1ReviveUsed, skillUser.id];
+            else newPlayer2ReviveUsed = [...newPlayer2ReviveUsed, skillUser.id];
+            newLog.push(`✨💫 ${skillUser.member_emoji} ${skillUser.member_name}が自己蘇生した！ HP: ${reviveHp}`);
+          }
+          break;
+        case 'heal': {
+          const healAmount = effectiveSkill.skill_power || 30;
+          const targetIndex = selectedTarget !== null && selectedTarget >= 0 && selectedTarget < attacker.party.length ? selectedTarget : selectedMember;
+          const targetMember = attacker.party[targetIndex];
+          if (!targetMember) break;
+          const targetHpKey = targetMember.id;
+          const currentHp = isPlayer1 ? newPlayer1Hp[targetHpKey] ?? targetMember.max_hp : newPlayer2Hp[targetHpKey] ?? targetMember.max_hp;
+          if (currentHp <= 0) {
+            alert('戦闘不能のメンバーは回復できません');
+            return;
+          }
+          const newHpVal = Math.min(currentHp + healAmount, targetMember.max_hp);
+          if (isPlayer1) newPlayer1Hp[targetHpKey] = newHpVal;
+          else newPlayer2Hp[targetHpKey] = newHpVal;
+          newLog.push(`💚 ${skillUser.member_emoji} ${skillUser.member_name}が ${targetMember.member_name}のHPを${healAmount}回復した！`);
+          break;
+        }
+        case 'attack_boost': {
+          const amount = effectiveSkill.skill_power || 20;
+          const myBuffs = isPlayer1 ? newPlayer1Buffs : newPlayer2Buffs;
+          const next = { ...myBuffs, [skillUser.id]: { ...(myBuffs[skillUser.id] || {}), attack: amount } };
+          if (isPlayer1) newPlayer1Buffs = next; else newPlayer2Buffs = next;
+          newLog.push(`⚔️ ${skillUser.member_emoji} ${skillUser.member_name}の攻撃力が${amount}アップ！（次の攻撃まで有効）`);
+          break;
+        }
+        case 'defense_boost': {
+          const amount = effectiveSkill.skill_power || 15;
+          const myBuffs = isPlayer1 ? newPlayer1Buffs : newPlayer2Buffs;
+          const next = { ...myBuffs, [skillUser.id]: { ...(myBuffs[skillUser.id] || {}), defense: amount } };
+          if (isPlayer1) newPlayer1Buffs = next; else newPlayer2Buffs = next;
+          newLog.push(`🛡️ ${skillUser.member_emoji} ${skillUser.member_name}の防御力が${amount}アップ！（次の被ダメージまで有効）`);
+          break;
+        }
+        case 'hst_power': {
+          const hstPower = effectiveSkill.skill_power || 100;
+          let totalDamage = 0;
+          defender.party.forEach((m, idx) => {
+            const hp = isPlayer1 ? newPlayer2Hp[m.id] ?? m.max_hp : newPlayer1Hp[m.id] ?? m.max_hp;
+            if (hp > 0) {
+              const damage = Math.floor(hstPower * (1 + skillUser.attack / 100));
+              const newHpVal = Math.max(hp - damage, 0);
+              totalDamage += damage;
+              if (isPlayer1) newPlayer2Hp[m.id] = newHpVal;
+              else newPlayer1Hp[m.id] = newHpVal;
+            }
+          });
+          newLog.push(`👑 ${skillUser.member_emoji} ${skillUser.member_name}がHSTパワーを発動！相手パーティに合計${totalDamage}ダメージ！`);
+          break;
+        }
+        default:
+          break;
+      }
+
+      if (isPlayer1) newPlayer1Cooldown = { ...newPlayer1Cooldown, [skillUser.id]: 3 };
+      else newPlayer2Cooldown = { ...newPlayer2Cooldown, [skillUser.id]: 3 };
     }
 
     // 全滅チェック
@@ -292,19 +459,26 @@ export default function PvPBattlePage() {
       ? battle.player2_id
       : battle.player1_id;
 
-    // バトル状態更新
+    // バトル状態更新（スキル用カラムも含む）
+    const updatePayload: Record<string, unknown> = {
+      player1_hp: newPlayer1Hp,
+      player2_hp: newPlayer2Hp,
+      turn_number: battle.turn_number + 1,
+      current_turn_player: newStatus === 'completed' ? battle.current_turn_player : nextTurnPlayer,
+      battle_log: newLog,
+      status: newStatus,
+      winner_id: winnerId,
+      completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+      player1_skill_cooldown: newPlayer1Cooldown,
+      player2_skill_cooldown: newPlayer2Cooldown,
+      player1_revive_used: newPlayer1ReviveUsed,
+      player2_revive_used: newPlayer2ReviveUsed,
+      player1_buffs: newPlayer1Buffs,
+      player2_buffs: newPlayer2Buffs
+    };
     const { error } = await supabase
       .from('pvp_battles')
-      .update({
-        player1_hp: newPlayer1Hp,
-        player2_hp: newPlayer2Hp,
-        turn_number: battle.turn_number + 1,
-        current_turn_player: newStatus === 'completed' ? battle.current_turn_player : nextTurnPlayer,
-        battle_log: newLog,
-        status: newStatus,
-        winner_id: winnerId,
-        completed_at: newStatus === 'completed' ? new Date().toISOString() : null
-      })
+      .update(updatePayload)
       .eq('id', battleId);
 
     if (error) {
@@ -454,7 +628,8 @@ export default function PvPBattlePage() {
               {player1.party.map((member, index) => {
                 const currentHp = battle.player1_hp[member.id] ?? member.max_hp;
                 const hpPercent = (currentHp / member.max_hp) * 100;
-                
+                const skill = getEffectiveSkill(member);
+                const skillCd = (battle.player1_skill_cooldown || {})[member.id] ?? 0;
                 return (
                   <div
                     key={member.id}
@@ -473,6 +648,14 @@ export default function PvPBattlePage() {
                           setSelectedTarget(index);
                         }
                       }
+                      if (isMyTurn && selectedAction === 'skill' && isPlayer1) {
+                        if (selectedMember === null && getEffectiveSkill(member) && (currentHp > 0 || getEffectiveSkill(member)?.skill_type === 'revive')) {
+                          setSelectedMember(index);
+                          if (getEffectiveSkill(member)?.skill_type === 'heal') setSelectedTarget(index);
+                        } else if (selectedMember !== null && getEffectiveSkill(player1.party[selectedMember])?.skill_type === 'heal' && currentHp > 0) {
+                          setSelectedTarget(index);
+                        }
+                      }
                     }}
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -481,6 +664,12 @@ export default function PvPBattlePage() {
                         <div>
                           <div className="font-bold text-gray-900">{member.member_name}</div>
                           <div className="text-xs text-gray-800">Lv.{member.level}</div>
+                          {skill && (
+                            <div className="text-xs text-gray-700 mt-0.5">
+                              ✨{getSkillName(skill.skill_type)}
+                              {skillCd > 0 && <span className="text-amber-600"> (CD{skillCd})</span>}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
@@ -518,7 +707,8 @@ export default function PvPBattlePage() {
                 {player2.party.map((member, index) => {
                   const currentHp = battle.player2_hp[member.id] ?? member.max_hp;
                   const hpPercent = (currentHp / member.max_hp) * 100;
-                  
+                  const skill = getEffectiveSkill(member);
+                  const skillCd = (battle.player2_skill_cooldown || {})[member.id] ?? 0;
                   return (
                     <div
                       key={member.id}
@@ -537,6 +727,14 @@ export default function PvPBattlePage() {
                             setSelectedTarget(index);
                           }
                         }
+                        if (isMyTurn && selectedAction === 'skill' && !isPlayer1) {
+                          if (selectedMember === null && getEffectiveSkill(member) && (currentHp > 0 || getEffectiveSkill(member)?.skill_type === 'revive')) {
+                            setSelectedMember(index);
+                            if (getEffectiveSkill(member)?.skill_type === 'heal') setSelectedTarget(index);
+                          } else if (selectedMember !== null && getEffectiveSkill(player2.party[selectedMember])?.skill_type === 'heal' && currentHp > 0) {
+                            setSelectedTarget(index);
+                          }
+                        }
                       }}
                     >
                     <div className="flex items-center justify-between mb-2">
@@ -545,6 +743,12 @@ export default function PvPBattlePage() {
                         <div>
                           <div className="font-bold text-gray-900">{member.member_name}</div>
                           <div className="text-xs text-gray-800">Lv.{member.level}</div>
+                          {skill && (
+                            <div className="text-xs text-gray-700 mt-0.5">
+                              ✨{getSkillName(skill.skill_type)}
+                              {skillCd > 0 && <span className="text-amber-600"> (CD{skillCd})</span>}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
@@ -586,15 +790,18 @@ export default function PvPBattlePage() {
                   ⚔️ 攻撃
                 </button>
                 <button
-                  onClick={() => setSelectedAction('skill')}
+                  onClick={() => {
+                    setSelectedAction('skill');
+                    setSelectedMember(null);
+                    setSelectedTarget(null);
+                  }}
                   className={`px-6 py-4 rounded-lg font-bold text-lg ${
                     selectedAction === 'skill'
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
                   }`}
-                  disabled
                 >
-                  ✨ スキル（未実装）
+                  ✨ スキル
                 </button>
               </div>
 
@@ -611,6 +818,36 @@ export default function PvPBattlePage() {
                       実行する
                     </button>
                   )}
+                </div>
+              )}
+
+              {selectedAction === 'skill' && (
+                <div className="space-y-2">
+                  {(() => {
+                    const needTarget = selectedMember !== null && myParty?.party[selectedMember] && getEffectiveSkill(myParty.party[selectedMember])?.skill_type === 'heal';
+                    const canExecute = selectedMember !== null && (!needTarget || (selectedTarget !== null && selectedTarget >= 0));
+                    return (
+                      <>
+                        <div className="text-sm font-bold text-gray-900">
+                          {selectedMember === null
+                            ? 'スキルを使うメンバーを選択'
+                            : needTarget && selectedTarget === null
+                              ? '回復する味方を選択'
+                              : needTarget
+                                ? '準備完了'
+                                : '準備完了'}
+                        </div>
+                        {canExecute && (
+                          <button
+                            onClick={executeAction}
+                            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90"
+                          >
+                            スキルを実行
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
