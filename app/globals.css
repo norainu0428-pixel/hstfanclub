@@ -35,3 +35,121 @@ body {
 .animate-fade-in {
   animation: fade-in 0.5s ease-out;
 }
+
+/* ========================================
+   スマホ向け表示最適化（768px以下）
+   デスクトップは変更なし
+   ======================================== */
+@media (max-width: 768px) {
+  .app-content {
+    padding: max(0.75rem, env(safe-area-inset-top))
+             max(0.75rem, env(safe-area-inset-right))
+             max(0.75rem, env(safe-area-inset-bottom))
+             max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .app-content h1 {
+    font-size: 1.5rem !important;
+    line-height: 1.4;
+  }
+
+  .app-content h2 {
+    font-size: 1.25rem !important;
+    line-height: 1.4;
+  }
+
+  .app-content h3 {
+    font-size: 1.125rem !important;
+  }
+
+  /* ボタン: タッチターゲットを44px以上に（幅は維持） */
+  .app-content button {
+    min-height: 44px;
+  }
+
+  /* メインのナビゲーションボタン */
+  .app-content button[class*="px-4"]:not([class*="rounded-full"]),
+  .app-content button[class*="px-6"]:not([class*="rounded-full"]),
+  .app-content button[class*="px-8"] {
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
+  }
+
+  /* グリッド: スマホでは1列または2列に */
+  .app-content .grid-cols-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .app-content .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* カード・パネルの余白 */
+  .app-content .p-6 {
+    padding: 1rem;
+  }
+
+  .app-content .p-8 {
+    padding: 1.25rem;
+  }
+
+  /* テキストサイズ（スマホで読みやすく、iOSでズーム防止のため最小16px） */
+  .app-content .text-xs {
+    font-size: 0.875rem;
+  }
+
+  .app-content .text-sm {
+    font-size: 1rem;
+  }
+
+  .app-content .text-lg {
+    font-size: 1.125rem;
+  }
+
+  .app-content .text-xl {
+    font-size: 1.25rem;
+  }
+
+  .app-content .text-2xl {
+    font-size: 1.375rem;
+  }
+
+  .app-content .text-3xl {
+    font-size: 1.5rem;
+  }
+
+  .app-content .text-4xl {
+    font-size: 1.75rem;
+  }
+
+  .app-content .text-5xl {
+    font-size: 2rem;
+  }
+
+  .app-content .text-6xl {
+    font-size: 2.5rem;
+  }
+
+  /* フレックス: 縦並びに */
+  .app-content .flex.gap-4 {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  /* スペース */
+  .app-content .space-y-3 > * + * {
+    margin-top: 0.75rem;
+  }
+
+  .app-content .space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+
+  .app-content .mb-6 {
+    margin-bottom: 1.25rem;
+  }
+
+  .app-content .mb-8 {
+    margin-bottom: 1.5rem;
+  }
+}
