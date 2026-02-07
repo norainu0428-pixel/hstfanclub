@@ -29,37 +29,42 @@ export default function RankingPage() {
   async function loadRankings() {
     const { data: { user } } = await supabase.auth.getUser();
 
-    // トップ100取得
-    const { data } = await supabase
+    // トップ100取得（FK結合を避け、profiles は別クエリで取得）
+    const { data, error } = await supabase
       .from('pvp_stats')
-      .select(`
-        user_id,
-        rating,
-        wins,
-        losses,
-        total_battles,
-        user:profiles!pvp_stats_user_id_fkey(display_name)
-      `)
+      .select('user_id, rating, wins, losses, total_battles')
       .order('rating', { ascending: false })
       .limit(100);
 
-    if (data) {
+    if (error) {
+      console.error('pvp_stats 取得エラー:', error);
+      setLoading(false);
+      return;
+    }
+
+    if (data && data.length > 0) {
       const userIds = data.map((e: { user_id: string }) => e.user_id);
-      const { data: progressList } = await supabase
-        .from('user_progress')
-        .select('user_id, current_stage')
-        .in('user_id', userIds);
+
+      const [progressRes, profilesRes] = await Promise.all([
+        supabase.from('user_progress').select('user_id, current_stage').in('user_id', userIds),
+        supabase.from('profiles').select('user_id, display_name').in('user_id', userIds)
+      ]);
 
       const stageMap = new Map<string, number>();
-      (progressList || []).forEach((p: { user_id: string; current_stage?: number }) => {
+      (progressRes.data || []).forEach((p: { user_id: string; current_stage?: number }) => {
         const stage = p.current_stage ?? 1;
         stageMap.set(p.user_id, Math.max(0, stage - 1));
+      });
+
+      const profileMap = new Map<string, string>();
+      (profilesRes.data || []).forEach((p: { user_id: string; display_name?: string }) => {
+        profileMap.set(p.user_id, p.display_name || '不明');
       });
 
       const formatted = data.map((entry: any, index) => ({
         rank: index + 1,
         user_id: entry.user_id,
-        display_name: (entry.user as any)?.display_name || '不明',
+        display_name: profileMap.get(entry.user_id) || '不明',
         rating: entry.rating || 1000,
         wins: entry.wins || 0,
         losses: entry.losses || 0,
@@ -78,14 +83,7 @@ export default function RankingPage() {
         } else {
           const { data: myStats, error: myStatsError } = await supabase
             .from('pvp_stats')
-            .select(`
-              user_id,
-              rating,
-              wins,
-              losses,
-              total_battles,
-              user:profiles!pvp_stats_user_id_fkey(display_name)
-            `)
+            .select('user_id, rating, wins, losses, total_battles')
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -94,26 +92,24 @@ export default function RankingPage() {
           }
 
           if (myStats) {
-            const myStage = stageMap.get(myStats.user_id) ?? 0;
-            const { data: myProgress } = await supabase
-              .from('user_progress')
-              .select('current_stage')
-              .eq('user_id', user.id)
-              .maybeSingle();
-            const myHighest = myProgress?.current_stage != null
-              ? Math.max(0, myProgress.current_stage - 1)
+            const [myProgressRes, myProfileRes] = await Promise.all([
+              supabase.from('user_progress').select('current_stage').eq('user_id', user.id).maybeSingle(),
+              supabase.from('profiles').select('display_name').eq('user_id', user.id).maybeSingle()
+            ]);
+            const myHighest = myProgressRes.data?.current_stage != null
+              ? Math.max(0, myProgressRes.data.current_stage - 1)
               : 0;
 
             setMyRanking({
               rank: 0,
               user_id: myStats.user_id,
-              display_name: (myStats.user as any)?.display_name || '不明',
+              display_name: myProfileRes.data?.display_name || '不明',
               rating: myStats.rating || 1000,
               wins: myStats.wins || 0,
               losses: myStats.losses || 0,
               total_battles: myStats.total_battles || 0,
               win_rate: myStats.total_battles > 0 ? (myStats.wins / myStats.total_battles) * 100 : 0,
-              highest_cleared_stage: myStage ?? myHighest
+              highest_cleared_stage: myHighest
             });
           }
         }
