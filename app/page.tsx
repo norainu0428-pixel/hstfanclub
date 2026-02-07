@@ -19,7 +19,20 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
+
+  // 認証コールバックエラーをURLから取得
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err) {
+        setAuthError(decodeURIComponent(err));
+        window.history.replaceState({}, '', '/');
+      }
+    }
+  }, []);
   
   console.log('State - loading:', loading);
   console.log('State - user:', user?.id);
@@ -241,6 +254,8 @@ export default function Home() {
 
           if (createError) {
             console.error('  fetchProfile: プロフィール作成エラー', createError);
+            // エラーの詳細を表示（デバッグ用）
+            alert(`プロフィール作成エラー: ${createError.message}\n\n詳細: ${JSON.stringify(createError, null, 2)}`);
           } else {
             profile = newProfile;
             console.log('  fetchProfile: プロフィール作成完了', profile);
@@ -298,7 +313,16 @@ export default function Home() {
   if (!user) {
     console.log('=== 描画: ログインボタン ===');
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
+        {authError && (
+          <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm max-w-md">
+            <p className="font-bold mb-2">ログインエラー</p>
+            <p>{authError}</p>
+            <p className="mt-2 text-xs text-gray-400">
+              Supabaseの認証設定（Redirect URLs）を確認してください。
+            </p>
+          </div>
+        )}
         <button
           onClick={async () => {
             console.log('Discordログイン開始');
