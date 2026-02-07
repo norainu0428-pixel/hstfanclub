@@ -99,6 +99,22 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_my_profile() TO anon;
 
+-- 4b. ポイント加算RPC（バトル勝利時など、RLSをバイパスしてポイントを加算）
+CREATE OR REPLACE FUNCTION public.add_profile_points(points_to_add INTEGER)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE profiles
+  SET points = GREATEST(0, COALESCE(points, 0) + points_to_add),
+      updated_at = NOW()
+  WHERE user_id = auth.uid();
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.add_profile_points(INTEGER) TO authenticated;
+
 -- 5. 確認
 SELECT '✅ 完了！' as status, 
        (SELECT COUNT(*) FROM auth.users) as auth_users,

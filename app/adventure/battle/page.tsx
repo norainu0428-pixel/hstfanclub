@@ -522,7 +522,7 @@ function BattleContent() {
     if (user) {
       // ★ メンバーのステータスをデータベースに保存（勝利時はHPを全回復）
       for (const member of updatedParty) {
-        await supabase
+        const { error: memberUpdateError } = await supabase
           .from('user_members')
           .update({
             level: member.level,
@@ -535,20 +535,31 @@ function BattleContent() {
             current_hp: member.max_hp // current_hpも全回復
           })
           .eq('id', member.id);
+        if (memberUpdateError) {
+          console.error('メンバー更新エラー:', member.member_name, memberUpdateError);
+        }
       }
       
-      // ポイント付与
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('points')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (profile && !profileError) {
-        await supabase
+      // ポイント付与（RPCでRLSをバイパス、確実に反映）
+      const { error: pointsError } = await supabase.rpc('add_profile_points', {
+        points_to_add: totalPoints
+      });
+      if (pointsError) {
+        // RPC未定義などで失敗した場合は従来の方法で試行
+        const { data: profile } = await supabase
           .from('profiles')
-          .update({ points: (profile.points || 0) + totalPoints })
-          .eq('user_id', user.id);
+          .select('points')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (profile) {
+          const { error: updateErr } = await supabase
+            .from('profiles')
+            .update({ points: (profile.points || 0) + totalPoints })
+            .eq('user_id', user.id);
+          if (updateErr) console.error('ポイント更新エラー:', updateErr);
+        } else {
+          console.error('ポイント付与エラー:', pointsError);
+        }
       }
 
       // 進行状況更新

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
+import { updateProfilePoints } from '@/utils/profilePoints';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
 
@@ -354,13 +355,9 @@ export default function BasicGachaPage() {
         });
     }
 
-    // ポイント消費
+    // ポイント消費（RPCで確実に反映）
     const newPoints = currentPoints - pointCost;
-    await supabase
-      .from('profiles')
-      .update({ points: newPoints })
-      .eq('user_id', user.id);
-
+    await updateProfilePoints(-pointCost);
     setCurrentPoints(newPoints);
 
     // ミッション進捗更新（ガチャを引いた回数分）
