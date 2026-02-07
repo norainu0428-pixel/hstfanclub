@@ -177,8 +177,8 @@ function MatchmakingContent() {
         </div>
 
         {/* パーティ選択 */}
-        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
-          <h2 className="text-2xl font-bold mb-4">パーティを選択（最大3体）</h2>
+        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl text-gray-900">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900">パーティを選択（最大3体）</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {[0, 1, 2].map(index => (
               <div
@@ -188,13 +188,13 @@ function MatchmakingContent() {
                 {selectedMembers[index] ? (
                   <div className="text-center">
                     <div className="text-4xl mb-2">{selectedMembers[index].member_emoji}</div>
-                    <div className="font-bold">{selectedMembers[index].member_name}</div>
-                    <div className="text-sm text-gray-500">Lv.{selectedMembers[index].level}</div>
+                    <div className="font-bold text-gray-900">{selectedMembers[index].member_name}</div>
+                    <div className="text-sm text-gray-800">Lv.{selectedMembers[index].level}</div>
                   </div>
                 ) : (
-                  <div className="text-gray-400 text-center">
+                  <div className="text-gray-600 text-center">
                     <div className="text-4xl mb-2">➕</div>
-                    <div className="text-sm">メンバーを選択</div>
+                    <div className="text-sm text-gray-700">メンバーを選択</div>
                   </div>
                 )}
               </div>
@@ -215,8 +215,8 @@ function MatchmakingContent() {
         </div>
 
         {/* メンバー一覧 */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl">
-          <h2 className="text-xl font-bold mb-4">所持メンバー</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
+          <h2 className="text-xl font-bold mb-4 text-gray-900">所持メンバー</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {party.map(member => (
               <div
@@ -230,8 +230,8 @@ function MatchmakingContent() {
               >
                 <div className="text-center">
                   <div className="text-4xl mb-2">{member.member_emoji}</div>
-                  <div className="font-bold text-sm">{member.member_name}</div>
-                  <div className="text-xs text-gray-500">Lv.{member.level}</div>
+                  <div className="font-bold text-sm text-gray-900">{member.member_name}</div>
+                  <div className="text-xs text-gray-800">Lv.{member.level}</div>
                 </div>
               </div>
             ))}

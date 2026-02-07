@@ -115,40 +115,40 @@ function StageContent() {
         </div>
 
         {/* 敵情報 */}
-        <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-center">出現する敵</h2>
+        <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl text-gray-900">
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-900">出現する敵</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {stageInfo.enemies.map((enemy, index) => (
-              <div key={index} className="bg-gradient-to-br from-red-50 to-orange-50 border-4 border-red-400 rounded-xl p-6 shadow-lg">
+              <div key={index} className="bg-gradient-to-br from-red-50 to-orange-50 border-4 border-red-400 rounded-xl p-6 shadow-lg text-gray-900">
                 <div className="text-center mb-4">
                   <div className="text-6xl mb-2">{enemy.emoji}</div>
-                  <div className="text-2xl font-bold">{enemy.name}</div>
+                  <div className="text-2xl font-bold text-gray-900">{enemy.name}</div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">HP:</span>
+                    <span className="text-gray-700">HP:</span>
                     <span className="font-bold text-red-600">{enemy.hp}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">攻撃力:</span>
-                    <span className="font-bold">{enemy.attack}</span>
+                    <span className="text-gray-700">攻撃力:</span>
+                    <span className="font-bold text-gray-900">{enemy.attack}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">防御力:</span>
-                    <span className="font-bold">{enemy.defense}</span>
+                    <span className="text-gray-700">防御力:</span>
+                    <span className="font-bold text-gray-900">{enemy.defense}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">素早さ:</span>
-                    <span className="font-bold">{enemy.speed}</span>
+                    <span className="text-gray-700">素早さ:</span>
+                    <span className="font-bold text-gray-900">{enemy.speed}</span>
                   </div>
                   <div className="border-t-2 border-gray-300 my-2"></div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-blue-600">経験値:</span>
-                    <span className="font-bold">{enemy.experience_reward}</span>
+                    <span className="text-blue-700">経験値:</span>
+                    <span className="font-bold text-gray-900">{enemy.experience_reward}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-green-600">ポイント:</span>
-                    <span className="font-bold">{enemy.points_reward}</span>
+                    <span className="text-green-700">ポイント:</span>
+                    <span className="font-bold text-gray-900">{enemy.points_reward}</span>
                   </div>
                 </div>
               </div>
@@ -157,32 +157,32 @@ function StageContent() {
         </div>
 
         {/* パーティ情報 */}
-        <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-center">あなたのパーティ</h2>
+        <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl text-gray-900">
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-900">あなたのパーティ</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {party.map(member => (
-              <div key={member.id} className="bg-gradient-to-br from-blue-50 to-purple-50 border-4 border-blue-400 rounded-xl p-4">
+              <div key={member.id} className="bg-gradient-to-br from-blue-50 to-purple-50 border-4 border-blue-400 rounded-xl p-4 text-gray-900">
                 <div className="text-center mb-3">
                   <div className="text-4xl mb-2">{member.member_emoji}</div>
-                  <div className="font-bold">{member.member_name}</div>
-                  <div className="text-sm text-gray-500">Lv.{member.level}</div>
+                  <div className="font-bold text-gray-900">{member.member_name}</div>
+                  <div className="text-sm text-gray-800">Lv.{member.level}</div>
                 </div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">HP:</span>
+                    <span className="text-gray-700">HP:</span>
                     <span className="font-bold text-red-600">{member.hp}/{member.max_hp}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">ATK:</span>
-                    <span className="font-bold">{member.attack}</span>
+                    <span className="text-gray-700">ATK:</span>
+                    <span className="font-bold text-gray-900">{member.attack}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">DEF:</span>
-                    <span className="font-bold">{member.defense}</span>
+                    <span className="text-gray-700">DEF:</span>
+                    <span className="font-bold text-gray-900">{member.defense}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">SPD:</span>
-                    <span className="font-bold">{member.speed}</span>
+                    <span className="text-gray-700">SPD:</span>
+                    <span className="font-bold text-gray-900">{member.speed}</span>
                   </div>
                 </div>
               </div>

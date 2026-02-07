@@ -182,8 +182,8 @@ export default function PlayerSearchPage() {
 
         {/* 検索結果 */}
         {results.length > 0 ? (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-xl font-bold mb-4">検索結果 ({results.length})</h2>
+          <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">検索結果 ({results.length})</h2>
             <div className="space-y-3">
               {results.map(player => (
                 <div
@@ -195,8 +195,8 @@ export default function PlayerSearchPage() {
                       {player.display_name?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <div className="font-bold text-lg">{player.display_name}</div>
-                      <div className="text-sm text-gray-500">ID: {player.user_id.slice(0, 8)}...</div>
+                      <div className="font-bold text-lg text-gray-900">{player.display_name}</div>
+                      <div className="text-sm text-gray-800">ID: {player.user_id.slice(0, 8)}...</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -223,10 +223,10 @@ export default function PlayerSearchPage() {
             </div>
           </div>
         ) : !loading && searchTerm.trim() ? (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl text-center text-gray-600">
-            <p className="font-bold mb-2">検索結果が見つかりませんでした</p>
-            <p className="text-sm">・表示名の一部、またはフレンドID（先頭8文字以上）で検索できます</p>
-            <p className="text-sm">・該当するプレイヤーがいない可能性があります</p>
+          <div className="bg-white rounded-2xl p-6 shadow-2xl text-center text-gray-900">
+            <p className="font-bold mb-2 text-gray-900">検索結果が見つかりませんでした</p>
+            <p className="text-sm text-gray-800">・表示名の一部、またはフレンドID（先頭8文字以上）で検索できます</p>
+            <p className="text-sm text-gray-800">・該当するプレイヤーがいない可能性があります</p>
           </div>
         ) : null}
 

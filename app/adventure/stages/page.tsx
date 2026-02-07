@@ -92,7 +92,7 @@ function StagesContent() {
         </div>
 
         {/* ページネーション */}
-        <div className="bg-white rounded-2xl p-4 shadow-xl mb-4">
+        <div className="bg-white rounded-2xl p-4 shadow-xl mb-4 text-gray-900">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -102,10 +102,10 @@ function StagesContent() {
               ← 前のページ
             </button>
             <div className="text-center">
-              <div className="text-lg font-bold text-gray-700">
+              <div className="text-lg font-bold text-gray-900">
                 ページ {currentPage} / {Math.ceil(400 / stagesPerPage)}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-800">
                 ステージ {(currentPage - 1) * stagesPerPage + 1} - {Math.min(currentPage * stagesPerPage, 400)}
               </div>
             </div>
@@ -120,7 +120,7 @@ function StagesContent() {
         </div>
 
         {/* ステージグリッド */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
           <div className="grid grid-cols-10 gap-2">
             {Array.from({ length: stagesPerPage }, (_, i) => {
               const stage = (currentPage - 1) * stagesPerPage + i + 1;
@@ -186,8 +186,8 @@ function StagesContent() {
         </div>
 
         {/* ステージ詳細表示 */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
-          <h2 className="text-2xl font-bold mb-4 text-center">ステージ情報</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+          <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">ステージ情報</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[currentStage, currentStage + 1, currentStage + 2].map(stage => {
               if (stage > 400) return null;
@@ -207,10 +207,10 @@ function StagesContent() {
                     {stage % 100 === 0 && stage % 200 !== 0 && <span className="ml-2">👑🔥</span>}
                     {stage % 10 === 0 && stage % 100 !== 0 && <span className="ml-2">👑</span>}
                   </div>
-                  <div className="text-sm space-y-1">
+                  <div className="text-sm space-y-1 text-gray-900">
                     <div>推奨レベル: <span className="font-bold">{stageInfo.recommendedLevel}</span></div>
                     <div>敵の数: <span className="font-bold">{stageInfo.enemies.length}体</span></div>
-                    <div className="text-xs text-gray-600 mt-2">
+                    <div className="text-xs text-gray-800 mt-2">
                       {stageInfo.enemies.slice(0, 2).map(e => e.emoji).join(' ')}
                       {stageInfo.enemies.length > 2 && ' ...'}
                     </div>

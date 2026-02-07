@@ -152,10 +152,10 @@ export default function EquipmentGachaPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-8 shadow-2xl mb-6">
+        <div className="bg-white rounded-2xl p-8 shadow-2xl mb-6 text-gray-900">
           <div className="text-center mb-6">
-            <p className="text-gray-700 font-bold mb-2">1回 {EQUIPMENT_GACHA_COST}pt</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-gray-900 font-bold mb-2">1回 {EQUIPMENT_GACHA_COST}pt</p>
+            <p className="text-sm text-gray-800">
               出現率: コモン50% / レア30% / スーパーレア15% / ウルトラレア4% / レジェンド1%
             </p>
           </div>
@@ -170,8 +170,8 @@ export default function EquipmentGachaPage() {
         </div>
 
         {result && (
-          <div className="bg-white rounded-2xl p-8 shadow-2xl mb-6 animate-fade-in">
-            <h2 className="text-2xl font-bold text-center mb-4">🎉 獲得！</h2>
+          <div className="bg-white rounded-2xl p-8 shadow-2xl mb-6 animate-fade-in text-gray-900">
+            <h2 className="text-2xl font-bold text-center mb-4 text-gray-900">🎉 獲得！</h2>
             <div className={`bg-gradient-to-r ${getRarityBg(result.equipment.rarity)} rounded-xl p-6 text-white`}>
               <div className="text-6xl text-center mb-2">{result.equipment.emoji}</div>
               <div className="text-xl font-bold text-center">{result.equipment.name}</div>

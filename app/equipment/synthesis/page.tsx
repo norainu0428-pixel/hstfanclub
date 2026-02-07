@@ -171,9 +171,9 @@ export default function EquipmentSynthesisPage() {
           <p className="opacity-90">同じ装備を2つ選んでレベルアップ！</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
-          <h2 className="font-bold text-lg mb-4">合成ルール</h2>
-          <ul className="text-gray-700 space-y-1 text-sm">
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+          <h2 className="font-bold text-lg mb-4 text-gray-900">合成ルール</h2>
+          <ul className="text-gray-800 space-y-1 text-sm">
             <li>• 同じ種類・同じレベルの装備を2つ選ぶと合成できます</li>
             <li>• 合成後は1つになり、レベルが+1されます</li>
             <li>• 装備中の装備は合成できません</li>
@@ -198,10 +198,10 @@ export default function EquipmentSynthesisPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
-          <h2 className="font-bold text-lg mb-4">合成可能な装備</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+          <h2 className="font-bold text-lg mb-4 text-gray-900">合成可能な装備</h2>
           {synthesizableGroups.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-800">
               <p>合成可能な装備のペアがありません</p>
               <p className="text-sm mt-1">同じ装備を2つ以上持っていると合成できます</p>
             </div>
@@ -222,8 +222,8 @@ export default function EquipmentSynthesisPage() {
                       <div className="flex items-center gap-2">
                         <div className="text-3xl">{eq.emoji}</div>
                         <div>
-                          <div className="font-bold">{eq.name}</div>
-                          <div className="text-sm text-gray-600">
+                          <div className="font-bold text-gray-900">{eq.name}</div>
+                          <div className="text-sm text-gray-800">
                             {getSlotName(eq.slot_type)} Lv.{ue.level} × {arr.length}個
                           </div>
                         </div>
@@ -234,7 +234,7 @@ export default function EquipmentSynthesisPage() {
                             key={item.id}
                             onClick={() => toggleSelect(item.id)}
                             disabled={isSynthesizing}
-                            className={`px-4 py-2 rounded-lg border-2 font-medium transition ${
+                            className={`px-4 py-2 rounded-lg border-2 font-medium transition text-gray-900 ${
                               selectedIds.has(item.id)
                                 ? 'border-amber-500 bg-amber-100'
                                 : 'border-gray-200 hover:border-amber-300'
@@ -244,7 +244,7 @@ export default function EquipmentSynthesisPage() {
                           </button>
                         ))}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-800">
                         → Lv.{ue.level + 1} (ATK+{nextStats.atk} DEF+{nextStats.def} HP+{nextStats.hp} SPD+{nextStats.spd})
                       </div>
                     </div>

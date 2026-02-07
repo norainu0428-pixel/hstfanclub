@@ -123,10 +123,10 @@ export default function FriendRequestsPage() {
         </div>
 
         {requests.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center">
+          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center text-gray-900">
             <div className="text-6xl mb-4">📭</div>
-            <h2 className="text-2xl font-bold mb-2">申請はありません</h2>
-            <p className="text-gray-600 mb-6">新しいフレンド申請が届くとここに表示されます</p>
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">申請はありません</h2>
+            <p className="text-gray-800 mb-6">新しいフレンド申請が届くとここに表示されます</p>
             <button
               onClick={() => router.push('/friends/search')}
               className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-full font-bold hover:opacity-90"
@@ -135,7 +135,7 @@ export default function FriendRequestsPage() {
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
             <div className="space-y-4">
               {requests.map(request => (
                 <div
@@ -147,8 +147,8 @@ export default function FriendRequestsPage() {
                       {request.sender_name.charAt(0)}
                     </div>
                     <div>
-                      <div className="font-bold text-lg">{request.sender_name}</div>
-                      <div className="text-sm text-gray-500">
+                      <div className="font-bold text-lg text-gray-900">{request.sender_name}</div>
+                      <div className="text-sm text-gray-800">
                         {new Date(request.created_at).toLocaleString('ja-JP')}
                       </div>
                     </div>

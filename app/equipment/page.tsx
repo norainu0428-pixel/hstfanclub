@@ -82,12 +82,12 @@ export default function EquipmentPage() {
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {userEquipment.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-gray-500">
-                <p className="text-xl mb-2">装備がありません</p>
-                <p className="text-sm">装備ガチャで装備を獲得しよう！</p>
+              <div className="col-span-full text-center py-12 text-gray-800">
+                <p className="text-xl mb-2 text-gray-900">装備がありません</p>
+                <p className="text-sm text-gray-800">装備ガチャで装備を獲得しよう！</p>
               </div>
             ) : (
               userEquipment.map((ue) => {
@@ -100,8 +100,8 @@ export default function EquipmentPage() {
                     className={`border-2 rounded-xl p-4 bg-gradient-to-br ${getRarityColor(eq.rarity)} bg-opacity-20`}
                   >
                     <div className="text-4xl text-center mb-2">{eq.emoji}</div>
-                    <div className="font-bold text-center text-sm">{eq.name}</div>
-                    <div className="text-xs text-center text-gray-600 mt-1">
+                    <div className="font-bold text-center text-sm text-gray-900">{eq.name}</div>
+                    <div className="text-xs text-center text-gray-800 mt-1">
                       {getSlotName(eq.slot_type)} Lv.{ue.level}
                     </div>
                     <div className="mt-2 text-xs space-y-0.5">
