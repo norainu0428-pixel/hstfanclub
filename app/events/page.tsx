@@ -232,34 +232,65 @@ export default function EventsPage() {
           member
         });
 
-        // メンバーをDBに追加（個体値・才能値を付与）
+        // メンバーをDBに追加（個体値・才能値を付与。カラムが無い場合は従来の項目のみで保存）
         const baseStatsForRarity = baseStats[rarity];
         const statsWithIV = generateMemberStatsWithIV(baseStatsForRarity);
-        await supabase
-          .from('user_members')
-          .insert({
-            user_id: user.id,
-            member_name: member.name,
-            member_emoji: member.emoji,
-            member_description: member.description,
-            rarity: rarity,
-            level: 1,
-            experience: 0,
-            max_hp: statsWithIV.hp,
-            hp: statsWithIV.hp,
-            current_hp: statsWithIV.hp,
-            attack: statsWithIV.attack,
-            defense: statsWithIV.defense,
-            speed: statsWithIV.speed,
-            skill_type: member.skill_type,
-            skill_power: member.skill_power || 0,
-            revive_used: false,
-            individual_hp: statsWithIV.individual_hp,
-            individual_atk: statsWithIV.individual_atk,
-            individual_def: statsWithIV.individual_def,
-            individual_spd: statsWithIV.individual_spd,
-            talent_value: statsWithIV.talent_value
-          });
+        const insertPayload = {
+          user_id: user.id,
+          member_name: member.name,
+          member_emoji: member.emoji,
+          member_description: member.description,
+          rarity: rarity,
+          level: 1,
+          experience: 0,
+          max_hp: statsWithIV.hp,
+          hp: statsWithIV.hp,
+          current_hp: statsWithIV.hp,
+          attack: statsWithIV.attack,
+          defense: statsWithIV.defense,
+          speed: statsWithIV.speed,
+          skill_type: member.skill_type,
+          skill_power: member.skill_power || 0,
+          revive_used: false,
+          individual_hp: statsWithIV.individual_hp,
+          individual_atk: statsWithIV.individual_atk,
+          individual_def: statsWithIV.individual_def,
+          individual_spd: statsWithIV.individual_spd,
+          talent_value: statsWithIV.talent_value
+        };
+        const { error: insertError } = await supabase.from('user_members').insert(insertPayload);
+        if (insertError) {
+          const isColumnError = /column.*does not exist|unknown column/i.test(insertError.message);
+          if (isColumnError) {
+            const { error: fallbackError } = await supabase.from('user_members').insert({
+              user_id: user.id,
+              member_name: member.name,
+              member_emoji: member.emoji,
+              member_description: member.description,
+              rarity: rarity,
+              level: 1,
+              experience: 0,
+              max_hp: statsWithIV.hp,
+              hp: statsWithIV.hp,
+              current_hp: statsWithIV.hp,
+              attack: statsWithIV.attack,
+              defense: statsWithIV.defense,
+              speed: statsWithIV.speed,
+              skill_type: member.skill_type,
+              skill_power: member.skill_power || 0,
+              revive_used: false
+            });
+            if (fallbackError) {
+              alert(`キャラの保存に失敗しました: ${fallbackError.message}\n（Supabaseで supabase_iv_talent.sql の実行を推奨します）`);
+              setPulling(false);
+              return;
+            }
+          } else {
+            alert(`キャラの保存に失敗しました: ${insertError.message}`);
+            setPulling(false);
+            return;
+          }
+        }
       }
 
       // ポイント消費

@@ -396,7 +396,7 @@ export default function PremiumGachaPage() {
       'common': { hp: 60, attack: 10, defense: 8, speed: 10 }
     };
 
-    // メンバー保存（個体値・才能値を付与）
+    // メンバー保存（個体値・才能値を付与。カラムが無い場合は従来の項目のみで保存）
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       const baseStatsForRarity = baseStats[result.rarity];
@@ -406,29 +406,57 @@ export default function PremiumGachaPage() {
       result.individual_def = statsWithIV.individual_def;
       result.individual_spd = statsWithIV.individual_spd;
       result.talent_value = statsWithIV.talent_value;
-      
-      await supabase
-        .from('user_members')
-        .insert({
-          user_id: user.id,
-          member_name: result.member.name,
-          member_emoji: result.member.emoji,
-          member_description: result.member.description,
-          rarity: result.rarity,
-          hp: statsWithIV.hp,
-          max_hp: statsWithIV.hp,
-          current_hp: statsWithIV.hp,
-          attack: statsWithIV.attack,
-          defense: statsWithIV.defense,
-          speed: statsWithIV.speed,
-          skill_type: result.member.skill_type || null,
-          skill_power: result.member.skill_power || 0,
-          individual_hp: statsWithIV.individual_hp,
-          individual_atk: statsWithIV.individual_atk,
-          individual_def: statsWithIV.individual_def,
-          individual_spd: statsWithIV.individual_spd,
-          talent_value: statsWithIV.talent_value
-        });
+
+      const insertPayload = {
+        user_id: user.id,
+        member_name: result.member.name,
+        member_emoji: result.member.emoji,
+        member_description: result.member.description,
+        rarity: result.rarity,
+        hp: statsWithIV.hp,
+        max_hp: statsWithIV.hp,
+        current_hp: statsWithIV.hp,
+        attack: statsWithIV.attack,
+        defense: statsWithIV.defense,
+        speed: statsWithIV.speed,
+        skill_type: result.member.skill_type || null,
+        skill_power: result.member.skill_power || 0,
+        individual_hp: statsWithIV.individual_hp,
+        individual_atk: statsWithIV.individual_atk,
+        individual_def: statsWithIV.individual_def,
+        individual_spd: statsWithIV.individual_spd,
+        talent_value: statsWithIV.talent_value
+      };
+
+      const { error: insertError } = await supabase.from('user_members').insert(insertPayload);
+
+      if (insertError) {
+        const isColumnError = /column.*does not exist|unknown column/i.test(insertError.message);
+        if (isColumnError) {
+          const { error: fallbackError } = await supabase.from('user_members').insert({
+            user_id: user.id,
+            member_name: result.member.name,
+            member_emoji: result.member.emoji,
+            member_description: result.member.description,
+            rarity: result.rarity,
+            hp: statsWithIV.hp,
+            max_hp: statsWithIV.hp,
+            current_hp: statsWithIV.hp,
+            attack: statsWithIV.attack,
+            defense: statsWithIV.defense,
+            speed: statsWithIV.speed,
+            skill_type: result.member.skill_type || null,
+            skill_power: result.member.skill_power || 0
+          });
+          if (fallbackError) {
+            alert(`キャラの保存に失敗しました: ${fallbackError.message}\n（Supabaseで supabase_iv_talent.sql の実行を推奨します）`);
+            return;
+          }
+        } else {
+          alert(`キャラの保存に失敗しました: ${insertError.message}`);
+          return;
+        }
+      }
     }
 
     // ポイント消費
