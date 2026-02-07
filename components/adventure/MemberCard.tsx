@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { Member, MAX_LEVELS, getRequiredExp } from '@/types/adventure';
 import { getPlateImageUrl } from '@/utils/plateImage';
+import { getIVEvaluation, getTalentEvaluation } from '@/utils/memberStats';
 
 interface MemberCardProps {
   member: Member;
@@ -188,6 +189,16 @@ export default function MemberCard({ member, onClick, selected = false, showStat
                 <div className="text-sm text-gray-300">SPD</div>
                 <div className="font-bold text-orange-500">{member.speed}</div>
               </div>
+            </div>
+
+            {/* 個体値・才能値（厳選要素） */}
+            <div className="flex gap-2 mb-3 text-xs">
+              <span className="bg-amber-900/50 text-amber-300 px-2 py-1 rounded" title={`HP${(member.individual_hp ?? 0) >= 0 ? '+' : ''}${member.individual_hp ?? 0} ATK${(member.individual_atk ?? 0) >= 0 ? '+' : ''}${member.individual_atk ?? 0} DEF${(member.individual_def ?? 0) >= 0 ? '+' : ''}${member.individual_def ?? 0} SPD${(member.individual_spd ?? 0) >= 0 ? '+' : ''}${member.individual_spd ?? 0}`}>
+                個体: {getIVEvaluation({ individual_hp: member.individual_hp ?? 0, individual_atk: member.individual_atk ?? 0, individual_def: member.individual_def ?? 0, individual_spd: member.individual_spd ?? 0 })}
+              </span>
+              <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded" title={`才能値: ${member.talent_value ?? 50}`}>
+                才能: {getTalentEvaluation(member.talent_value ?? 50)}
+              </span>
             </div>
 
             {/* スキル表示 */}

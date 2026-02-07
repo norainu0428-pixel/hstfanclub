@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { initializeDailyMissions } from '@/utils/missionTracker';
+import { generateMemberStatsWithIV } from '@/utils/memberStats';
 
 type Profile = {
   user_id: string;
@@ -52,44 +53,18 @@ export default function Home() {
         return;
       }
 
-      // 初期キャラクター（common レアリティ）
+      // 初期キャラクター（common レアリティ、個体値・才能値を付与）
       const starterCharacters = [
-        { 
-          name: 'smile', 
-          emoji: '😊', 
-          description: 'チームリーダー',
-          rarity: 'common',
-          hp: 60,
-          attack: 10,
-          defense: 8,
-          speed: 10
-        },
-        { 
-          name: 'zerom', 
-          emoji: '⚡', 
-          description: 'エースプレイヤー',
-          rarity: 'common',
-          hp: 60,
-          attack: 10,
-          defense: 8,
-          speed: 10
-        },
-        { 
-          name: 'shunkoro', 
-          emoji: '🔥', 
-          description: 'ストラテジスト',
-          rarity: 'common',
-          hp: 60,
-          attack: 10,
-          defense: 8,
-          speed: 10
-        }
+        { name: 'smile', emoji: '😊', description: 'チームリーダー', rarity: 'common' as const },
+        { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', rarity: 'common' as const },
+        { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', rarity: 'common' as const }
       ];
+      const baseStats = { hp: 60, attack: 10, defense: 8, speed: 10 };
 
-      // 初期キャラクターを付与（エラーチェック付き）
       const insertResults = await Promise.all(
-        starterCharacters.map(char =>
-          supabase
+        starterCharacters.map(char => {
+          const statsWithIV = generateMemberStatsWithIV(baseStats);
+          return supabase
             .from('user_members')
             .insert({
               user_id: userId,
@@ -99,16 +74,21 @@ export default function Home() {
               rarity: char.rarity,
               level: 1,
               experience: 0,
-              hp: char.hp,
-              max_hp: char.hp,
-              current_hp: char.hp,
-              attack: char.attack,
-              defense: char.defense,
-              speed: char.speed,
+              hp: statsWithIV.hp,
+              max_hp: statsWithIV.hp,
+              current_hp: statsWithIV.hp,
+              attack: statsWithIV.attack,
+              defense: statsWithIV.defense,
+              speed: statsWithIV.speed,
               skill_type: null,
-              skill_power: 0
-            })
-        )
+              skill_power: 0,
+              individual_hp: statsWithIV.individual_hp,
+              individual_atk: statsWithIV.individual_atk,
+              individual_def: statsWithIV.individual_def,
+              individual_spd: statsWithIV.individual_spd,
+              talent_value: statsWithIV.talent_value
+            });
+        })
       );
 
       // エラーチェック
@@ -183,7 +163,12 @@ export default function Home() {
               speed: finalStats.speed,
               skill_type: 'revive',
               skill_power: 1,
-              revive_used: false
+              revive_used: false,
+              individual_hp: 0,
+              individual_atk: 0,
+              individual_def: 0,
+              individual_spd: 0,
+              talent_value: 50
             });
         }
 

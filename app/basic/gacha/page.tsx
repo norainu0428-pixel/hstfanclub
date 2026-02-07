@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { updateProfilePoints } from '@/utils/profilePoints';
+import { generateMemberStatsWithIV, getIVEvaluation, getTalentEvaluation } from '@/utils/memberStats';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
 
@@ -19,6 +20,11 @@ interface GachaResult {
     skill_type?: string | null;
     skill_power?: number;
   };
+  individual_hp?: number;
+  individual_atk?: number;
+  individual_def?: number;
+  individual_spd?: number;
+  talent_value?: number;
 }
 
 // HSTメンバーデータ（プレミアムと同じ）
@@ -332,9 +338,16 @@ export default function BasicGachaPage() {
       'common': { hp: 60, attack: 10, defense: 8, speed: 10 }
     };
 
-    // メンバー保存
-    for (const result of results) {
-      const stats = baseStats[result.rarity];
+    // メンバー保存（個体値・才能値を付与）
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      const baseStatsForRarity = baseStats[result.rarity];
+      const statsWithIV = generateMemberStatsWithIV(baseStatsForRarity);
+      result.individual_hp = statsWithIV.individual_hp;
+      result.individual_atk = statsWithIV.individual_atk;
+      result.individual_def = statsWithIV.individual_def;
+      result.individual_spd = statsWithIV.individual_spd;
+      result.talent_value = statsWithIV.talent_value;
       
       await supabase
         .from('user_members')
@@ -344,14 +357,19 @@ export default function BasicGachaPage() {
           member_emoji: result.member.emoji,
           member_description: result.member.description,
           rarity: result.rarity,
-          hp: stats.hp,
-          max_hp: stats.hp,
-          current_hp: stats.hp,
-          attack: stats.attack,
-          defense: stats.defense,
-          speed: stats.speed,
+          hp: statsWithIV.hp,
+          max_hp: statsWithIV.hp,
+          current_hp: statsWithIV.hp,
+          attack: statsWithIV.attack,
+          defense: statsWithIV.defense,
+          speed: statsWithIV.speed,
           skill_type: result.member.skill_type || null,
-          skill_power: result.member.skill_power || 0
+          skill_power: result.member.skill_power || 0,
+          individual_hp: statsWithIV.individual_hp,
+          individual_atk: statsWithIV.individual_atk,
+          individual_def: statsWithIV.individual_def,
+          individual_spd: statsWithIV.individual_spd,
+          talent_value: statsWithIV.talent_value
         });
     }
 
@@ -634,6 +652,16 @@ export default function BasicGachaPage() {
                     {result.member.skill_type && (
                       <div className="mt-2 inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold">
                         スキル: {getSkillName(result.member.skill_type)}
+                      </div>
+                    )}
+                    {(result.individual_hp != null || result.talent_value != null) && (
+                      <div className="mt-2 flex gap-2 justify-center flex-wrap">
+                        <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded text-sm">
+                          個体: {getIVEvaluation({ individual_hp: result.individual_hp ?? 0, individual_atk: result.individual_atk ?? 0, individual_def: result.individual_def ?? 0, individual_spd: result.individual_spd ?? 0 })}
+                        </span>
+                        <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded text-sm">
+                          才能: {getTalentEvaluation(result.talent_value ?? 50)}
+                        </span>
                       </div>
                     )}
                   </div>

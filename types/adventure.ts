@@ -21,6 +21,13 @@ export interface Member {
   skill_power?: number;
   revive_used?: boolean;
   current_hp?: number;
+  /** 個体値（-10〜+10） */
+  individual_hp?: number;
+  individual_atk?: number;
+  individual_def?: number;
+  individual_spd?: number;
+  /** 才能値（0〜100）、レベルアップ成長に影響 */
+  talent_value?: number;
 }
 
 export type EnemySkillType = 'heal' | 'revive' | 'attack_boost' | null;

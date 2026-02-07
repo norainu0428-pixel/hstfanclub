@@ -95,7 +95,12 @@ export default function DistributeHSTPage() {
         speed: 4052,
         skill_type: 'hst_power',
         skill_power: 999,
-        revive_used: false
+        revive_used: false,
+        individual_hp: 0,
+        individual_atk: 0,
+        individual_def: 0,
+        individual_spd: 0,
+        talent_value: 50
       };
 
       const { error } = await supabase

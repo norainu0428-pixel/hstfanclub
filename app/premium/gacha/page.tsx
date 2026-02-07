@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
+import { generateMemberStatsWithIV } from '@/utils/memberStats';
 
 type Rarity = 'HST' | 'stary' | 'common' | 'rare' | 'super-rare' | 'ultra-rare' | 'legendary';
 
@@ -16,6 +17,11 @@ interface GachaResult {
     skill_type?: string | null;
     skill_power?: number;
   };
+  individual_hp?: number;
+  individual_atk?: number;
+  individual_def?: number;
+  individual_spd?: number;
+  talent_value?: number;
 }
 
 // HSTメンバーデータ（スキル情報追加）
@@ -390,9 +396,16 @@ export default function PremiumGachaPage() {
       'common': { hp: 60, attack: 10, defense: 8, speed: 10 }
     };
 
-    // メンバー保存
-    for (const result of results) {
-      const stats = baseStats[result.rarity];
+    // メンバー保存（個体値・才能値を付与）
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      const baseStatsForRarity = baseStats[result.rarity];
+      const statsWithIV = generateMemberStatsWithIV(baseStatsForRarity);
+      result.individual_hp = statsWithIV.individual_hp;
+      result.individual_atk = statsWithIV.individual_atk;
+      result.individual_def = statsWithIV.individual_def;
+      result.individual_spd = statsWithIV.individual_spd;
+      result.talent_value = statsWithIV.talent_value;
       
       await supabase
         .from('user_members')
@@ -402,14 +415,19 @@ export default function PremiumGachaPage() {
           member_emoji: result.member.emoji,
           member_description: result.member.description,
           rarity: result.rarity,
-          hp: stats.hp,
-          max_hp: stats.hp,
-          current_hp: stats.hp,
-          attack: stats.attack,
-          defense: stats.defense,
-          speed: stats.speed,
+          hp: statsWithIV.hp,
+          max_hp: statsWithIV.hp,
+          current_hp: statsWithIV.hp,
+          attack: statsWithIV.attack,
+          defense: statsWithIV.defense,
+          speed: statsWithIV.speed,
           skill_type: result.member.skill_type || null,
-          skill_power: result.member.skill_power || 0
+          skill_power: result.member.skill_power || 0,
+          individual_hp: statsWithIV.individual_hp,
+          individual_atk: statsWithIV.individual_atk,
+          individual_def: statsWithIV.individual_def,
+          individual_spd: statsWithIV.individual_spd,
+          talent_value: statsWithIV.talent_value
         });
     }
 

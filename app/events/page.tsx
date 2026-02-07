@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { Rarity } from '@/types/adventure';
+import { generateMemberStatsWithIV } from '@/utils/memberStats';
 
 // HSTメンバーデータ
 const HST_MEMBERS = {
@@ -231,8 +232,9 @@ export default function EventsPage() {
           member
         });
 
-        // メンバーをDBに追加
-        const stats = baseStats[rarity];
+        // メンバーをDBに追加（個体値・才能値を付与）
+        const baseStatsForRarity = baseStats[rarity];
+        const statsWithIV = generateMemberStatsWithIV(baseStatsForRarity);
         await supabase
           .from('user_members')
           .insert({
@@ -243,15 +245,20 @@ export default function EventsPage() {
             rarity: rarity,
             level: 1,
             experience: 0,
-            max_hp: stats.hp,
-            hp: stats.hp,
-            current_hp: stats.hp,
-            attack: stats.attack,
-            defense: stats.defense,
-            speed: stats.speed,
+            max_hp: statsWithIV.hp,
+            hp: statsWithIV.hp,
+            current_hp: statsWithIV.hp,
+            attack: statsWithIV.attack,
+            defense: statsWithIV.defense,
+            speed: statsWithIV.speed,
             skill_type: member.skill_type,
             skill_power: member.skill_power || 0,
-            revive_used: false
+            revive_used: false,
+            individual_hp: statsWithIV.individual_hp,
+            individual_atk: statsWithIV.individual_atk,
+            individual_def: statsWithIV.individual_def,
+            individual_spd: statsWithIV.individual_spd,
+            talent_value: statsWithIV.talent_value
           });
       }
 
