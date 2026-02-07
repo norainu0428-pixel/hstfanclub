@@ -1126,13 +1126,13 @@ function BattleContent() {
         {/* 結果表示 */}
         {battleResult && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto text-gray-900">
               {battleResult === 'victory' ? (
                 <>
                   <div className="text-center mb-6">
                     <div className="text-6xl mb-4">🎉</div>
                     <h2 className="text-3xl font-bold text-green-600 mb-2">勝利！</h2>
-                    <p className="text-gray-600">
+                    <p className="text-gray-900">
                       {isExtraStage(stageId) ? `エクストラステージ${getExtraStageNum(stageId)}` : `ステージ${stageId}`}をクリアしました！
                     </p>
                   </div>
@@ -1220,15 +1220,15 @@ function BattleContent() {
                     </div>
                   )}
 
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6">
-                    <h3 className="font-bold text-lg mb-3">報酬</h3>
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6 text-gray-900">
+                    <h3 className="font-bold text-lg mb-3 text-gray-900">報酬</h3>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span>経験値:</span>
+                        <span className="text-gray-900">経験値:</span>
                         <span className="font-bold text-blue-600">+{rewards.exp}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>ポイント:</span>
+                        <span className="text-gray-900">ポイント:</span>
                         <span className="font-bold text-green-600">+{rewards.points}</span>
                       </div>
                     </div>
@@ -1247,13 +1247,13 @@ function BattleContent() {
                           router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`);
                         }
                       }}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900 px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
                       {isExtraStage(stageId) && getExtraStageNum(stageId) >= EXTRA_STAGE_COUNT ? 'ステージ選択に戻る' : '次のステージへ'}
                     </button>
                     <button
                       onClick={() => router.push('/adventure')}
-                      className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
+                      className="flex-1 bg-gray-200 text-gray-900 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
                     >
                       パーティ編成に戻る
                     </button>
