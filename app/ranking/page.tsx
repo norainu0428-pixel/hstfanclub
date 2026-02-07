@@ -16,9 +16,18 @@ interface RankingEntry {
   highest_cleared_stage: number;
 }
 
+interface StageRankEntry {
+  rank: number;
+  user_id: string;
+  display_name: string;
+  highest_cleared_stage: number;
+}
+
 export default function RankingPage() {
   const [rankings, setRankings] = useState<RankingEntry[]>([]);
+  const [stageRankings, setStageRankings] = useState<StageRankEntry[]>([]);
   const [myRanking, setMyRanking] = useState<RankingEntry | null>(null);
+  const [myStageRank, setMyStageRank] = useState<StageRankEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -116,6 +125,64 @@ export default function RankingPage() {
       }
     }
 
+    // 全員分・最高クリアステージランキング（user_progress を current_stage 降順で取得）
+    const { data: progressList } = await supabase
+      .from('user_progress')
+      .select('user_id, current_stage')
+      .order('current_stage', { ascending: false })
+      .limit(100);
+
+    if (progressList && progressList.length > 0) {
+      const stageUserIds = progressList.map((p: { user_id: string }) => p.user_id);
+      const { data: stageProfiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .in('user_id', stageUserIds);
+
+      const stageProfileMap = new Map<string, string>();
+      (stageProfiles || []).forEach((p: { user_id: string; display_name?: string }) => {
+        stageProfileMap.set(p.user_id, p.display_name || '不明');
+      });
+
+      const stageFormatted: StageRankEntry[] = progressList.map((p: { user_id: string; current_stage?: number }, index: number) => {
+        const stage = p.current_stage ?? 1;
+        const highest = Math.max(0, stage - 1);
+        return {
+          rank: index + 1,
+          user_id: p.user_id,
+          display_name: stageProfileMap.get(p.user_id) || '不明',
+          highest_cleared_stage: highest
+        };
+      });
+
+      setStageRankings(stageFormatted);
+
+      if (user) {
+        const myStageEntry = stageFormatted.find((e: StageRankEntry) => e.user_id === user.id);
+        if (myStageEntry) {
+          setMyStageRank(myStageEntry);
+        } else {
+          const { data: myProg } = await supabase
+            .from('user_progress')
+            .select('current_stage')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          const { data: myProf } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          const myHighest = myProg?.current_stage != null ? Math.max(0, myProg.current_stage - 1) : 0;
+          setMyStageRank({
+            rank: 0,
+            user_id: user.id,
+            display_name: myProf?.display_name || '不明',
+            highest_cleared_stage: myHighest
+          });
+        }
+      }
+    }
+
     setLoading(false);
   }
 
@@ -139,7 +206,7 @@ export default function RankingPage() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">🏆 ランキング</h1>
-          <p className="text-lg opacity-90">レーティング Top 100</p>
+          <p className="text-lg opacity-90">PvPレーティング & 最高クリアステージ（全員分）</p>
         </div>
 
         {/* 自分のランキング */}
@@ -172,17 +239,18 @@ export default function RankingPage() {
           </div>
         )}
 
-        {/* ランキングリスト */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl">
+        {/* PvP レーティングランキング */}
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+          <h2 className="text-xl font-bold mb-4 text-gray-900">⚔️ PvP レーティング Top 100</h2>
           {rankings.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-900">
               ランキングデータがありません
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 text-gray-900">
               {rankings.map(entry => (
                 <div
-                  key={entry.user_id}
+                  key={'pvp-' + entry.user_id}
                   className={`flex items-center justify-between p-4 rounded-lg transition ${
                     entry.user_id === myRanking?.user_id
                       ? 'bg-yellow-100 border-2 border-yellow-400'
@@ -193,25 +261,25 @@ export default function RankingPage() {
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
                       entry.rank <= 3
                         ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white'
-                        : 'bg-gray-200 text-gray-700'
+                        : 'bg-gray-200 text-gray-900'
                     }`}>
                       {entry.rank <= 3 ? getRankIcon(entry.rank) : entry.rank}
                     </div>
                     <div>
-                      <div className="font-bold text-lg">{entry.display_name}</div>
-                      <div className="text-sm text-gray-500">
-                        {entry.wins}勝 {entry.losses}敗（勝率 {entry.win_rate.toFixed(1)}%）
+                      <div className="font-bold text-lg text-gray-900">{entry.display_name}</div>
+                      <div className="text-sm text-gray-900">
+                        {entry.wins}勝 {entry.losses}敗（勝率 {entry.win_rate.toFixed(1)}%）・最高クリア ステージ{entry.highest_cleared_stage}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-center">
-                      <div className="text-sm font-bold text-gray-700">ステージ{entry.highest_cleared_stage}</div>
-                      <div className="text-xs text-gray-500">最高クリア</div>
+                      <div className="text-sm font-bold text-gray-900">ステージ{entry.highest_cleared_stage}</div>
+                      <div className="text-xs text-gray-900">最高クリア</div>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-purple-600">{entry.rating}</div>
-                      <div className="text-xs text-gray-500">Rating</div>
+                      <div className="text-xs text-gray-900">Rating</div>
                     </div>
                   </div>
                 </div>
@@ -219,6 +287,55 @@ export default function RankingPage() {
             </div>
           )}
         </div>
+
+        {/* 全員分・最高クリアステージランキング */}
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+          <h2 className="text-xl font-bold mb-4 text-gray-900">📊 最高クリアステージ ランキング（全員）</h2>
+          {stageRankings.length === 0 ? (
+            <div className="text-center py-12 text-gray-900">
+              ステージ進捗データがありません
+            </div>
+          ) : (
+            <div className="space-y-2 text-gray-900">
+              {stageRankings.map(entry => (
+                <div
+                  key={'stage-' + entry.user_id}
+                  className={`flex items-center justify-between p-4 rounded-lg transition ${
+                    entry.user_id === myRanking?.user_id || entry.user_id === myStageRank?.user_id
+                      ? 'bg-green-100 border-2 border-green-400'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                      entry.rank <= 3
+                        ? 'bg-gradient-to-br from-green-400 to-teal-500 text-white'
+                        : 'bg-gray-200 text-gray-900'
+                    }`}>
+                      {entry.rank <= 3 ? getRankIcon(entry.rank) : entry.rank}
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg text-gray-900">{entry.display_name}</div>
+                      <div className="text-sm text-gray-900">最高クリア ステージ{entry.highest_cleared_stage}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-green-700">ステージ{entry.highest_cleared_stage}</div>
+                    <div className="text-xs text-gray-900">最高クリア</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 自分のステージ順位（ステージランキングにいる場合） */}
+        {myStageRank && myStageRank.rank > 0 && (
+          <div className="bg-white/90 rounded-xl p-4 mb-6 text-center">
+            <span className="text-gray-900 font-bold">あなたのステージランキング: </span>
+            <span className="text-green-700 font-bold">{myStageRank.rank}位（ステージ{myStageRank.highest_cleared_stage}）</span>
+          </div>
+        )}
 
         <div className="text-center mt-8">
           <button
