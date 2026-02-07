@@ -204,22 +204,12 @@ export default function Home() {
     }, 5000);
     
     const fetchProfile = async () => {
-      console.log('  fetchProfile: 開始');
-
       try {
-        console.log('  fetchProfile: getUser 呼び出し');
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        console.log('  fetchProfile: getUser 完了', { userId: user?.id, error: userError });
-
-        if (userError) {
-          console.error('  fetchProfile: getUser エラー', userError);
-          clearTimeout(timeout);
-          setLoading(false);
-          return;
-        }
+        // getSession を先に試す（未ログイン時は getUser が AuthSessionMissingError を投げる場合がある）
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
 
         if (!user) {
-          console.log('  fetchProfile: ユーザーなし → loading終了');
           clearTimeout(timeout);
           setLoading(false);
           return;
@@ -254,8 +244,6 @@ export default function Home() {
 
           if (createError) {
             console.error('  fetchProfile: プロフィール作成エラー', createError);
-            // エラーの詳細を表示（デバッグ用）
-            alert(`プロフィール作成エラー: ${createError.message}\n\n詳細: ${JSON.stringify(createError, null, 2)}`);
           } else {
             profile = newProfile;
             console.log('  fetchProfile: プロフィール作成完了', profile);
@@ -319,7 +307,17 @@ export default function Home() {
             <p className="font-bold mb-2">ログインエラー</p>
             <p>{authError}</p>
             <p className="mt-2 text-xs text-gray-400">
-              Supabaseの認証設定（Redirect URLs）を確認してください。
+              {authError.includes('server_error') ? (
+                <>
+                  <strong>server_error の対処法：</strong><br />
+                  1. <strong>必ず https://hstfanclub.vercel.app でアクセス</strong>してからログインしてください（プレビューURLでは失敗します）<br />
+                  2. ブラウザのCookieを有効にしてください<br />
+                  3. シークレットモードで試してください<br />
+                  4. Supabase → URL Configuration に <code className="bg-black/30 px-1">https://hstfanclub.vercel.app/auth/callback</code> が追加されているか確認
+                </>
+              ) : (
+                'Supabaseの認証設定（Redirect URLs）を確認してください。'
+              )}
             </p>
           </div>
         )}
