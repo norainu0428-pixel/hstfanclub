@@ -194,7 +194,7 @@ export default function AdventureEquipPage() {
                             const m = getMaster(ue);
                             if (!m) return null;
                             const isEquippedHere = ue.equipped_member_id === member.id;
-                            const isEquippedElse = ue.equipped_member_id && ue.equipped_member_id !== member.id;
+                            const isEquippedElse = !!(ue.equipped_member_id && ue.equipped_member_id !== member.id);
                             return (
                               <button
                                 key={ue.id}
