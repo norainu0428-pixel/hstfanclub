@@ -27,26 +27,42 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
+    // 自分が user_id または friend_id の両方を取得（双方向）
+    const { data: rows } = await supabase
       .from('friendships')
-      .select(`
-        friend_id,
-        friend:profiles!friendships_friend_id_fkey(display_name, membership_tier, last_seen_at)
-      `)
-      .eq('user_id', user.id)
+      .select('user_id, friend_id')
+      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
       .eq('status', 'accepted');
 
-    if (data) {
-      const formatted = data.map((f: any) => ({
-        friend_id: f.friend_id,
-        display_name: f.friend?.display_name || '不明',
-        membership_tier: f.friend?.membership_tier || 'free',
-        is_online: isOnline(f.friend?.last_seen_at),
-        last_seen_at: f.friend?.last_seen_at
-      }));
-      setFriends(formatted);
+    if (!rows || rows.length === 0) {
+      setFriends([]);
+      setLoading(false);
+      return;
     }
 
+    const friendIds = [...new Set(rows.map((r: { user_id: string; friend_id: string }) =>
+      r.user_id === user.id ? r.friend_id : r.user_id
+    ))];
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, membership_tier, last_seen_at')
+      .in('user_id', friendIds);
+
+    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name?: string; membership_tier?: string; last_seen_at?: string }) => [p.user_id, p]));
+
+    const formatted: FriendWithProfile[] = friendIds.map(fid => {
+      const p = profileMap.get(fid);
+      return {
+        friend_id: fid,
+        display_name: p?.display_name || '不明',
+        membership_tier: p?.membership_tier || 'free',
+        is_online: isOnline(p?.last_seen_at),
+        last_seen_at: p?.last_seen_at || ''
+      };
+    });
+
+    setFriends(formatted);
     setLoading(false);
   }
 
