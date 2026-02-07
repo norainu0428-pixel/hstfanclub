@@ -40,7 +40,22 @@ CREATE POLICY "Users can insert own profile"
 ON profiles FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
--- 2b. SELECTポリシー（自分自身のプロフィールを読み取れるように）
+-- 2b. オーナーチェック用関数（RLS無限再帰を防ぐためSECURITY DEFINERでprofilesを直接参照）
+CREATE OR REPLACE FUNCTION public.is_profile_owner()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles
+    WHERE user_id = auth.uid() AND role = 'owner'
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.is_profile_owner() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_profile_owner() TO anon;
+
+-- 2c. SELECTポリシー（無限再帰を修正: サブクエリでprofiles参照していたため）
 DROP POLICY IF EXISTS "Users can view own profile and owners can view all" ON profiles;
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile and owners can view all"
@@ -48,10 +63,17 @@ ON profiles FOR SELECT
 USING (
   auth.uid() = user_id
   OR
-  EXISTS (
-    SELECT 1 FROM profiles p
-    WHERE p.user_id = auth.uid() AND p.role = 'owner'
-  )
+  public.is_profile_owner()
+);
+
+-- 2d. UPDATEポリシー（同様に無限再帰を防止）
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile"
+ON profiles FOR UPDATE
+USING (
+  auth.uid() = user_id
+  OR
+  public.is_profile_owner()
 );
 
 -- 3. auth.usersに存在するがprofilesにいないユーザーにプロフィールを作成

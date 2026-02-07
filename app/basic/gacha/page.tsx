@@ -199,50 +199,27 @@ export default function BasicGachaPage() {
           return;
         }
 
-        // RPCでプロフィール取得（RLSをバイパス、ホームページと同じ方式）
-        let profile: { role?: string; premium_until?: string; points?: number; membership_tier?: string | null } | null = null;
+        // ログイン済みならアクセス許可（通常会員ガチャは全ログインユーザーに開放）
+        // プロフィールはポイント表示用に取得（失敗時は0ptで表示）
+        let points = 0;
+        let isOwner = false;
         const { data: profileData, error: rpcError } = await supabase.rpc('get_my_profile');
         const profileFromRpc = Array.isArray(profileData) ? profileData[0] : profileData;
         if (profileFromRpc) {
-          profile = {
-            role: profileFromRpc.role,
-            premium_until: profileFromRpc.premium_until,
-            points: profileFromRpc.points,
-            membership_tier: profileFromRpc.membership_tier
-          };
-        }
-        // RPC失敗時は従来のSELECT
-        if (!profile && rpcError) {
-          const res = await supabase.from('profiles').select('role, premium_until, points, membership_tier').eq('user_id', user.id).maybeSingle();
-          profile = res.data;
-          if (res.error) console.error('プロフィール取得エラー:', res.error);
+          points = profileFromRpc.points ?? 0;
+          isOwner = profileFromRpc.role === 'owner';
+        } else if (rpcError) {
+          const res = await supabase.from('profiles').select('points, role').eq('user_id', user.id).maybeSingle();
+          if (res.data) {
+            points = res.data.points ?? 0;
+            isOwner = res.data.role === 'owner';
+          }
         }
 
-        if (!profile) {
-          setIsAuthorized(false);
-          setLoading(false);
-          return;
-        }
-
-        // アクセス可能: owner, staff, member, membership_tier basic/premium, premium_until有効
-        // roleがnull/未定義の場合はmember扱い（プロフィールがある＝登録済みユーザー）
-        const allowedRoles = ['owner', 'staff', 'member'];
-        const roleLower = (profile.role || 'member').toLowerCase();
-        const hasAllowedRole = allowedRoles.includes(roleLower);
-        const hasPremiumUntil = profile.premium_until && new Date(profile.premium_until) > new Date();
-        const hasMembershipTier = profile.membership_tier === 'basic' || profile.membership_tier === 'premium';
-
-        if (hasAllowedRole || hasPremiumUntil || hasMembershipTier || !profile.role) {
-          setIsAuthorized(true);
-          setCurrentPoints(profile.points || 0);
-          setIsOwner(profile.role === 'owner');
-          await loadGachaRates();
-          setLoading(false);
-          return;
-        }
-
-        // 上記以外はアクセス不可
-        setIsAuthorized(false);
+        setIsAuthorized(true);
+        setCurrentPoints(points);
+        setIsOwner(isOwner);
+        await loadGachaRates();
         setLoading(false);
       } catch (error) {
         console.error('エラー:', error);
