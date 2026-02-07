@@ -215,8 +215,13 @@ export default function BasicGachaPage() {
           return;
         }
 
-        // ownerとstaffは無条件でアクセス可能
-        if (profile.role === 'owner' || profile.role === 'staff') {
+        // owner、staff、member（通常会員）は無条件でアクセス可能
+        const allowedRoles = ['owner', 'staff', 'member'];
+        const roleLower = (profile.role || '').toLowerCase();
+        const hasAllowedRole = allowedRoles.includes(roleLower);
+        const hasPremium = profile.premium_until && new Date(profile.premium_until) > new Date();
+
+        if (hasAllowedRole || hasPremium) {
           setIsAuthorized(true);
           setCurrentPoints(profile.points || 0);
           setIsOwner(profile.role === 'owner');
@@ -225,20 +230,8 @@ export default function BasicGachaPage() {
           return;
         }
 
-        // 一般ユーザーはpremium_untilをチェック
-        const now = new Date();
-        const premiumUntil = profile.premium_until ? new Date(profile.premium_until) : null;
-
-        if (!premiumUntil || premiumUntil < now) {
-          alert('プレミアム会員限定です');
-          router.push('/');
-          setLoading(false);
-          return;
-        }
-
-        setIsAuthorized(true);
-        setCurrentPoints(profile.points || 0);
-        await loadGachaRates();
+        // 上記以外はアクセス不可
+        setIsAuthorized(false);
         setLoading(false);
       } catch (error) {
         console.error('エラー:', error);

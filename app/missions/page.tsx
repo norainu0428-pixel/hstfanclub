@@ -36,58 +36,61 @@ export default function MissionsPage() {
   }, []);
 
   async function loadMissions() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/');
-      return;
-    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/');
+        return;
+      }
 
-    // デイリーミッションを初期化
-    await initializeDailyMissions(user.id);
+      // デイリーミッションを初期化
+      await initializeDailyMissions(user.id);
 
-    // ポイント取得
+      // ポイント取得
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('points')
         .eq('user_id', user.id)
         .maybeSingle();
-      
+
       if (profileError) {
         console.error('プロフィール取得エラー:', profileError);
-        return;
+      } else if (profile) {
+        setCurrentPoints(profile.points || 0);
       }
-    
-    if (profile) {
-      setCurrentPoints(profile.points || 0);
+
+      // 今日の日付
+      const today = new Date().toISOString().split('T')[0];
+
+      // ミッションと進捗を取得
+      const { data: progressData } = await supabase
+        .from('user_mission_progress')
+        .select(`
+          *,
+          mission:daily_missions(*)
+        `)
+        .eq('user_id', user.id)
+        .eq('mission_date', today)
+        .order('mission_id');
+
+      if (progressData) {
+        const formattedMissions: MissionProgress[] = progressData
+          .filter((p: any) => p.mission != null)
+          .map((p: any) => ({
+            id: p.id,
+            mission_id: p.mission_id,
+            current_count: p.current_count,
+            completed: p.completed,
+            claimed: p.claimed,
+            mission: p.mission
+          }));
+        setMissions(formattedMissions);
+      }
+    } catch (error) {
+      console.error('ミッション読み込みエラー:', error);
+    } finally {
+      setLoading(false);
     }
-
-    // 今日の日付
-    const today = new Date().toISOString().split('T')[0];
-
-    // ミッションと進捗を取得
-    const { data: progressData } = await supabase
-      .from('user_mission_progress')
-      .select(`
-        *,
-        mission:daily_missions(*)
-      `)
-      .eq('user_id', user.id)
-      .eq('mission_date', today)
-      .order('mission_id');
-
-    if (progressData) {
-      const formattedMissions: MissionProgress[] = progressData.map((p: any) => ({
-        id: p.id,
-        mission_id: p.mission_id,
-        current_count: p.current_count,
-        completed: p.completed,
-        claimed: p.claimed,
-        mission: p.mission
-      }));
-      setMissions(formattedMissions);
-    }
-
-    setLoading(false);
   }
 
   async function handleClaimReward(progress: MissionProgress) {

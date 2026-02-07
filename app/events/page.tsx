@@ -160,6 +160,9 @@ interface GachaResult {
   };
 }
 
+// 開催中のイベントがあるか（管理者がイベント開始時にtrueに変更）
+const HAS_ACTIVE_EVENT = false;
+
 export default function EventsPage() {
   const [points, setPoints] = useState(0);
   const [rates, setRates] = useState<any[]>([]);
@@ -179,30 +182,23 @@ export default function EventsPage() {
       return;
     }
 
-    // オーナー権限チェック
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, points')
       .eq('user_id', user.id)
       .single();
 
-    if (profile?.role !== 'owner') {
-      router.push('/');
-      return;
-    }
-
     if (profile) {
       setPoints(profile.points || 0);
     }
 
-    // イベントガチャ確率取得
-    const { data: ratesData } = await supabase
-      .from('event_gacha_rates')
-      .select('*')
-      .order('rate', { ascending: false });
-
-    if (ratesData) {
-      setRates(ratesData);
+    // イベントガチャ確率取得（開催中の場合のみ）
+    if (HAS_ACTIVE_EVENT) {
+      const { data: ratesData } = await supabase
+        .from('event_gacha_rates')
+        .select('*')
+        .order('rate', { ascending: false });
+      if (ratesData) setRates(ratesData);
     }
 
     setLoading(false);
@@ -363,6 +359,31 @@ export default function EventsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 flex items-center justify-center">
         <div className="text-white text-xl">読み込み中...</div>
+      </div>
+    );
+  }
+
+  // 開催中のイベントがない場合
+  if (!HAS_ACTIVE_EVENT) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center text-white mb-8">
+            <h1 className="text-4xl font-bold mb-2">🎪 イベントガチャ</h1>
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-12 shadow-2xl border border-white/20 mt-8">
+              <p className="text-2xl font-bold text-white/90">開催中のイベントはありません</p>
+              <p className="text-white/70 mt-4">新しいイベントの開催をお楽しみに！</p>
+            </div>
+          </div>
+          <div className="text-center mt-8">
+            <button
+              onClick={() => router.push('/')}
+              className="text-white text-lg hover:underline"
+            >
+              ← トップに戻る
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
