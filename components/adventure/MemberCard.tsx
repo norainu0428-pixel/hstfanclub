@@ -26,6 +26,19 @@ function getSkillName(skillType: string | null | undefined): string {
   return names[skillType] || skillType;
 }
 
+function getRarityDisplayName(rarity: string): string {
+  const names: { [key: string]: string } = {
+    'HST': '最高位',
+    'stary': 'STARY',
+    'legendary': 'レジェンド',
+    'ultra-rare': 'ウルトラレア',
+    'super-rare': 'スーパーレア',
+    'rare': 'レア',
+    'common': 'コモン'
+  };
+  return names[rarity] || rarity;
+}
+
 export default function MemberCard({ member, onClick, selected = false, showStats = true, showLockToggle = false, onLockToggle }: MemberCardProps) {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -125,6 +138,11 @@ export default function MemberCard({ member, onClick, selected = false, showStat
       {/* メンバー情報 */}
       <div className="p-4 bg-gray-800">
         <h3 className="font-bold text-lg mb-1 text-center text-white">{member.member_name}</h3>
+        <div className="flex justify-center mb-2">
+          <span className={`inline-block px-3 py-0.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${getRarityColor(member.rarity)}`}>
+            {getRarityDisplayName(member.rarity)}
+          </span>
+        </div>
         <p className="text-sm text-gray-300 text-center mb-3">{member.member_description}</p>
 
         {showStats && (
