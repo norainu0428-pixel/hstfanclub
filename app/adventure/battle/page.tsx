@@ -5,9 +5,12 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, getExtraStageNum, EXTRA_STAGE_BASE, EXTRA_STAGE_COUNT } from '@/utils/stageGenerator';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { calculateDamage } from '@/utils/damage';
+import { tryDropEquipmentFromExtraStage } from '@/utils/equipmentDrop';
+import { getRarityColor } from '@/utils/equipment';
+import type { EquipmentMaster } from '@/types/equipment';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
 
@@ -19,10 +22,8 @@ function BattleContent() {
   const stageId = parseInt(stageIdParam);
   const partyIds = searchParams.get('party')?.split(',') || [];
   
-  // ステージIDが無効な場合のチェック
-  if (isNaN(stageId) || stageId < 1 || stageId > 400) {
-    // useEffect内でリダイレクトするため、ここでは早期リターンしない
-  }
+  // ステージIDが無効な場合のチェック（通常1-400、エクストラ1001-1010）
+  const isValidStage = (!isNaN(stageId) && stageId >= 1 && stageId <= 400) || isExtraStage(stageId);
 
   const [party, setParty] = useState<Member[]>([]);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
@@ -44,6 +45,9 @@ function BattleContent() {
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
   const [autoMode, setAutoMode] = useState(false);
+  const [droppedEquipment, setDroppedEquipment] = useState<EquipmentMaster | null>(null);
+  /** 武器スキル（Lv5解放）: memberId -> { skill_type, skill_power } */
+  const [memberWeaponSkills, setMemberWeaponSkills] = useState<Record<string, { skill_type: string; skill_power: number }>>({});
 
   useEffect(() => {
     initBattle();
@@ -65,8 +69,8 @@ function BattleContent() {
   }, [party, loading, battleResult]);
 
   async function initBattle() {
-    // ステージIDが無効な場合
-    if (isNaN(stageId) || stageId < 1 || stageId > 400) {
+    // ステージIDが無効な場合（通常1-400、エクストラ1001-1010）
+    if (!isValidStage) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
@@ -106,7 +110,21 @@ function BattleContent() {
     
     setParty(initializedParty);
 
-    // 敵読み込み（ステージに応じて）
+    // 装備済み武器スキル読み込み（Lv5で解放）
+    const { data: equipData } = await supabase
+      .from('user_equipment')
+      .select('equipped_member_id, level, equipment_master(weapon_skill_type, weapon_skill_power, slot_type)')
+      .in('equipped_member_id', partyIds);
+    const weaponSkills: Record<string, { skill_type: string; skill_power: number }> = {};
+    (equipData || []).forEach((row: { equipped_member_id: string; level: number; equipment_master: { weapon_skill_type?: string | null; weapon_skill_power?: number | null; slot_type?: string } | null }) => {
+      const eq = row.equipment_master;
+      if (!eq || eq.slot_type !== 'weapon' || row.level < 5 || !eq.weapon_skill_type) return;
+      weaponSkills[row.equipped_member_id] = {
+        skill_type: eq.weapon_skill_type,
+        skill_power: eq.weapon_skill_power ?? 0
+      };
+    });
+    setMemberWeaponSkills(weaponSkills);
     const stageInfo = getStageInfo(stageId);
     const enemiesCopy = stageInfo.enemies.map(enemy => ({ ...enemy }));
     setEnemies(enemiesCopy);
@@ -167,7 +185,8 @@ function BattleContent() {
     const member = party[memberIndex];
     if (!member) return;
     
-    if (!member.skill_type) {
+    const effectiveSkill = getEffectiveSkill(member);
+    if (!effectiveSkill) {
       return;
     }
 
@@ -177,13 +196,13 @@ function BattleContent() {
     }
 
     // 自己蘇生スキルはHPが0でも使用可能
-    if (member.hp <= 0 && member.skill_type !== 'revive') {
+    if (member.hp <= 0 && effectiveSkill.skill_type !== 'revive') {
       alert('このメンバーは戦闘不能です');
       return;
     }
 
     // 自己蘇生スキルが既に使用済みの場合は使用不可
-    if (member.skill_type === 'revive' && memberReviveStatus[member.id]) {
+    if (effectiveSkill.skill_type === 'revive' && memberReviveStatus[member.id]) {
       alert('自己蘇生は既に使用済みです');
       return;
     }
@@ -192,7 +211,7 @@ function BattleContent() {
 
     const newParty = [...party];
 
-    switch (member.skill_type) {
+    switch (effectiveSkill.skill_type) {
       case 'revive':
         // 自己蘇生（HPが0でも使用可能）
         if (member.hp <= 0) {
@@ -208,7 +227,7 @@ function BattleContent() {
 
       case 'heal':
         // HP回復
-        const healAmount = member.skill_power || 30;
+        const healAmount = effectiveSkill.skill_power || 30;
         
         // targetIndexの範囲チェック
         if (targetIndex !== undefined) {
@@ -252,7 +271,7 @@ function BattleContent() {
 
       case 'attack_boost':
         // 攻撃力アップ（次の攻撃まで有効）
-        const attackBoostAmount = member.skill_power || 20;
+        const attackBoostAmount = effectiveSkill.skill_power || 20;
         setAttackBoost({
           ...attackBoost,
           [member.id]: attackBoostAmount
@@ -262,7 +281,7 @@ function BattleContent() {
 
       case 'defense_boost':
         // 防御力アップ（次の被ダメージまで有効）
-        const defenseBoostAmount = member.skill_power || 15;
+        const defenseBoostAmount = effectiveSkill.skill_power || 15;
         setDefenseBoost({
           ...defenseBoost,
           [member.id]: defenseBoostAmount
@@ -272,7 +291,7 @@ function BattleContent() {
 
       case 'hst_power':
         // HSTパワー：強力な攻撃スキル（全敵にダメージ）
-        const hstPower = member.skill_power || 100;
+        const hstPower = effectiveSkill.skill_power || 100;
         const newEnemies = [...enemies];
         let totalDamage = 0;
         
@@ -320,6 +339,16 @@ function BattleContent() {
     return names[skillType] || skillType;
   }
 
+  /** メンバーの実効スキル（武器スキルLv5解放 or メンバースキル） */
+  function getEffectiveSkill(member: Member): { skill_type: string; skill_power: number } | null {
+    const weaponSkill = memberWeaponSkills[member.id];
+    if (weaponSkill) return weaponSkill;
+    if (member.skill_type) {
+      return { skill_type: member.skill_type, skill_power: member.skill_power ?? 0 };
+    }
+    return null;
+  }
+
   // AUTOモード: 自動で最適な行動を選択
   function executeAutoAction() {
     const aliveMembers = party.filter(m => m.hp > 0);
@@ -328,7 +357,7 @@ function BattleContent() {
 
     // 蘇生可能なメンバーを優先（HP0でreviveスキル持ち、未使用）
     const revivableIndex = party.findIndex(m => 
-      m.hp <= 0 && m.skill_type === 'revive' && !memberReviveStatus[m.id] && !skillCooldown[m.id]
+      m.hp <= 0 && getEffectiveSkill(m)?.skill_type === 'revive' && !memberReviveStatus[m.id] && !skillCooldown[m.id]
     );
     if (revivableIndex >= 0) {
       useSkill(revivableIndex);
@@ -341,9 +370,10 @@ function BattleContent() {
 
     const member = party[memberIndex];
     const cd = skillCooldown[member.id] || 0;
+    const effSkill = getEffectiveSkill(member);
 
     // 回復: 味方のHPが70%未満の人がいる場合
-    if (member.skill_type === 'heal' && cd === 0) {
+    if (effSkill?.skill_type === 'heal' && cd === 0) {
       const lowHpAlly = party
         .map((p, i) => ({ p, i }))
         .filter(({ p }) => p.hp > 0 && p.hp < p.max_hp * 0.7)
@@ -355,7 +385,7 @@ function BattleContent() {
     }
 
     // HSTパワー: 複数敵がいる場合
-    if (member.skill_type === 'hst_power' && cd === 0 && aliveEnemies.length > 0) {
+    if (effSkill?.skill_type === 'hst_power' && cd === 0 && aliveEnemies.length > 0) {
       useSkill(memberIndex);
       return;
     }
@@ -376,7 +406,7 @@ function BattleContent() {
     if (!autoMode || !isPlayerTurn || battleResult || loading) return;
     const timer = setTimeout(() => executeAutoAction(), 600);
     return () => clearTimeout(timer);
-  }, [autoMode, isPlayerTurn, battleResult, loading, party, enemies, skillCooldown, memberReviveStatus]);
+  }, [autoMode, isPlayerTurn, battleResult, loading, party, enemies, skillCooldown, memberReviveStatus, memberWeaponSkills]);
 
   async function playerAttack(memberIndex: number, enemyIndex: number) {
     if (!isPlayerTurn) return;
@@ -495,7 +525,7 @@ function BattleContent() {
         // ステージ60+のボス: スキルを使用する場合がある
         const currentEnemies = enemiesRef.current;
         const skillCd = enemy.id ? (enemySkillCooldown[enemy.id] || 0) : 999;
-        const canUseSkill = stageId >= 60 && enemy.skill_type && skillCd === 0;
+        const canUseSkill = (stageId >= 60 || stageId >= 1001) && enemy.skill_type && skillCd === 0;
 
         let useSkill = false;
         if (canUseSkill) {
@@ -673,11 +703,13 @@ function BattleContent() {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      // エクストラステージはメイン進行に影響しない
+      const updateStage = !isExtraStage(stageId);
       if (progress && !progressError) {
         await supabase
           .from('user_progress')
           .update({
-            current_stage: Math.max(stageId + 1, progress.current_stage),
+            ...(updateStage && { current_stage: Math.max(stageId + 1, progress.current_stage) }),
             total_battles: (progress.total_battles || 0) + 1,
             total_victories: (progress.total_victories || 0) + 1,
             updated_at: new Date().toISOString()
@@ -688,7 +720,7 @@ function BattleContent() {
           .from('user_progress')
           .insert({
             user_id: user.id,
-            current_stage: stageId + 1,
+            current_stage: updateStage ? stageId + 1 : 1,
             total_battles: 1,
             total_victories: 1
           });
@@ -711,6 +743,12 @@ function BattleContent() {
           experience_gained: totalExp,
           points_earned: totalPoints
         });
+
+      // エクストラステージ勝利時：レア装備を低確率でドロップ
+      if (isExtraStage(stageId)) {
+        const dropped = await tryDropEquipmentFromExtraStage(user.id);
+        if (dropped) setDroppedEquipment(dropped);
+      }
 
       // ミッション進捗更新
       await updateMissionProgress(user.id, 'battle_win', 1);
@@ -810,7 +848,9 @@ function BattleContent() {
         {/* ヘッダー */}
         <div className="text-center text-white mb-6">
           <div className="flex items-center justify-center gap-4 mb-2">
-            <h1 className="text-3xl font-bold">⚔️ バトル - ステージ{stageId} - ターン {turn}</h1>
+            <h1 className="text-3xl font-bold">
+              ⚔️ バトル - {isExtraStage(stageId) ? `⭐エクストラ${getExtraStageNum(stageId)}` : `ステージ${stageId}`} - ターン {turn}
+            </h1>
             <button
               onClick={() => setAutoMode(prev => !prev)}
               className={`px-4 py-2 rounded-lg font-bold transition ${
@@ -906,10 +946,10 @@ function BattleContent() {
                     </div>
                   </div>
                   
-                  {/* スキルボタン */}
-                  {member.skill_type && (member.hp > 0 || (member.skill_type === 'revive' && !memberReviveStatus[member.id])) && isPlayerTurn && (
+                  {/* スキルボタン（メンバースキル or 武器スキルLv5解放） */}
+                  {getEffectiveSkill(member) && (member.hp > 0 || (getEffectiveSkill(member)?.skill_type === 'revive' && !memberReviveStatus[member.id])) && isPlayerTurn && (
                     <div className="mt-2">
-                      {member.skill_type === 'heal' ? (
+                      {getEffectiveSkill(member)?.skill_type === 'heal' ? (
                         <div className="space-y-1">
                           {party.map((target, tIndex) => (
                             target.hp > 0 && target.hp < target.max_hp && (
@@ -953,7 +993,7 @@ function BattleContent() {
                             </button>
                           )}
                         </div>
-                      ) : member.skill_type === 'revive' ? (
+                      ) : getEffectiveSkill(member)?.skill_type === 'revive' ? (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -974,7 +1014,7 @@ function BattleContent() {
                             ? `クールダウン: ${skillCooldown[member.id]}`
                             : member.hp <= 0
                             ? '✨ 自己蘇生'
-                            : `${getSkillName(member.skill_type)} 使用`
+                            : `${getSkillName(getEffectiveSkill(member)?.skill_type)} 使用`
                           }
                         </button>
                       ) : (
@@ -992,7 +1032,7 @@ function BattleContent() {
                         >
                           {skillCooldown[member.id] > 0 
                             ? `クールダウン: ${skillCooldown[member.id]}`
-                            : `${getSkillName(member.skill_type)} 使用`
+                            : `${getSkillName(getEffectiveSkill(member)?.skill_type)} 使用`
                           }
                         </button>
                       )}
@@ -1000,7 +1040,7 @@ function BattleContent() {
                   )}
                   
                   {/* 蘇生使用済み表示 */}
-                  {member.skill_type === 'revive' && memberReviveStatus[member.id] && (
+                  {getEffectiveSkill(member)?.skill_type === 'revive' && memberReviveStatus[member.id] && (
                     <div className="mt-1 text-sm text-gray-600 text-center">
                       蘇生使用済み
                     </div>
@@ -1091,7 +1131,9 @@ function BattleContent() {
                   <div className="text-center mb-6">
                     <div className="text-6xl mb-4">🎉</div>
                     <h2 className="text-3xl font-bold text-green-600 mb-2">勝利！</h2>
-                    <p className="text-gray-600">ステージ{stageId}をクリアしました！</p>
+                    <p className="text-gray-600">
+                      {isExtraStage(stageId) ? `エクストラステージ${getExtraStageNum(stageId)}` : `ステージ${stageId}`}をクリアしました！
+                    </p>
                   </div>
                   
                   {/* ★ レベルアップ演出 ★ */}
@@ -1154,6 +1196,29 @@ function BattleContent() {
                     </div>
                   )}
                   
+                  {/* エクストラステージでドロップした装備 */}
+                  {droppedEquipment && (
+                    <div className={`bg-gradient-to-r ${getRarityColor(droppedEquipment.rarity)} rounded-xl p-6 mb-6 text-white`}>
+                      <h3 className="font-bold text-lg mb-3 text-center">⚔️ レア装備ドロップ！</h3>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="text-5xl">{droppedEquipment.emoji}</div>
+                        <div className="font-bold text-xl">{droppedEquipment.name}</div>
+                        <div className="text-sm opacity-90">
+                          {droppedEquipment.slot_type === 'weapon' && '武器'}
+                          {droppedEquipment.slot_type === 'armor' && '防具'}
+                          {droppedEquipment.slot_type === 'accessory' && 'アクセサリ'}
+                          {' '}Lv.1
+                        </div>
+                        <div className="flex gap-4 text-sm mt-1">
+                          {droppedEquipment.base_atk > 0 && <span>ATK+{droppedEquipment.base_atk}</span>}
+                          {droppedEquipment.base_def > 0 && <span>DEF+{droppedEquipment.base_def}</span>}
+                          {droppedEquipment.base_hp > 0 && <span>HP+{droppedEquipment.base_hp}</span>}
+                          {droppedEquipment.base_spd > 0 && <span>SPD+{droppedEquipment.base_spd}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6">
                     <h3 className="font-bold text-lg mb-3">報酬</h3>
                     <div className="space-y-2">
@@ -1169,10 +1234,21 @@ function BattleContent() {
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
+                      onClick={() => {
+                        if (isExtraStage(stageId)) {
+                          const nextExtra = stageId + 1;
+                          if (nextExtra <= EXTRA_STAGE_BASE + EXTRA_STAGE_COUNT) {
+                            router.push(`/adventure/stage/${nextExtra}?party=${partyIds.join(',')}`);
+                          } else {
+                            router.push(`/adventure/stages?party=${partyIds}&current=100`);
+                          }
+                        } else {
+                          router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`);
+                        }
+                      }}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
-                      次のステージへ
+                      {isExtraStage(stageId) && getExtraStageNum(stageId) >= EXTRA_STAGE_COUNT ? 'ステージ選択に戻る' : '次のステージへ'}
                     </button>
                     <button
                       onClick={() => router.push('/adventure')}
@@ -1188,7 +1264,9 @@ function BattleContent() {
                     <div className="text-8xl mb-6 animate-pulse">💀</div>
                     <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
                     <p className="text-2xl text-gray-700 mb-2 font-semibold">全滅してしまいました...</p>
-                    <p className="text-lg text-gray-700">ステージ{stageId}で敗北しました</p>
+                    <p className="text-lg text-gray-700">
+                      {isExtraStage(stageId) ? `エクストラステージ${getExtraStageNum(stageId)}` : `ステージ${stageId}`}で敗北しました
+                    </p>
                   </div>
                   
                   <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">

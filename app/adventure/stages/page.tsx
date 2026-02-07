@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getStageInfo } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, EXTRA_STAGE_BASE, EXTRA_STAGE_COUNT } from '@/utils/stageGenerator';
 
 function StagesContent() {
   const searchParams = useSearchParams();
@@ -16,6 +16,7 @@ function StagesContent() {
   const currentStage = (isNaN(parsedStage) || parsedStage < 1 || parsedStage > 400) ? 1 : parsedStage;
   const [unlockedStages, setUnlockedStages] = useState<number[]>([]);
   const [clearedStages, setClearedStages] = useState<number[]>([]);
+  const [extraUnlocked, setExtraUnlocked] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const stagesPerPage = 100; // 1ページあたり100ステージ表示
 
@@ -49,6 +50,7 @@ function StagesContent() {
       });
     }
     setClearedStages(Array.from(cleared));
+    setExtraUnlocked(cleared.has(100));
 
     if (progressResult.data) {
       // 現在のステージまでと、次の1ステージまでをアンロック（1ステージずつ）
@@ -69,7 +71,12 @@ function StagesContent() {
   }
 
   function selectStage(stage: number) {
-    if (!unlockedStages.includes(stage)) {
+    if (isExtraStage(stage)) {
+      if (!extraUnlocked) {
+        alert('エクストラステージはステージ100クリア後に解放されます！');
+        return;
+      }
+    } else if (!unlockedStages.includes(stage)) {
       alert(`ステージ${stage}はまだアンロックされていません！`);
       return;
     }
@@ -213,6 +220,50 @@ function StagesContent() {
             })}
           </div>
         </div>
+
+        {/* エクストラステージ（ステージ100クリアで解放） */}
+        {extraUnlocked && (
+          <div className="bg-gradient-to-br from-amber-600 to-orange-700 rounded-2xl p-6 shadow-2xl mb-6 border-4 border-amber-400">
+            <h2 className="text-2xl font-bold text-white mb-4 text-center flex items-center justify-center gap-2">
+              ⭐ エクストラステージ
+            </h2>
+            <p className="text-amber-100 text-center mb-4 text-sm">ステージ100クリアで解放！強力なボスに挑戦</p>
+            <div className="grid grid-cols-5 gap-3">
+              {Array.from({ length: EXTRA_STAGE_COUNT }, (_, i) => {
+                const stage = EXTRA_STAGE_BASE + i + 1;
+                const stageInfo = getStageInfo(stage);
+                const isCleared = clearedStages.includes(stage);
+                return (
+                  <button
+                    key={stage}
+                    onClick={() => selectStage(stage)}
+                    className={`
+                      relative p-4 rounded-xl font-bold transition
+                      ${isCleared
+                        ? 'bg-gradient-to-br from-amber-400 to-yellow-500 text-amber-900 hover:scale-105 ring-2 ring-amber-300'
+                        : 'bg-gradient-to-br from-amber-700 to-orange-800 text-white hover:scale-105 ring-2 ring-amber-500'
+                      }
+                    `}
+                  >
+                    <div className="text-xl">⭐{i + 1}</div>
+                    <div className="text-xs mt-1">Lv.{stageInfo.recommendedLevel}</div>
+                    {isCleared && (
+                      <div className="absolute -top-1 -right-1 bg-green-500 rounded-full w-5 h-5 border-2 border-white flex items-center justify-center">
+                        <span className="text-xs">✓</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {!extraUnlocked && (
+          <div className="bg-gray-800 rounded-2xl p-6 shadow-xl mb-6 border-2 border-gray-600 opacity-75">
+            <h2 className="text-xl font-bold text-gray-400 mb-2 text-center">⭐ エクストラステージ</h2>
+            <p className="text-gray-500 text-center text-sm">ステージ100をクリアすると解放されます</p>
+          </div>
+        )}
 
         {/* 戻るボタン */}
         <div className="text-center">

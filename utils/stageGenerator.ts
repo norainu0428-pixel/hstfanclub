@@ -207,7 +207,69 @@ export function getAllStages(): StageInfo[] {
   return stages;
 }
 
+// エクストラステージ定数（ステージ100クリアで解放）
+export const EXTRA_STAGE_BASE = 1000; // 1001=Extra1, 1002=Extra2...
+export const EXTRA_STAGE_COUNT = 10;
+
+// エクストラステージ情報を生成（強力なボス1体、推奨レベル65〜110）
+function generateExtraStageInfo(extraStageNum: number): StageInfo {
+  const stage = EXTRA_STAGE_BASE + extraStageNum;
+  const recommendedLevel = 60 + extraStageNum * 5; // Extra1=65, Extra10=110
+  const enemyLevel = recommendedLevel + 15;
+  const baseStats = calculateEnemyStatsByLevel(enemyLevel);
+  
+  // 強力なボス1体（最強の敵タイプを使用）
+  const enemyType = ENEMY_TYPES[Math.min(9 + extraStageNum, ENEMY_TYPES.length - 1)];
+  const bossMultiplier = 1.2 + (extraStageNum - 1) * 0.05; // Extra1=1.2, Extra10=1.65
+  
+  const hp = Math.floor(baseStats.hp * 1.2 * bossMultiplier);
+  const attack = Math.floor(baseStats.attack * 1.8 * bossMultiplier);
+  const defense = Math.floor(baseStats.defense * 1.2 * bossMultiplier);
+  const speed = Math.floor(baseStats.speed * 1.2 * bossMultiplier);
+  
+  const expReward = Math.floor((500 + extraStageNum * 200) * bossMultiplier);
+  const pointsReward = Math.floor((20 + extraStageNum * 5) * bossMultiplier);
+  
+  const bossSkills: { type: EnemySkillType; power: number }[] = [
+    { type: 'heal', power: Math.floor(hp * 0.3) },
+    { type: 'revive', power: Math.floor(hp * 0.5) },
+    { type: 'attack_boost', power: Math.floor(attack * 0.5) }
+  ];
+  const skillIndex = extraStageNum % bossSkills.length;
+  const { type: skill_type, power: skill_power } = bossSkills[skillIndex];
+  
+  const enemy: Enemy = {
+    id: `enemy_extra_${extraStageNum}`,
+    name: `${enemyType.name}（エクストラボス）`,
+    emoji: enemyType.emoji,
+    hp,
+    max_hp: hp,
+    attack,
+    defense,
+    speed,
+    experience_reward: expReward,
+    points_reward: pointsReward,
+    skill_type,
+    skill_power
+  };
+  
+  return { stage, recommendedLevel, enemies: [enemy] };
+}
+
+// ステージIDがエクストラかどうか
+export function isExtraStage(stage: number): boolean {
+  return stage >= EXTRA_STAGE_BASE + 1 && stage <= EXTRA_STAGE_BASE + EXTRA_STAGE_COUNT;
+}
+
+// エクストラステージ番号を取得（1〜10）
+export function getExtraStageNum(stage: number): number {
+  return stage - EXTRA_STAGE_BASE;
+}
+
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
+  if (isExtraStage(stage)) {
+    return generateExtraStageInfo(getExtraStageNum(stage));
+  }
   return generateStageInfo(stage);
 }

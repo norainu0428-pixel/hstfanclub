@@ -479,6 +479,14 @@ export default function Home() {
           >
             🎪 イベントガチャ
           </button>
+
+          {/* 装備 */}
+          <button 
+            onClick={() => router.push('/equipment')}
+            className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg font-semibold hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg shadow-amber-500/30"
+          >
+            ⚔️ 装備
+          </button>
           
           {profile.role === 'owner' && (
             <button 

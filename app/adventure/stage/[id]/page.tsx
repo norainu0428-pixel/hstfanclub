@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
-import { getStageInfo } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, getExtraStageNum } from '@/utils/stageGenerator';
 
 function StageContent() {
   const params = useParams();
@@ -22,8 +22,9 @@ function StageContent() {
   }, []);
 
   async function loadParty() {
-    // ステージIDが無効な場合
-    if (isNaN(stageId) || stageId < 1 || stageId > 400) {
+    // ステージIDが無効な場合（通常1-400、エクストラ1001-1010）
+    const isValidStage = (!isNaN(stageId) && stageId >= 1 && stageId <= 400) || (isExtraStage(stageId));
+    if (!isValidStage) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
@@ -32,6 +33,24 @@ function StageContent() {
     if (partyIds.length === 0) {
       router.push('/adventure');
       return;
+    }
+
+    // エクストラステージはステージ100クリア必須
+    if (isExtraStage(stageId)) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: cleared } = await supabase
+          .from('battle_logs')
+          .select('stage')
+          .eq('user_id', user.id)
+          .eq('result', 'victory')
+          .eq('stage', 100);
+        if (!cleared?.length) {
+          alert('エクストラステージはステージ100クリア後に解放されます！');
+          router.push(`/adventure/stages?party=${partyIds.join(',')}`);
+          return;
+        }
+      }
     }
 
     const { data } = await supabase
@@ -66,7 +85,9 @@ function StageContent() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">ステージ {stageId}</h1>
+          <h1 className="text-4xl font-bold mb-2">
+            {isExtraStage(stageId) ? `⭐ エクストラステージ ${getExtraStageNum(stageId)}` : `ステージ ${stageId}`}
+          </h1>
           <p className="text-lg opacity-90 mb-4">敵が現れた！</p>
           <div className="bg-white/20 rounded-lg px-6 py-3 inline-block">
             <div className="text-xl font-bold mb-1">
