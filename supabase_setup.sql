@@ -152,14 +152,14 @@ DROP POLICY IF EXISTS "Users can update own mission progress" ON user_mission_pr
 CREATE POLICY "Users can update own mission progress" ON user_mission_progress
   FOR UPDATE USING (auth.uid() = user_id);
 
--- デフォルトミッションを挿入
+-- デフォルトミッションを挿入（報酬ポイントは控えめに設定）
 INSERT INTO daily_missions (mission_type, title, description, target_count, reward_points, reward_exp, difficulty) VALUES
-('battle_win', 'バトルマスター', 'バトルに5回勝利する', 5, 50, 100, 'easy'),
-('battle_complete', '戦士の道', 'バトルを10回完了する', 10, 100, 200, 'normal'),
-('gacha_pull', 'ガチャ好き', 'ガチャを3回引く', 3, 150, 0, 'easy'),
-('stage_clear', 'ステージクリア', 'ステージを3回クリアする', 3, 200, 300, 'normal'),
-('level_up', '成長の証', 'メンバーを1回レベルアップさせる', 1, 100, 150, 'easy'),
-('battle_win', '勝利の追求', 'バトルに10回勝利する', 10, 200, 400, 'hard'),
-('gacha_pull', 'ガチャマニア', 'ガチャを10回引く', 10, 500, 0, 'hard'),
-('stage_clear', '冒険者', 'ステージを10回クリアする', 10, 500, 1000, 'hard')
+('battle_win', 'バトルマスター', 'バトルに5回勝利する', 5, 25, 100, 'easy'),
+('battle_complete', '戦士の道', 'バトルを10回完了する', 10, 50, 200, 'normal'),
+('gacha_pull', 'ガチャ好き', 'ガチャを3回引く', 3, 50, 0, 'easy'),
+('stage_clear', 'ステージクリア', 'ステージを3回クリアする', 3, 75, 300, 'normal'),
+('level_up', '成長の証', 'メンバーを1回レベルアップさせる', 1, 50, 150, 'easy'),
+('battle_win', '勝利の追求', 'バトルに10回勝利する', 10, 100, 400, 'hard'),
+('gacha_pull', 'ガチャマニア', 'ガチャを10回引く', 10, 150, 0, 'hard'),
+('stage_clear', '冒険者', 'ステージを10回クリアする', 10, 150, 1000, 'hard')
 ON CONFLICT DO NOTHING;
