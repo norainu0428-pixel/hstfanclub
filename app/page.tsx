@@ -376,7 +376,18 @@ export default function Home() {
           <p className="text-gray-300">ポイント: <span className="text-orange-500 font-bold">{profile.points}pt</span></p>
         </div>
       ) : (
-        <p className="text-orange-500 mb-4">プロフィールが見つかりません</p>
+        <div className="mb-4">
+          <p className="text-orange-500 mb-3">プロフィールが見つかりません</p>
+          <p className="text-gray-400 text-sm mb-3">
+            SupabaseでSQLを実行した後は、下のボタンで再読み込みしてください。
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            プロフィールを再読み込み
+          </button>
+        </div>
       )}
       
       {profile && (

@@ -40,6 +40,20 @@ CREATE POLICY "Users can insert own profile"
 ON profiles FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
+-- 2b. SELECTポリシー（自分自身のプロフィールを読み取れるように）
+DROP POLICY IF EXISTS "Users can view own profile and owners can view all" ON profiles;
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+CREATE POLICY "Users can view own profile and owners can view all"
+ON profiles FOR SELECT
+USING (
+  auth.uid() = user_id
+  OR
+  EXISTS (
+    SELECT 1 FROM profiles p
+    WHERE p.user_id = auth.uid() AND p.role = 'owner'
+  )
+);
+
 -- 3. auth.usersに存在するがprofilesにいないユーザーにプロフィールを作成
 INSERT INTO profiles (user_id, display_name, role, points)
 SELECT 
