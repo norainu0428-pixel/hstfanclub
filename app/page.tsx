@@ -216,12 +216,18 @@ export default function Home() {
         }
 
         console.log('  fetchProfile: profiles取得 開始');
-        let { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+        // RPC関数を優先（RLSをバイパス、SQLでget_my_profileを作成済みの場合）
+        let { data: profileData, error: rpcError } = await supabase.rpc('get_my_profile');
+        let profile = Array.isArray(profileData) ? profileData[0] ?? null : profileData;
+        let profileError = rpcError;
 
+        // RPCが失敗または未定義の場合は従来のSELECT
+        if (profileError) {
+          console.log('  fetchProfile: RPC エラー／未定義、従来のSELECTを使用', profileError);
+          const res = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+          profile = res.data ?? profile;
+          profileError = res.error ?? profileError;
+        }
         console.log('  fetchProfile: profiles取得 完了', {
           profile: profile,
           error: profileError

@@ -65,7 +65,19 @@ FROM auth.users
 WHERE id NOT IN (SELECT user_id FROM profiles)
 ON CONFLICT (user_id) DO NOTHING;
 
--- 4. 確認
+-- 4. RPC関数（RLSをバイパスしてプロフィール取得 - セッション必須）
+CREATE OR REPLACE FUNCTION public.get_my_profile()
+RETURNS SETOF profiles
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT * FROM profiles WHERE user_id = auth.uid();
+$$;
+GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_profile() TO anon;
+
+-- 5. 確認
 SELECT '✅ 完了！' as status, 
        (SELECT COUNT(*) FROM auth.users) as auth_users,
        (SELECT COUNT(*) FROM profiles) as profiles;
