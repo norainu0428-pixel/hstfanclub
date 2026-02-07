@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
@@ -44,6 +44,8 @@ export default function PvPBattlePage() {
   const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [battleResult, setBattleResult] = useState<{ won: boolean; winnerName: string } | null>(null);
+  const currentUserRef = useRef<string>('');
+  currentUserRef.current = currentUser;
 
   useEffect(() => {
     initBattle();
@@ -339,9 +341,10 @@ export default function PvPBattlePage() {
   }
 
   function showResult(battleData: BattleState) {
-    const won = battleData.winner_id === currentUser;
+    const myId = currentUserRef.current;
+    const won = battleData.winner_id === myId;
     const winnerName = won 
-      ? (currentUser === battleData.player1_id ? player1?.name : player2?.name) || 'あなた'
+      ? (myId === battleData.player1_id ? player1?.name : player2?.name) || 'あなた'
       : (battleData.winner_id === battleData.player1_id ? player1?.name : player2?.name) || '相手';
     
     setBattleResult({ won, winnerName });
@@ -397,10 +400,10 @@ export default function PvPBattlePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-600 to-orange-600 p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center">
+          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center text-gray-900">
             <div className="text-6xl mb-6 animate-bounce">⏳</div>
-            <h1 className="text-3xl font-bold mb-4">対戦相手を待っています...</h1>
-            <p className="text-gray-600 mb-8">
+            <h1 className="text-3xl font-bold mb-4 text-gray-900">対戦相手を待っています...</h1>
+            <p className="text-gray-900 mb-8">
               {player2 ? `${player2.name}が参加するのを待っています` : '相手が参加するのを待っています'}
             </p>
             <button
@@ -438,12 +441,12 @@ export default function PvPBattlePage() {
         {/* バトルフィールド */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Player 1 */}
-          <div className={`bg-white rounded-2xl p-6 shadow-2xl ${
+          <div className={`bg-white rounded-2xl p-6 shadow-2xl text-gray-900 ${
             battle.current_turn_player === player1.id ? 'ring-4 ring-yellow-400' : ''
           }`}>
             <div className="text-center mb-4">
-              <h2 className="text-2xl font-bold">{player1.name}</h2>
-              <div className="text-sm text-gray-500">
+              <h2 className="text-2xl font-bold text-gray-900">{player1.name}</h2>
+              <div className="text-sm text-gray-700">
                 {currentUser === player1.id ? '(あなた)' : '(相手)'}
               </div>
             </div>
@@ -476,12 +479,12 @@ export default function PvPBattlePage() {
                       <div className="flex items-center gap-2">
                         <span className="text-3xl">{member.member_emoji}</span>
                         <div>
-                          <div className="font-bold">{member.member_name}</div>
-                          <div className="text-xs text-gray-500">Lv.{member.level}</div>
+                          <div className="font-bold text-gray-900">{member.member_name}</div>
+                          <div className="text-xs text-gray-800">Lv.{member.level}</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-bold">
+                        <div className="text-sm font-bold text-gray-900">
                           HP: {currentHp}/{member.max_hp}
                         </div>
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -502,12 +505,12 @@ export default function PvPBattlePage() {
 
           {/* Player 2 */}
           {player2 && (
-            <div className={`bg-white rounded-2xl p-6 shadow-2xl ${
+            <div className={`bg-white rounded-2xl p-6 shadow-2xl text-gray-900 ${
               battle.current_turn_player === player2.id ? 'ring-4 ring-yellow-400' : ''
             }`}>
               <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold">{player2.name}</h2>
-                <div className="text-sm text-gray-500">
+                <h2 className="text-2xl font-bold text-gray-900">{player2.name}</h2>
+                <div className="text-sm text-gray-700">
                   {currentUser === player2.id ? '(あなた)' : '(相手)'}
                 </div>
               </div>
@@ -536,18 +539,18 @@ export default function PvPBattlePage() {
                         }
                       }}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-3xl">{member.member_emoji}</span>
-                          <div>
-                            <div className="font-bold">{member.member_name}</div>
-                            <div className="text-xs text-gray-500">Lv.{member.level}</div>
-                          </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl">{member.member_emoji}</span>
+                        <div>
+                          <div className="font-bold text-gray-900">{member.member_name}</div>
+                          <div className="text-xs text-gray-800">Lv.{member.level}</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-bold">
-                            HP: {currentHp}/{member.max_hp}
-                          </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-gray-900">
+                          HP: {currentHp}/{member.max_hp}
+                        </div>
                           <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div
                               className={`h-full transition-all ${
@@ -567,8 +570,8 @@ export default function PvPBattlePage() {
         </div>
 
         {/* アクションパネル */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
-          <h3 className="text-xl font-bold mb-4">アクション</h3>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+          <h3 className="text-xl font-bold mb-4 text-gray-900">アクション</h3>
           {isMyTurn ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -577,7 +580,7 @@ export default function PvPBattlePage() {
                   className={`px-6 py-4 rounded-lg font-bold text-lg ${
                     selectedAction === 'attack'
                       ? 'bg-red-500 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
                   }`}
                 >
                   ⚔️ 攻撃
@@ -587,7 +590,7 @@ export default function PvPBattlePage() {
                   className={`px-6 py-4 rounded-lg font-bold text-lg ${
                     selectedAction === 'skill'
                       ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
                   }`}
                   disabled
                 >
@@ -597,7 +600,7 @@ export default function PvPBattlePage() {
 
               {selectedAction === 'attack' && (
                 <div className="space-y-2">
-                  <div className="text-sm font-bold text-gray-700">
+                  <div className="text-sm font-bold text-gray-900">
                     {selectedMember === null ? '攻撃するメンバーを選択' : selectedTarget === null ? '攻撃する敵を選択' : '準備完了'}
                   </div>
                   {selectedMember !== null && selectedTarget !== null && (
@@ -612,21 +615,21 @@ export default function PvPBattlePage() {
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-900">
               相手のターンです...
             </div>
           )}
         </div>
 
         {/* バトルログ */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
-          <h3 className="text-xl font-bold mb-4">📜 バトルログ</h3>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+          <h3 className="text-xl font-bold mb-4 text-gray-900">📜 バトルログ</h3>
           <div className="h-48 overflow-y-auto bg-gray-50 rounded-lg p-4 space-y-2">
             {battleLog.length === 0 ? (
-              <div className="text-sm text-gray-500 text-center">バトルログがありません</div>
+              <div className="text-sm text-gray-900 text-center">バトルログがありません</div>
             ) : (
               battleLog.map((log, index) => (
-                <div key={index} className="text-sm text-gray-700">
+                <div key={index} className="text-sm text-gray-900">
                   {log}
                 </div>
               ))
@@ -648,20 +651,20 @@ export default function PvPBattlePage() {
       {/* バトル結果モーダル */}
       {battleResult && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-gray-900">
             {battleResult.won ? (
               <>
                 <div className="text-center mb-6">
                   <div className="text-8xl mb-4 animate-bounce">🎉</div>
                   <h2 className="text-4xl font-bold text-green-600 mb-2">勝利！</h2>
-                  <p className="text-xl text-gray-700">おめでとうございます！</p>
+                  <p className="text-xl text-gray-900">おめでとうございます！</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6 border-2 border-green-300">
                   <div className="text-center space-y-2">
                     <div className="text-lg font-semibold text-green-700">
                       レーティング +25
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
                       {battleResult.winnerName}の勝利！
                     </div>
                   </div>
@@ -678,15 +681,15 @@ export default function PvPBattlePage() {
                 <div className="text-center mb-8">
                   <div className="text-8xl mb-6 animate-pulse">💀</div>
                   <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
-                  <p className="text-2xl text-gray-700 mb-2 font-semibold">敗北してしまいました...</p>
-                  <p className="text-lg text-gray-500">{battleResult.winnerName}に敗れました</p>
+                  <p className="text-2xl text-gray-900 mb-2 font-semibold">敗北してしまいました...</p>
+                  <p className="text-lg text-gray-900">{battleResult.winnerName}に敗れました</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">
                   <div className="text-center space-y-2">
                     <div className="text-lg font-semibold text-red-700">
                       レーティング -15
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
                       次回は頑張りましょう！
                     </div>
                   </div>
@@ -700,7 +703,7 @@ export default function PvPBattlePage() {
                   </button>
                   <button
                     onClick={() => router.push('/pvp/history')}
-                    className="flex-1 bg-gray-200 text-gray-700 px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-300 shadow-lg transform hover:scale-105 transition-all"
+                    className="flex-1 bg-gray-200 text-gray-900 px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-300 shadow-lg transform hover:scale-105 transition-all"
                   >
                     📜 履歴を見る
                   </button>
