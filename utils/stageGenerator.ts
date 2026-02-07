@@ -128,10 +128,10 @@ export function generateStageInfo(stage: number): StageInfo {
     const speed = Math.floor(baseStats.speed * speedRatio);
     
     // 経験値とポイント報酬（400ステージまで適切にスケール）
-    // ポイント報酬は1勝利あたり10ポイント（全敵を倒した時の合計）
-    // 敵1体あたりのポイントを計算（敵の数で割る）
+    // ポイント報酬：ステージ1-30は10pt、31-60は20pt、61-90は30pt... 30ステージごとに+10pt
     let expReward: number, pointsReward: number;
-    const basePointsPerEnemy = 10 / enemyCount; // 1勝利で10ポイントになるように敵の数で割る
+    const basePointsPerStage = 10 + Math.floor((stage - 1) / 30) * 10;
+    const basePointsPerEnemy = basePointsPerStage / enemyCount; // 敵の数で割って1体あたりに
     
     if (stage <= 100) {
       expReward = Math.floor((20 + (stage - 1) * 5) * multiplier);
