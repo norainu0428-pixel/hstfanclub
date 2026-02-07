@@ -889,8 +889,8 @@ function BattleContent() {
                       <div className="text-sm text-gray-600 font-semibold">Lv.{member.level}</div>
                     </div>
                     <div className="text-right text-sm">
-                      <div className="text-gray-700 font-semibold">ATK: {member.attack}</div>
-                      <div className="text-gray-700 font-semibold">DEF: {member.defense}</div>
+                      <div className="text-gray-800 font-semibold">ATK: {member.attack}</div>
+                      <div className="text-gray-800 font-semibold">DEF: {member.defense}</div>
                     </div>
                   </div>
                   <div className="mb-1">
@@ -1001,7 +1001,7 @@ function BattleContent() {
                   
                   {/* 蘇生使用済み表示 */}
                   {member.skill_type === 'revive' && memberReviveStatus[member.id] && (
-                    <div className="mt-1 text-xs text-gray-500 text-center">
+                    <div className="mt-1 text-sm text-gray-600 text-center">
                       蘇生使用済み
                     </div>
                   )}
@@ -1046,8 +1046,8 @@ function BattleContent() {
                       <div className="font-bold text-lg text-gray-900">{enemy.name}</div>
                     </div>
                     <div className="text-right text-sm">
-                      <div className="text-gray-700 font-semibold">ATK: {enemy.attack}</div>
-                      <div className="text-gray-700 font-semibold">DEF: {enemy.defense}</div>
+                      <div className="text-gray-800 font-semibold">ATK: {enemy.attack}</div>
+                      <div className="text-gray-800 font-semibold">DEF: {enemy.defense}</div>
                     </div>
                   </div>
                   <div className="mb-1">
@@ -1071,9 +1071,9 @@ function BattleContent() {
         {/* バトルログ */}
         <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
           <h2 className="text-xl font-bold mb-4">バトルログ</h2>
-          <div className="bg-gray-900 text-green-400 p-4 rounded-lg h-48 overflow-y-auto font-mono text-sm">
+          <div className="bg-gray-900 text-green-300 p-4 rounded-lg h-48 overflow-y-auto font-mono text-sm">
             {battleLog.length === 0 ? (
-              <div className="text-gray-500">戦闘ログがここに表示されます...</div>
+              <div className="text-gray-300">戦闘ログがここに表示されます...</div>
             ) : (
               battleLog.map((log, index) => (
                 <div key={index} className="mb-1">&gt; {log}</div>
@@ -1129,21 +1129,21 @@ function BattleContent() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-4 gap-2 text-xs">
+                              <div className="grid grid-cols-4 gap-2 text-sm">
                                 <div className="text-center bg-red-50 rounded p-1">
-                                  <div className="text-gray-500">HP</div>
+                                  <div className="text-gray-700 font-medium">HP</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.hp}</div>
                                 </div>
                                 <div className="text-center bg-orange-50 rounded p-1">
-                                  <div className="text-gray-500">ATK</div>
+                                  <div className="text-gray-700 font-medium">ATK</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.attack}</div>
                                 </div>
                                 <div className="text-center bg-blue-50 rounded p-1">
-                                  <div className="text-gray-500">DEF</div>
+                                  <div className="text-gray-700 font-medium">DEF</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.defense}</div>
                                 </div>
                                 <div className="text-center bg-yellow-50 rounded p-1">
-                                  <div className="text-gray-500">SPD</div>
+                                  <div className="text-gray-700 font-medium">SPD</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.speed}</div>
                                 </div>
                               </div>
@@ -1188,7 +1188,7 @@ function BattleContent() {
                     <div className="text-8xl mb-6 animate-pulse">💀</div>
                     <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
                     <p className="text-2xl text-gray-700 mb-2 font-semibold">全滅してしまいました...</p>
-                    <p className="text-lg text-gray-500">ステージ{stageId}で敗北しました</p>
+                    <p className="text-lg text-gray-700">ステージ{stageId}で敗北しました</p>
                   </div>
                   
                   <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">

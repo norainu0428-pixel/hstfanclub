@@ -165,7 +165,7 @@ export default function MissionsPage() {
           <p className="text-lg text-gray-300">毎日のミッションをクリアして報酬を獲得しよう！</p>
           <div className="mt-4 bg-gray-900 border border-orange-500/30 rounded-lg px-6 py-3 inline-block shadow-lg shadow-orange-500/10">
             <div className="text-2xl font-bold text-orange-500">{currentPoints}pt</div>
-            <div className="text-sm text-gray-400">現在のポイント</div>
+            <div className="text-sm text-gray-300">現在のポイント</div>
           </div>
         </div>
 
@@ -183,7 +183,7 @@ export default function MissionsPage() {
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="text-sm text-gray-400 mt-2 text-center">
+          <div className="text-sm text-gray-300 mt-2 text-center">
             {progressPercent.toFixed(0)}% 完了
           </div>
         </div>
@@ -229,7 +229,7 @@ export default function MissionsPage() {
                         </div>
                         <p className="text-gray-300 mb-3">{mission.description}</p>
                         <div className="flex items-center gap-4 text-sm">
-                          <div className="text-gray-400">
+                          <div className="text-gray-300">
                             進捗: <span className="font-bold text-orange-400">
                               {progress.current_count} / {mission.target_count}
                             </span>
@@ -252,11 +252,11 @@ export default function MissionsPage() {
                           🎁 報酬受け取り
                         </button>
                       ) : isClaimed ? (
-                        <div className="bg-gray-800 text-gray-400 border border-gray-700 px-6 py-3 rounded-lg font-bold">
+                        <div className="bg-gray-800 text-gray-300 border border-gray-700 px-6 py-3 rounded-lg font-bold">
                           ✓ 受け取り済み
                         </div>
                       ) : (
-                        <div className="text-gray-500 text-sm">未達成</div>
+                        <div className="text-gray-400 text-sm">未達成</div>
                       )}
                     </div>
                   </div>

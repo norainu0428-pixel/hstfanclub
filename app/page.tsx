@@ -320,7 +320,7 @@ export default function Home() {
           <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm max-w-md">
             <p className="font-bold mb-2">ログインエラー</p>
             <p>{authError}</p>
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="mt-2 text-sm text-gray-300">
               {authError.includes('server_error') ? (
                 <>
                   <strong>server_error の対処法：</strong><br />
@@ -369,7 +369,7 @@ export default function Home() {
           <p className="font-bold mb-2">エラー</p>
           <p>{authError}</p>
           {authError.includes('プロフィール作成に失敗') && (
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="mt-2 text-sm text-gray-300">
               Supabase Dashboard → SQL Editor で <code className="bg-black/30 px-1">supabase_fix_new_user_login.sql</code> を実行してください。
             </p>
           )}
@@ -384,7 +384,7 @@ export default function Home() {
       ) : (
         <div className="mb-4">
           <p className="text-orange-500 mb-3">プロフィールが見つかりません</p>
-          <p className="text-gray-400 text-sm mb-3">
+          <p className="text-gray-300 text-sm mb-3">
             SupabaseでSQLを実行した後は、下のボタンで再読み込みしてください。
           </p>
           <button

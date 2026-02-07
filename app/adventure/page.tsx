@@ -324,7 +324,7 @@ export default function AdventurePage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="border-4 border-dashed border-orange-500/30 rounded-xl p-6 text-center text-gray-400 bg-gray-800/50">
+                    <div className="border-4 border-dashed border-orange-500/30 rounded-xl p-6 text-center text-gray-300 bg-gray-800/50">
                       <div className="text-4xl mb-2">➕</div>
                       <div>ベースメンバーを選択</div>
                     </div>
@@ -354,7 +354,7 @@ export default function AdventurePage() {
                               </button>
                             </>
                           ) : (
-                            <div className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center text-gray-500 min-h-[100px] flex items-center justify-center bg-gray-800/30">
+                            <div className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center text-gray-400 min-h-[100px] flex items-center justify-center bg-gray-800/30">
                               <div className="text-2xl">➕</div>
                             </div>
                           )}
@@ -407,7 +407,7 @@ export default function AdventurePage() {
                         showStats={false}
                       />
                     ) : (
-                      <div className="text-gray-400 text-center">
+                      <div className="text-gray-300 text-center">
                         <div className="text-4xl mb-2">➕</div>
                         <div className="text-sm">メンバーを選択</div>
                       </div>

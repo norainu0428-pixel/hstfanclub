@@ -97,7 +97,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
             onLockToggle(member);
           }}
           className={`absolute top-2 left-2 p-2 rounded-lg transition z-10 ${
-            member.locked ? 'bg-amber-500 text-white' : 'bg-gray-700/80 text-gray-400 hover:bg-gray-600'
+            member.locked ? 'bg-amber-500 text-white' : 'bg-gray-700/80 text-gray-300 hover:bg-gray-600'
           }`}
           title={member.locked ? 'ロック解除（合成に使える）' : 'ロック（合成に使えない）'}
         >
@@ -124,7 +124,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
       {/* メンバー情報 */}
       <div className="p-4 bg-gray-800">
         <h3 className="font-bold text-lg mb-1 text-center text-white">{member.member_name}</h3>
-        <p className="text-xs text-gray-400 text-center mb-3">{member.member_description}</p>
+        <p className="text-sm text-gray-300 text-center mb-3">{member.member_description}</p>
 
         {showStats && (
           <>
@@ -132,7 +132,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
             <div className="mb-2">
               <div className="flex justify-between text-xs mb-1">
                 <span className="font-bold text-orange-500">HP</span>
-                <span className="text-gray-400">{member.hp}/{member.max_hp}</span>
+                <span className="text-gray-300">{member.hp}/{member.max_hp}</span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div
@@ -162,7 +162,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
                 <div className="mb-3">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="font-bold text-orange-400">EXP</span>
-                    <span className="text-gray-400">{member.experience}/{requiredExp}</span>
+                    <span className="text-gray-300">{member.experience}/{requiredExp}</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2">
                     <div
@@ -177,15 +177,15 @@ export default function MemberCard({ member, onClick, selected = false, showStat
             {/* ステータス */}
             <div className="grid grid-cols-3 gap-2 text-center mb-3">
               <div className="bg-gray-800 border border-orange-500/30 rounded p-2">
-                <div className="text-xs text-gray-400">ATK</div>
+                <div className="text-sm text-gray-300">ATK</div>
                 <div className="font-bold text-orange-500">{member.attack}</div>
               </div>
               <div className="bg-gray-800 border border-orange-500/30 rounded p-2">
-                <div className="text-xs text-gray-400">DEF</div>
+                <div className="text-sm text-gray-300">DEF</div>
                 <div className="font-bold text-orange-500">{member.defense}</div>
               </div>
               <div className="bg-gray-800 border border-orange-500/30 rounded p-2">
-                <div className="text-xs text-gray-400">SPD</div>
+                <div className="text-sm text-gray-300">SPD</div>
                 <div className="font-bold text-orange-500">{member.speed}</div>
               </div>
             </div>
@@ -194,17 +194,17 @@ export default function MemberCard({ member, onClick, selected = false, showStat
             {member.skill_type && showStats && (
               <div className="mt-3 pt-3 border-t border-gray-700">
                 <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-lg p-2">
-                  <div className="text-xs text-gray-400 mb-1">スキル</div>
+                  <div className="text-sm text-gray-300 mb-1">スキル</div>
                   <div className="font-bold text-sm text-orange-400">
                     {getSkillName(member.skill_type)}
                   </div>
                   {member.skill_type === 'heal' && (
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-sm text-gray-300 mt-1">
                       HP {member.skill_power || 0} 回復
                     </div>
                   )}
                   {member.skill_type === 'revive' && (
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-sm text-gray-300 mt-1">
                       戦闘不能時に1回だけ蘇生
                     </div>
                   )}

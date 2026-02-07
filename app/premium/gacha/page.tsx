@@ -558,7 +558,7 @@ export default function PremiumGachaPage() {
           <div className="text-center">
             <div className="text-gray-600 mb-2">現在のポイント</div>
             <div className="text-5xl font-bold text-purple-600">{currentPoints}</div>
-            <div className="text-sm text-gray-500 mt-2">pt</div>
+            <div className="text-sm text-gray-700 mt-2">pt</div>
             {currentPoints < 50 && (
               <div className="mt-3 text-red-500 font-bold">
                 ⚠️ ガチャにはあと{50 - currentPoints}pt必要です
@@ -628,7 +628,7 @@ export default function PremiumGachaPage() {
                 >
                   {isSpinning ? '抽選中...' : currentPoints < 50 ? 'ポイント不足' : 'ガチャを回す！（50pt）'}
                 </button>
-                <div className="text-sm text-gray-500 mt-4">
+                <div className="text-sm text-gray-700 mt-4">
                   ガチャ1回: 50pt消費
                 </div>
               </>

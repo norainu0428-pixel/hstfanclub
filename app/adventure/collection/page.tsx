@@ -439,7 +439,7 @@ export default function CollectionPage() {
                   </div>
                 </div>
               ) : (
-                <div className="border-4 border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400">
+                <div className="border-4 border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-600">
                   <div className="text-4xl mb-2">➕</div>
                   <div>ベースメンバーを選択</div>
                 </div>
@@ -469,7 +469,7 @@ export default function CollectionPage() {
                           </button>
                         </>
                       ) : (
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-400 min-h-[120px] flex items-center justify-center">
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-600 min-h-[120px] flex items-center justify-center">
                           <div className="text-2xl">➕</div>
                         </div>
                       )}
@@ -574,7 +574,7 @@ export default function CollectionPage() {
             })}
           </div>
           {members.length === 0 && (
-            <div className="text-center text-gray-500 py-12">
+            <div className="text-center text-gray-600 py-12">
               メンバーがいません
             </div>
           )}
