@@ -17,7 +17,7 @@ function MatchmakingContent() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [friendId, battleId]);
 
   async function loadData() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -32,15 +32,31 @@ function MatchmakingContent() {
 
     setParty(members || []);
 
-    // フレンド名取得
     if (friendId) {
       const { data: friendProfile } = await supabase
         .from('profiles')
         .select('display_name')
         .eq('user_id', friendId)
         .single();
-
       setFriendName(friendProfile?.display_name || '不明');
+
+      // 相手が自分を招待している「待機中」バトルがあれば参加する（battleId が URL に無い場合）
+      if (!battleId) {
+        const { data: waitingList } = await supabase
+          .from('pvp_battles')
+          .select('id')
+          .eq('player1_id', friendId)
+          .eq('player2_id', user.id)
+          .eq('status', 'waiting')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const waitingBattle = waitingList?.[0];
+
+        if (waitingBattle?.id) {
+          router.replace(`/pvp/matchmaking?friend=${friendId}&battle=${waitingBattle.id}`);
+          return;
+        }
+      }
     }
 
     setLoading(false);
@@ -145,6 +161,11 @@ function MatchmakingContent() {
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">⚔️ PvP対戦</h1>
           <p className="text-lg opacity-90">対戦相手: {friendName}</p>
+          {battleId && (
+            <p className="mt-2 px-4 py-2 bg-white/20 rounded-lg text-sm">
+              {friendName}から対戦招待が来ています。パーティを選んで「対戦開始！」を押してください
+            </p>
+          )}
         </div>
 
         {/* パーティ選択 */}

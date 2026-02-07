@@ -190,6 +190,9 @@ export default function PvPBattlePage() {
           setBattle(newBattle);
           setBattleLog(newBattle.battle_log || []);
 
+          if (newBattle.status === 'in_progress' && newBattle.player2_party?.length) {
+            loadPlayerInfo(newBattle);
+          }
           if (newBattle.status === 'completed') {
             setTimeout(() => showResult(newBattle), 2000);
           }
