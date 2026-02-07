@@ -57,7 +57,7 @@ export default function FriendsPage() {
         friend_id: fid,
         display_name: p?.display_name || '不明',
         membership_tier: p?.membership_tier || 'free',
-        is_online: isOnline(p?.last_seen_at),
+        is_online: isOnline(p?.last_seen_at ?? ''),
         last_seen_at: p?.last_seen_at || ''
       };
     });
