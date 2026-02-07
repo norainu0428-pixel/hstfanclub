@@ -439,6 +439,12 @@ export default function AdventurePage() {
                   🔮 合成強化
                 </button>
                 <button
+                  onClick={() => router.push('/adventure/equip')}
+                  className="bg-gradient-to-r from-amber-600 to-orange-600 text-white px-8 py-4 rounded-lg text-xl font-bold hover:from-amber-700 hover:to-orange-700 transition shadow-lg"
+                >
+                  ⚔️ 装備
+                </button>
+                <button
                   onClick={() => router.push('/adventure/collection')}
                   className="bg-gray-800 text-orange-500 border-2 border-orange-500 px-8 py-4 rounded-lg text-xl font-bold hover:bg-gray-700 transition"
                 >
