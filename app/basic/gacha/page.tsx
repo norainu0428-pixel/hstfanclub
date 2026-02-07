@@ -199,14 +199,23 @@ export default function BasicGachaPage() {
           return;
         }
 
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, premium_until, points')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('プロフィール取得エラー:', profileError);
+        // RPCでプロフィール取得（RLSをバイパス、ホームページと同じ方式）
+        let profile: { role?: string; premium_until?: string; points?: number; membership_tier?: string | null } | null = null;
+        const { data: profileData, error: rpcError } = await supabase.rpc('get_my_profile');
+        const profileFromRpc = Array.isArray(profileData) ? profileData[0] : profileData;
+        if (profileFromRpc) {
+          profile = {
+            role: profileFromRpc.role,
+            premium_until: profileFromRpc.premium_until,
+            points: profileFromRpc.points,
+            membership_tier: profileFromRpc.membership_tier
+          };
+        }
+        // RPC失敗時は従来のSELECT
+        if (!profile && rpcError) {
+          const res = await supabase.from('profiles').select('role, premium_until, points, membership_tier').eq('user_id', user.id).maybeSingle();
+          profile = res.data;
+          if (res.error) console.error('プロフィール取得エラー:', res.error);
         }
 
         if (!profile) {
@@ -215,13 +224,15 @@ export default function BasicGachaPage() {
           return;
         }
 
-        // owner、staff、member（通常会員）は無条件でアクセス可能
+        // アクセス可能: owner, staff, member, membership_tier basic/premium, premium_until有効
+        // roleがnull/未定義の場合はmember扱い（プロフィールがある＝登録済みユーザー）
         const allowedRoles = ['owner', 'staff', 'member'];
-        const roleLower = (profile.role || '').toLowerCase();
+        const roleLower = (profile.role || 'member').toLowerCase();
         const hasAllowedRole = allowedRoles.includes(roleLower);
-        const hasPremium = profile.premium_until && new Date(profile.premium_until) > new Date();
+        const hasPremiumUntil = profile.premium_until && new Date(profile.premium_until) > new Date();
+        const hasMembershipTier = profile.membership_tier === 'basic' || profile.membership_tier === 'premium';
 
-        if (hasAllowedRole || hasPremium) {
+        if (hasAllowedRole || hasPremiumUntil || hasMembershipTier || !profile.role) {
           setIsAuthorized(true);
           setCurrentPoints(profile.points || 0);
           setIsOwner(profile.role === 'owner');
