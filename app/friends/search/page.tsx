@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
+interface SearchProfileRow {
+  user_id: string;
+  display_name: string | null;
+  membership_tier: string | null;
+}
+
 interface PlayerSearchResult {
   user_id: string;
   display_name: string;
@@ -49,7 +55,7 @@ export default function PlayerSearchPage() {
     }
 
     // RPC で検索（RLS をバイパスして確実に結果を取得）
-    const { data: players, error } = await supabase.rpc('search_profiles_for_friends', {
+    const { data, error } = await supabase.rpc('search_profiles_for_friends', {
       p_search_term: term,
       p_exclude_user_id: myId
     });
@@ -62,7 +68,8 @@ export default function PlayerSearchPage() {
       return;
     }
 
-    if (!players || players.length === 0) {
+    const players: SearchProfileRow[] = (data ?? []) as SearchProfileRow[];
+    if (players.length === 0) {
       setResults([]);
       setLoading(false);
       return;
@@ -94,8 +101,10 @@ export default function PlayerSearchPage() {
       .in('user_id', players.map(p => p.user_id));
     revFriendships?.filter(f => f.status === 'accepted').forEach(f => friendIds.add(f.user_id));
 
-    const resultsWithStatus = players.map(player => ({
-      ...player,
+    const resultsWithStatus: PlayerSearchResult[] = players.map(player => ({
+      user_id: player.user_id,
+      display_name: player.display_name ?? '不明',
+      membership_tier: player.membership_tier ?? 'free',
       is_friend: friendIds.has(player.user_id),
       has_pending_request: pendingIds.has(player.user_id)
     }));
