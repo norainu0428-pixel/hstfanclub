@@ -118,7 +118,7 @@ export function generateStageInfo(stage: number): StageInfo {
     // HP・防御は低め（敵を倒しやすく）、攻撃は高め（プレイヤーにダメージ入るように）
     const hpRatio = isBoss ? 0.6 * multiplier : 0.5;
     const defenseRatio = isBoss ? 0.6 * multiplier : 0.5;
-    const attackRatio = isBoss ? 1.3 * multiplier : 1.2;  // 敵の攻撃力は高め（プレイヤーHPが減る）
+    const attackRatio = isBoss ? 1.5 * multiplier : 1.4;  // 敵の攻撃力は高め（プレイヤーHPが減る）
     const speedRatio = isBoss ? 0.9 * multiplier : 0.85;
     
     const hp = Math.floor(baseStats.hp * hpRatio);
