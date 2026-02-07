@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 interface SearchProfileRow {
   user_id: string;
   display_name: string | null;
-  membership_tier: string | null;
+  membership_tier?: string | null;
 }
 
 interface PlayerSearchResult {

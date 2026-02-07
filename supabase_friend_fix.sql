@@ -37,15 +37,15 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 4. フレンド検索用 RPC
+-- 4. フレンド検索用 RPC（profiles に membership_tier が無くても動く）
+DROP FUNCTION IF EXISTS public.search_profiles_for_friends(text, uuid);
 CREATE OR REPLACE FUNCTION public.search_profiles_for_friends(
   p_search_term text,
   p_exclude_user_id uuid
 )
 RETURNS TABLE (
   user_id uuid,
-  display_name text,
-  membership_tier text
+  display_name text
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -56,7 +56,7 @@ BEGIN
     RETURN;
   END IF;
   RETURN QUERY
-  SELECT p.user_id, p.display_name, COALESCE(p.membership_tier, 'free')
+  SELECT p.user_id, COALESCE(p.display_name, '')
   FROM profiles p
   WHERE p.user_id != p_exclude_user_id
     AND (
