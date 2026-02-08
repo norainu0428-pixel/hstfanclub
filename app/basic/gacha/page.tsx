@@ -205,7 +205,7 @@ export default function BasicGachaPage() {
   async function performGacha(isTenthPull: boolean): Promise<GachaResult> {
     let rates: Record<string, number>;
     if (isTenthPull) {
-      rates = gachaRates ? {
+      const fromDb = gachaRates ? {
         stary: gachaRates['stary']?.ten ?? DEFAULT_RATES.ten.stary,
         legendary: gachaRates['legendary']?.ten ?? DEFAULT_RATES.ten.legendary,
         'ultra-rare': gachaRates['ultra-rare']?.ten ?? DEFAULT_RATES.ten['ultra-rare'],
@@ -213,6 +213,9 @@ export default function BasicGachaPage() {
         rare: 0,
         common: 0
       } : { ...DEFAULT_RATES.ten };
+      // 10連目はスーパーレア以上確定。DB値がおかしい（SR以上合計が極端に低い）場合はデフォルト使用
+      const srAboveTotal = fromDb.stary + fromDb.legendary + fromDb['ultra-rare'] + fromDb['super-rare'];
+      rates = srAboveTotal >= 90 ? fromDb : { ...DEFAULT_RATES.ten };
     } else {
       rates = gachaRates ? {
         stary: gachaRates['stary']?.single ?? DEFAULT_RATES.single.stary,

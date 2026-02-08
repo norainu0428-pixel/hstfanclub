@@ -35,8 +35,8 @@ export function normalizeRarity(rarity: string): string {
   const map: Record<string, string> = {
     'hst': 'HST', 'stary': 'stary', 'STARY': 'stary',
     'レジェンド': 'legendary', 'legendary': 'legendary',
-    'ウルトラレア': 'ultra-rare', 'ultra-rare': 'ultra-rare', 'ultrare': 'ultra-rare',
-    'スーパーレア': 'super-rare', 'super-rare': 'super-rare', 'superrare': 'super-rare',
+    'ウルトラレア': 'ultra-rare', 'ultra-rare': 'ultra-rare', 'ultrare': 'ultra-rare', 'ultra_rare': 'ultra-rare',
+    'スーパーレア': 'super-rare', 'super-rare': 'super-rare', 'superrare': 'super-rare', 'super_rare': 'super-rare',
     'レア': 'rare', 'rare': 'rare',
     'コモン': 'common', 'common': 'common', 'ノーマル': 'common',
     '★1': 'common', '★2': 'rare', '★3': 'super-rare', '★4': 'ultra-rare', '★5': 'legendary', '★6': 'stary', '★7': 'HST'

@@ -334,11 +334,14 @@ export default function EventsPage() {
     let cumulative = 0;
     const field = useTenPullRate ? 'ten_pull_rate' : 'rate';
 
-    // 使用する確率配列（10連目で合計0の場合はデフォルト使用）
+    // 使用する確率配列（10連目で合計0や、SR以上が極端に低い場合はデフォルト使用）
     const useRates = useTenPullRate && rates.length > 0
       ? (() => {
           const total = rates.reduce((s, r) => s + parseFloat(r.ten_pull_rate || '0'), 0);
-          if (total < 0.01) {
+          const srAbove = ['HST', 'stary', 'legendary', 'ultra-rare', 'super-rare'].reduce(
+            (s, r) => s + parseFloat((rates.find(x => x.rarity === r)?.ten_pull_rate || '0')), 0
+          );
+          if (total < 0.01 || srAbove < 90) {
             return [
               { rarity: 'HST', rate: 0.1, ten_pull_rate: 1 },
               { rarity: 'stary', rate: 0.5, ten_pull_rate: 5 },
