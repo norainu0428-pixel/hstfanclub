@@ -16,6 +16,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<FriendWithProfile[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [myUserId, setMyUserId] = useState<string>('');
   const router = useRouter();
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function FriendsPage() {
       setLoading(false);
       return;
     }
+    setMyUserId(user.id);
 
     // 双方向取得: user_id=me または friend_id=me
     const { data: rows } = await supabase
@@ -119,8 +121,18 @@ export default function FriendsPage() {
     <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
       <div className="max-w-lg mx-auto">
         <header className="mb-6">
-          <h1 className="text-xl font-bold text-white">フレンド</h1>
-          <p className="text-sm text-slate-400 mt-0.5">フレンド数: <span className="text-orange-400 font-bold">{friends.length}</span></p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-white">フレンド</h1>
+              <p className="text-sm text-slate-400 mt-0.5">フレンド数: <span className="text-orange-400 font-bold">{friends.length}</span></p>
+            </div>
+            {myUserId && (
+              <div className="rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2 text-right shrink-0">
+                <p className="text-xs text-slate-400 mb-0.5">自分のID（送る用）</p>
+                <p className="text-sm font-mono font-bold text-orange-400 break-all">プレイヤー-{myUserId.slice(0, 8)}</p>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* メニューボタン */}

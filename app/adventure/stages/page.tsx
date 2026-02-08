@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getStageInfo, EXTRA_STAGE_ID } from '@/utils/stageGenerator';
+import { getStageInfo, EXTRA_STAGE_START, EXTRA_STAGE_END, isExtraStage } from '@/utils/stageGenerator';
 
 export default function StagesPage() {
   const searchParams = useSearchParams();
@@ -11,13 +11,15 @@ export default function StagesPage() {
   const partyIds = searchParams.get('party') || '';
   const inviteId = searchParams.get('invite_id') || '';
   const currentStageParam = searchParams.get('current') || '1';
+  const extraView = searchParams.get('extra') === '1';
   const parsedStage = parseInt(currentStageParam);
   
-  const currentStage = (isNaN(parsedStage) || parsedStage < 1 || parsedStage > 400) ? 1 : parsedStage;
+  const currentStage = (isNaN(parsedStage) || parsedStage < 1 || parsedStage > 400) ? 1 : Math.min(EXTRA_STAGE_END, Math.max(1, parsedStage));
   const [unlockedStages, setUnlockedStages] = useState<number[]>([]);
   const [clearedStages, setClearedStages] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const stagesPerPage = 100; // 1ページあたり100ステージ表示
+  const extraStagesPerPage = 50; // エクストラは50ずつ
 
   useEffect(() => {
     loadUnlockedStages();
@@ -62,18 +64,27 @@ export default function StagesPage() {
       unlocked.push(i);
     }
     if (cleared.has(100)) {
-      unlocked.push(EXTRA_STAGE_ID);
+      let maxExtraConsecutive = EXTRA_STAGE_START - 1;
+      for (let s = EXTRA_STAGE_START; s <= EXTRA_STAGE_END; s++) {
+        if (!cleared.has(s)) break;
+        maxExtraConsecutive = s;
+      }
+      const nextExtra = Math.min(EXTRA_STAGE_END, maxExtraConsecutive + 1);
+      for (let i = EXTRA_STAGE_START; i <= nextExtra; i++) {
+        unlocked.push(i);
+      }
     }
     setUnlockedStages(unlocked);
     
-    // 現在のステージに応じてページを設定
-    const page = Math.ceil(currentStage / stagesPerPage);
+    const page = extraView
+      ? Math.ceil((currentStage - EXTRA_STAGE_START + 1) / extraStagesPerPage) || 1
+      : Math.ceil(Math.min(currentStage, 400) / stagesPerPage) || 1;
     setCurrentPage(page);
   }
 
   function selectStage(stage: number) {
     if (!unlockedStages.includes(stage)) {
-      alert(stage === EXTRA_STAGE_ID ? 'ステージ100をクリアするとエクストラステージに挑戦できます！' : `ステージ${stage}はまだアンロックされていません！`);
+      alert(isExtraStage(stage) ? 'ステージ100をクリアするとエクストラステージに挑戦できます！先に401から順にクリアしてください。' : `ステージ${stage}はまだアンロックされていません！`);
       return;
     }
     const params = new URLSearchParams({ party: partyIds || '_' });
@@ -81,14 +92,54 @@ export default function StagesPage() {
     router.push(`/adventure/stage/${stage}?${params.toString()}`);
   }
 
+  function goToExtraView() {
+    const params = new URLSearchParams({ party: partyIds || '_', extra: '1' });
+    if (inviteId) params.set('invite_id', inviteId);
+    router.push(`/adventure/stages?${params.toString()}`);
+  }
+  function goToNormalView() {
+    const params = new URLSearchParams({ party: partyIds || '_' });
+    if (inviteId) params.set('invite_id', inviteId);
+    router.push(`/adventure/stages?${params.toString()}`);
+  }
+
+  const totalNormalPages = Math.ceil(400 / stagesPerPage);
+  const totalExtraPages = Math.ceil((EXTRA_STAGE_END - EXTRA_STAGE_START + 1) / extraStagesPerPage);
+  const isExtraMode = extraView && clearedStages.includes(100);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">🗺️ ステージ選択</h1>
-          <p className="text-lg opacity-90">挑戦するステージを選んでください</p>
+          <h1 className="text-4xl font-bold mb-2">{isExtraMode ? '⭐ エクストラステージ' : '🗺️ ステージ選択'}</h1>
+          <p className="text-lg opacity-90">{isExtraMode ? `ステージ401〜1000（Lv1000まで楽しめる・武器ドロップ）` : '挑戦するステージを選んでください'}</p>
           {inviteId && <p className="text-cyan-300 mt-2">👥 協力バトルモード</p>}
         </div>
+
+        {/* エクストラ案内 or 通常に戻る */}
+        {clearedStages.includes(100) && (
+          <div className="mb-4">
+            {!isExtraMode ? (
+              <button
+                onClick={goToExtraView}
+                className="w-full rounded-2xl p-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-left flex items-center gap-3 shadow-lg"
+              >
+                <span className="text-3xl">💀</span>
+                <div>
+                  <div className="text-lg">エクストラステージ 401〜1000</div>
+                  <div className="text-sm opacity-90">Lv80〜1000まで・全員最強スキル・武器ドロップあり</div>
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={goToNormalView}
+                className="w-full py-2 rounded-xl border-2 border-white/50 text-white font-bold"
+              >
+                ← 通常ステージ 1-400 に戻る
+              </button>
+            )}
+          </div>
+        )}
 
         {/* ページネーション */}
         <div className="bg-white rounded-2xl p-4 shadow-xl mb-4">
@@ -102,15 +153,17 @@ export default function StagesPage() {
             </button>
             <div className="text-center">
               <div className="text-lg font-bold text-gray-700">
-                ページ {currentPage} / {Math.ceil(400 / stagesPerPage)}
+                ページ {currentPage} / {isExtraMode ? totalExtraPages : totalNormalPages}
               </div>
               <div className="text-sm text-gray-900">
-                ステージ {(currentPage - 1) * stagesPerPage + 1} - {Math.min(currentPage * stagesPerPage, 400)}
+                {isExtraMode
+                  ? `ステージ ${EXTRA_STAGE_START + (currentPage - 1) * extraStagesPerPage} - ${Math.min(EXTRA_STAGE_START + currentPage * extraStagesPerPage - 1, EXTRA_STAGE_END)}`
+                  : `ステージ ${(currentPage - 1) * stagesPerPage + 1} - ${Math.min(currentPage * stagesPerPage, 400)}`}
               </div>
             </div>
             <button
-              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(400 / stagesPerPage), prev + 1))}
-              disabled={currentPage >= Math.ceil(400 / stagesPerPage)}
+              onClick={() => setCurrentPage(prev => Math.min(isExtraMode ? totalExtraPages : totalNormalPages, prev + 1))}
+              disabled={currentPage >= (isExtraMode ? totalExtraPages : totalNormalPages)}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600"
             >
               次のページ →
@@ -118,34 +171,24 @@ export default function StagesPage() {
           </div>
         </div>
 
-        {/* エクストラステージ案内（ステージ100クリアで表示） */}
-        {clearedStages.includes(100) && (
-          <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 shadow-2xl mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">⭐ エクストラステージ</h2>
-            <p className="text-white/90 mb-4">ステージ100クリアで解放！強力なボスが最強スキルで襲いかかる。勝利時わずかな確率で武器ドロップ！</p>
-            <button
-              onClick={() => selectStage(EXTRA_STAGE_ID)}
-              className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-xl hover:bg-orange-100 transition shadow-lg"
-            >
-              💀 エクストラステージに挑戦
-            </button>
-          </div>
-        )}
-
         {/* ステージグリッド */}
         <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
           <div className="grid grid-cols-10 gap-2">
-            {Array.from({ length: stagesPerPage }, (_, i) => {
-              const stage = (currentPage - 1) * stagesPerPage + i + 1;
-              if (stage > 400) return null;
+            {Array.from({ length: isExtraMode ? extraStagesPerPage : stagesPerPage }, (_, i) => {
+              const stage = isExtraMode
+                ? EXTRA_STAGE_START + (currentPage - 1) * extraStagesPerPage + i
+                : (currentPage - 1) * stagesPerPage + i + 1;
+              if (isExtraMode && stage > EXTRA_STAGE_END) return null;
+              if (!isExtraMode && stage > 400) return null;
               
               const stageInfo = getStageInfo(stage);
               const isUnlocked = unlockedStages.includes(stage);
               const isCleared = clearedStages.includes(stage);
               const isCurrent = stage === currentStage;
-              const isBoss = stage % 10 === 0;
-              const isMegaBoss = stage % 100 === 0;
-              const isUltimateBoss = stage % 200 === 0;
+              const isBoss = !isExtraMode && stage % 10 === 0;
+              const isMegaBoss = !isExtraMode && stage % 100 === 0;
+              const isUltimateBoss = !isExtraMode && stage % 200 === 0;
+              const isExtraBoss = isExtraMode && (stage - EXTRA_STAGE_START) % 10 === 9;
 
               return (
                 <button
@@ -154,7 +197,8 @@ export default function StagesPage() {
                   disabled={!isUnlocked}
                   className={`
                     relative p-3 rounded-lg font-bold text-sm transition
-                    ${isUnlocked
+                    ${isExtraMode ? (isUnlocked ? (isCleared ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white' : isExtraBoss ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white') : 'bg-gray-300 text-gray-900 cursor-not-allowed opacity-50')
+                    : isUnlocked
                       ? isCurrent
                         ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg scale-105'
                         : isCleared
@@ -177,7 +221,7 @@ export default function StagesPage() {
                   `}
                 >
                   <div className="text-lg">
-                    {isUltimateBoss ? '💀👑' : isMegaBoss ? '👑🔥' : isBoss ? '👑' : stage}
+                    {isExtraMode ? (isExtraBoss ? '💀' : stage) : (isUltimateBoss ? '💀👑' : isMegaBoss ? '👑🔥' : isBoss ? '👑' : stage)}
                   </div>
                   {isCleared && (
                     <div className="absolute -top-1 -right-1 bg-green-500 rounded-full w-5 h-5 border-2 border-white flex items-center justify-center">
@@ -202,8 +246,11 @@ export default function StagesPage() {
         <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
           <h2 className="text-2xl font-bold mb-4 text-center">ステージ情報</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[currentStage, currentStage + 1, currentStage + 2].map(stage => {
-              if (stage > 400) return null;
+            {(() => {
+              const detailStart = isExtraMode ? EXTRA_STAGE_START + (currentPage - 1) * extraStagesPerPage : currentStage;
+              return [detailStart, detailStart + 1, detailStart + 2].map(stage => {
+              if (!isExtraMode && stage > 400) return null;
+              if (isExtraMode && stage > EXTRA_STAGE_END) return null;
               const stageInfo = getStageInfo(stage);
               const isUnlocked = unlockedStages.includes(stage);
               
@@ -215,10 +262,10 @@ export default function StagesPage() {
                   }`}
                 >
                   <div className="font-bold text-lg mb-2">
-                    ステージ {stage}
-                    {stage % 200 === 0 && <span className="ml-2">💀👑</span>}
-                    {stage % 100 === 0 && stage % 200 !== 0 && <span className="ml-2">👑🔥</span>}
-                    {stage % 10 === 0 && stage % 100 !== 0 && <span className="ml-2">👑</span>}
+                    {isExtraStage(stage) ? '⭐ ' : ''}ステージ {stage}
+                    {!isExtraStage(stage) && stage % 200 === 0 && <span className="ml-2">💀👑</span>}
+                    {!isExtraStage(stage) && stage % 100 === 0 && stage % 200 !== 0 && <span className="ml-2">👑🔥</span>}
+                    {!isExtraStage(stage) && stage % 10 === 0 && stage % 100 !== 0 && <span className="ml-2">👑</span>}
                   </div>
                   <div className="text-sm space-y-1">
                     <div>推奨レベル: <span className="font-bold">{stageInfo.recommendedLevel}</span></div>
@@ -230,7 +277,8 @@ export default function StagesPage() {
                   </div>
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
         </div>
 

@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo, EXTRA_STAGE_ID } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, EXTRA_STAGE_END } from '@/utils/stageGenerator';
 import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
@@ -106,7 +106,7 @@ export default function BattlePage() {
   }, [party, loading, battleResult]);
 
   async function initBattle() {
-    if (!partyStageId && (isNaN(stageId) || ((stageId < 1 || stageId > 400) && stageId !== EXTRA_STAGE_ID))) {
+    if (!partyStageId && (isNaN(stageId) || stageId < 1 || stageId > 1000)) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
@@ -1472,7 +1472,7 @@ export default function BattlePage() {
       }
 
       // 進行状況更新（パーティーモード・エクストラステージでは進行は更新しない）
-      if (!partyStageId && stageId !== EXTRA_STAGE_ID) {
+      if (!partyStageId && !isExtraStage(stageId)) {
         const { data: progress, error: progressError } = await supabase
           .from('user_progress')
           .select('*')
@@ -1489,7 +1489,7 @@ export default function BattlePage() {
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user.id);
-        } else if (stageId !== EXTRA_STAGE_ID) {
+        } else if (!isExtraStage(stageId)) {
           await supabase
             .from('user_progress')
             .insert({
@@ -1521,7 +1521,7 @@ export default function BattlePage() {
         });
 
       // エクストラステージ勝利時：1%で武器ドロップ（本当に低確率）
-      if (!partyStageId && stageId === EXTRA_STAGE_ID) {
+      if (!partyStageId && isExtraStage(stageId)) {
         const dropRoll = Math.random() * 100;
         if (dropRoll < 1) {
           const { data: weaponDefs } = await supabase
@@ -2061,10 +2061,10 @@ export default function BattlePage() {
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(partyStageId ? `/party/stages?party=${partyIds.join(',')}` : stageId === EXTRA_STAGE_ID ? '/adventure/stages' : `/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
+                      onClick={() => router.push(partyStageId ? `/party/stages?party=${partyIds.join(',')}` : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? `/adventure/stages?party=${partyIds.join(',')}&extra=1` : `/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
-                      {partyStageId ? 'ステージ一覧へ' : stageId === EXTRA_STAGE_ID ? 'ステージ選択へ' : '次のステージへ'}
+                      {partyStageId ? 'ステージ一覧へ' : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? 'ステージ選択へ' : '次のステージへ'}
                     </button>
                     <button
                       onClick={() => router.push(partyStageId ? '/party' : '/adventure')}

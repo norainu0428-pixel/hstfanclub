@@ -1,7 +1,9 @@
 import { Enemy } from '@/types/adventure';
 
-// エクストラステージのID（ステージ100クリアで解放）
-export const EXTRA_STAGE_ID = 999;
+// エクストラステージ（ステージ100クリアで401から挑戦可能、Lv1000まで楽しめる）
+export const EXTRA_STAGE_START = 401;
+export const EXTRA_STAGE_END = 1000;
+export const isExtraStage = (stage: number) => stage >= EXTRA_STAGE_START && stage <= EXTRA_STAGE_END;
 
 // ステージ情報
 export interface StageInfo {
@@ -203,12 +205,13 @@ const EXTRA_BOSS_SKILLS = [
   { skill_type: 'dark_strike', skill_power: 180 },     // 闇の裁き
 ];
 
-// エクストラステージ生成（ステージ100クリアで挑戦可能、武器ドロップあり）
-export function generateExtraStageInfo(): StageInfo {
-  const recommendedLevel = 80;
+// エクストラステージ生成（401-1000、推奨Lv80→1000でスケール、全員ボススキル・武器ドロップあり）
+export function generateExtraStageInfo(stage: number): StageInfo {
+  // 401→Lv80、1000→Lv1000 で線形
+  const recommendedLevel = Math.min(1000, Math.floor(80 + ((stage - EXTRA_STAGE_START) * (1000 - 80)) / (EXTRA_STAGE_END - EXTRA_STAGE_START)));
   const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
-  const bossMultiplier = 1.8;
-  const enemyPowerRatio = 1.8;
+  const bossMultiplier = 1.5 + (stage - EXTRA_STAGE_START) / (EXTRA_STAGE_END - EXTRA_STAGE_START) * 0.5; // 1.5〜2.0
+  const enemyPowerRatio = 1.6 + (stage - EXTRA_STAGE_START) / (EXTRA_STAGE_END - EXTRA_STAGE_START) * 0.4; // 1.6〜2.0
 
   const enemies: Enemy[] = [];
   const extraEnemyTypes = [
@@ -221,12 +224,15 @@ export function generateExtraStageInfo(): StageInfo {
 
   for (let i = 0; i < 5; i++) {
     const isBoss = i === 4;
-    const mult = isBoss ? bossMultiplier : 1.5;
+    const mult = isBoss ? bossMultiplier : 1.3;
     const skill = EXTRA_BOSS_SKILLS[i % EXTRA_BOSS_SKILLS.length];
     const hp = Math.floor(baseStats.hp * enemyPowerRatio * mult);
-    const attack = Math.floor(baseStats.attack * enemyPowerRatio * mult * 2.5);
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio * mult * 2.2);
     const defense = Math.floor(baseStats.defense * enemyPowerRatio * mult * 2);
     const speed = Math.floor(baseStats.speed * enemyPowerRatio * mult);
+
+    const expBase = 300 + (stage - EXTRA_STAGE_START) * 2;
+    const pointsBase = 20 + Math.floor((stage - EXTRA_STAGE_START) / 30);
 
     enemies.push({
       name: isBoss ? `${extraEnemyTypes[i].name}（極）` : extraEnemyTypes[i].name,
@@ -236,15 +242,15 @@ export function generateExtraStageInfo(): StageInfo {
       attack,
       defense,
       speed,
-      experience_reward: Math.floor(500 * mult),
-      points_reward: Math.floor(30 * mult),
+      experience_reward: Math.floor(expBase * mult),
+      points_reward: Math.floor(pointsBase * mult),
       skill_type: skill.skill_type,
       skill_power: skill.skill_power,
     });
   }
 
   return {
-    stage: EXTRA_STAGE_ID,
+    stage,
     recommendedLevel,
     enemies,
     isExtra: true,
@@ -253,8 +259,8 @@ export function generateExtraStageInfo(): StageInfo {
 
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
-  if (stage === EXTRA_STAGE_ID) {
-    return generateExtraStageInfo();
+  if (isExtraStage(stage)) {
+    return generateExtraStageInfo(stage);
   }
   return generateStageInfo(stage);
 }
