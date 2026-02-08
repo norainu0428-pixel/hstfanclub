@@ -219,7 +219,9 @@ export default function BattlePage() {
       // 冒険モード
       const stageInfo = getStageInfo(stageId);
       setEnemies(stageInfo.enemies.map(enemy => ({ ...enemy })));
-      setRewards({ exp: stageInfo.expReward, points: stageInfo.pointsReward });
+      const totalExp = stageInfo.enemies.reduce((sum, e) => sum + (e.experience_reward ?? 0), 0);
+      const totalPoints = stageInfo.enemies.reduce((sum, e) => sum + (e.points_reward ?? 0), 0);
+      setRewards({ exp: totalExp, points: totalPoints });
       addLog(inviteId ? `ステージ${stageId} 協力バトル開始！（推奨レベル: ${stageInfo.recommendedLevel}）` : `ステージ${stageId}の戦闘が始まった！（推奨レベル: ${stageInfo.recommendedLevel}）`);
     }
     setLoading(false);
