@@ -54,10 +54,7 @@ export default function PartyPage() {
 
     setIsOwner(profileResult.data?.role === 'owner');
     const membersData = membersResult.data || [];
-    const filtered = profileResult.data?.role === 'owner'
-      ? membersData
-      : membersData.filter((m: Member) => m.rarity !== 'HST');
-    setMembers(filtered);
+    setMembers(membersData);
 
     const partyInviteRows = (inviteResult.data || []).filter((r: { invite_mode?: string }) => r.invite_mode === 'party');
     if (partyInviteRows.length > 0) {

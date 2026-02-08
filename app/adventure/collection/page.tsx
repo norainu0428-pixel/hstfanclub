@@ -109,12 +109,7 @@ export default function CollectionPage() {
       console.log('HSTメンバー:', hstMembers);
       console.log('フィルタリング前のメンバー数:', sorted.length);
       
-      // オーナー以外はHSTを非表示
-      const filteredData = currentIsOwner ? sorted : sorted.filter(m => m.rarity !== 'HST');
-      console.log('フィルタリング後のメンバー数:', filteredData.length);
-      console.log('isOwner:', currentIsOwner);
-      
-      setMembers(filteredData);
+      setMembers(sorted);
 
       // 全員のHPを全回復（HPがmax_hp未満のメンバーのみ更新、並列処理）
       if (sorted && sorted.length > 0) {
@@ -153,12 +148,7 @@ export default function CollectionPage() {
     console.log('HSTメンバー:', hstMembers);
     console.log('フィルタリング前のメンバー数:', (data || []).length);
     
-    // オーナー以外はHSTを非表示
-    const filteredData = currentIsOwner ? (data || []) : (data || []).filter(m => m.rarity !== 'HST');
-    console.log('フィルタリング後のメンバー数:', filteredData.length);
-    console.log('isOwner:', currentIsOwner);
-    
-    setMembers(filteredData);
+    setMembers(data || []);
 
     // 全員のHPを全回復（HPがmax_hp未満のメンバーのみ更新、並列処理）
     if (data && data.length > 0) {

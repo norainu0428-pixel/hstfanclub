@@ -63,12 +63,7 @@ export default function AdventurePage() {
       return;
     }
 
-    // オーナー以外はHSTを非表示
-    const filteredMembers = ownerStatus 
-      ? (membersData || []) 
-      : (membersData || []).filter(m => m.rarity !== 'HST');
-    
-    setMembers(filteredMembers);
+    setMembers(membersData || []);
 
     // 進行状況の設定
     if (progressResult.data) {

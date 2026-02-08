@@ -248,7 +248,7 @@ export default function EventsPage() {
         };
         const statsKey = rarityMap[rarity] ?? 'common';
         const stats = baseStats[statsKey] ?? baseStats['common'];
-        await supabase
+        const { error: insertErr } = await supabase
           .from('user_members')
           .insert({
             user_id: user.id,
@@ -268,13 +268,20 @@ export default function EventsPage() {
             skill_power: member.skill_power || 0,
             revive_used: false
           });
+        if (insertErr) {
+          console.error('メンバー追加エラー:', insertErr);
+          throw new Error(`メンバーの追加に失敗しました: ${insertErr.message}`);
+        }
       }
 
       // ポイント消費
-      await supabase
+      const { error: updateErr } = await supabase
         .from('profiles')
         .update({ points: points - cost })
         .eq('user_id', user.id);
+      if (updateErr) {
+        throw new Error(`ポイントの消費に失敗しました: ${updateErr.message}`);
+      }
 
       // ミッション進捗更新
       await updateMissionProgress(user.id, 'gacha_pull', pulls);

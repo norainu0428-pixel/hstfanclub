@@ -304,16 +304,20 @@ export default function PremiumGachaPage() {
     setIsSpinning(true);
     setResult(null);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const gachaResult = await performGacha(false);
-    
-    // メンバー保存とポイント消費
-    await saveMemberAndConsumePoints([gachaResult], 50);
+      const gachaResult = await performGacha(false);
+      await saveMemberAndConsumePoints([gachaResult], 50);
 
-    setResult(gachaResult);
-    setHistory([gachaResult, ...history.slice(0, 4)]);
-    setIsSpinning(false);
+      setResult(gachaResult);
+      setHistory([gachaResult, ...history.slice(0, 4)]);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'ガチャに失敗しました');
+    } finally {
+      setIsSpinning(false);
+    }
   };
 
   // メンバー保存＆ポイント消費（共通処理）
@@ -335,7 +339,7 @@ export default function PremiumGachaPage() {
     for (const result of results) {
       const stats = baseStats[result.rarity] ?? baseStats['common'];
       
-      await supabase
+      const { error: insertErr } = await supabase
         .from('user_members')
         .insert({
           user_id: user.id,
@@ -352,14 +356,21 @@ export default function PremiumGachaPage() {
           skill_type: result.member.skill_type || null,
           skill_power: result.member.skill_power || 0
         });
+      if (insertErr) {
+        console.error('メンバー追加エラー:', insertErr);
+        throw new Error(`メンバーの追加に失敗しました: ${insertErr.message}`);
+      }
     }
 
     // ポイント消費
     const newPoints = currentPoints - pointCost;
-    await supabase
+    const { error: updateErr } = await supabase
       .from('profiles')
       .update({ points: newPoints })
       .eq('user_id', user.id);
+    if (updateErr) {
+      throw new Error(`ポイントの消費に失敗しました: ${updateErr.message}`);
+    }
 
     setCurrentPoints(newPoints);
 
@@ -377,22 +388,25 @@ export default function PremiumGachaPage() {
     setIsPulling(true);
     setTenPullResults([]);
 
-    const results: GachaResult[] = [];
+    try {
+      const results: GachaResult[] = [];
 
-    // 10回ガチャを引く
-    for (let i = 0; i < 10; i++) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // 10回目はレア以上確定
-      const isLastPull = i === 9;
-      const gachaResult = await performGacha(isLastPull);
-      results.push(gachaResult);
-      setTenPullResults([...results]);
+      for (let i = 0; i < 10; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const isLastPull = i === 9;
+        const gachaResult = await performGacha(isLastPull);
+        results.push(gachaResult);
+        setTenPullResults([...results]);
+      }
+
+      await saveMemberAndConsumePoints(results, 450);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'ガチャに失敗しました');
+      setTenPullResults([]);
+    } finally {
+      setIsPulling(false);
     }
-
-    // メンバー保存とポイント消費
-    await saveMemberAndConsumePoints(results, 450);
-    setIsPulling(false);
   };
 
   // レアリティの色
