@@ -1,4 +1,9 @@
 'use client';
+/**
+ * 通常ガチャ（ポイント消費）
+ * 実装メモ: 全ログインユーザーがアクセス可能（プレミアム期限不要）。
+ * 単発30pt / 10連270pt。basic_gacha_rates で確率管理。
+ */
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';

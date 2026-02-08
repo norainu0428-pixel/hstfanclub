@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+/** メンテナンス時は一般ユーザーにメンテ画面を表示（オーナー・スタッフは通過） */
 import MaintenanceGate from "@/components/MaintenanceGate";
 
 const geistSans = Geist({

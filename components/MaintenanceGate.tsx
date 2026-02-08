@@ -1,4 +1,11 @@
 'use client';
+/**
+ * メンテナンスゲート
+ * 実装内容: system_settings の maintenance_mode が有効な場合、
+ * 一般ユーザーには「メンテナンス中」画面を表示。
+ * オーナー・スタッフは引き続きアクセス可能。
+ * ルートレイアウトで全ページをラップして使用。
+ */
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';

@@ -602,7 +602,13 @@ export default function AdventurePage() {
         </div>
 
         {/* 戻るボタン */}
-        <div className="text-center mt-8">
+        <div className="text-center mt-8 flex flex-wrap justify-center gap-3">
+          <button
+            onClick={() => router.push('/party')}
+            className="bg-amber-800/50 text-amber-400 border border-amber-500 px-8 py-3 rounded-lg font-bold hover:bg-amber-800/70 transition"
+          >
+            🎪 パーティーモード
+          </button>
           <button
             onClick={() => router.push('/')}
             className="bg-gray-800 text-orange-500 border border-orange-500 px-8 py-3 rounded-lg font-bold hover:bg-gray-700 transition"

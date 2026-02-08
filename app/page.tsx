@@ -1,4 +1,13 @@
 'use client';
+/**
+ * トップページ
+ * 実装メモ:
+ * - ログイン: Discord OAuth。redirectTo は window.location.origin で本番対応。
+ * - ログイン失敗時: auth_error をクエリで受け取りエラー表示。
+ * - プロフィール未作成時: 「プロフィールを作成」ボタンで再試行（display_name に global_name も使用）。
+ * - お知らせ: announcements の is_active=true を表示。
+ * - 装備・ランキング・通常ガチャ・イベントガチャ（オーナーのみ）等のメニュー。
+ */
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -425,6 +434,12 @@ export default function Home() {
             🗺️ 冒険に出る
           </button>
           <button 
+            onClick={() => router.push('/party')}
+            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+          >
+            🎪 パーティーモード
+          </button>
+          <button 
             onClick={() => router.push('/games')}
             className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
           >
@@ -447,6 +462,12 @@ export default function Home() {
             className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
           >
             📋 デイリーミッション
+          </button>
+          <button 
+            onClick={() => router.push('/equipment')}
+            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+          >
+            🛡️ 装備
           </button>
           
           {(profile.role === 'owner' || profile.role === 'staff') && (

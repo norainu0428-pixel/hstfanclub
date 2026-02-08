@@ -1,4 +1,11 @@
 'use client';
+/**
+ * 冒険バトル
+ * 実装メモ:
+ * - オートバトル: isAutoMode でプレイヤーターン時に自動で通常攻撃（1体目→敵1体目）。ヘッダーにオートON/OFFボタン。
+ * - 装備ボーナス: initBattle で member_equipment → user_equipment → equipment_definitions を取得し、
+ *   HP/ATK/DEF/SPD を加算した party で戦闘開始。
+ */
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -20,13 +27,10 @@ export default function BattlePage() {
   const partyIds = searchParams.get('party')?.split(',').filter(Boolean) || [];
   const inviteId = searchParams.get('invite_id') || '';
   const mineIds = searchParams.get('mine')?.split(',').filter(Boolean) || [];
-  
-  // ステージIDが無効な場合のチェック
-  if (isNaN(stageId) || stageId < 1 || stageId > 400) {
-    // useEffect内でリダイレクトするため、ここでは早期リターンしない
-  }
+  const partyStageId = searchParams.get('party_stage_id') || ''; // パーティーモード用（冒険とは別）
 
   const [party, setParty] = useState<Member[]>([]);
+  const [partyStageInfo, setPartyStageInfo] = useState<{ order: number; recommendedLevel: number; expReward: number; pointsReward: number } | null>(null);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [turn, setTurn] = useState(1);
   const [battleLog, setBattleLog] = useState<string[]>([]);
@@ -83,7 +87,7 @@ export default function BattlePage() {
   }, [party, loading, battleResult]);
 
   async function initBattle() {
-    if (isNaN(stageId) || stageId < 1 || stageId > 400) {
+    if (!partyStageId && (isNaN(stageId) || stageId < 1 || stageId > 400)) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
@@ -129,7 +133,7 @@ export default function BattlePage() {
     } else {
       if (partyIds.length === 0) {
         alert('パーティが選択されていません');
-        router.push('/adventure');
+        router.push(partyStageId ? '/party' : '/adventure');
         return;
       }
       const { data: partyData } = await supabase
@@ -147,17 +151,77 @@ export default function BattlePage() {
         hp: member.hp || member.max_hp
       }));
     }
+
+    // 装備ボーナスを適用
+    const memberIds = initializedParty.map((m) => m.id);
+    const { data: memberEquipRows } = await supabase
+      .from('member_equipment')
+      .select('user_member_id, user_equipment(equipment_definitions(hp_bonus, attack_bonus, defense_bonus, speed_bonus))')
+      .in('user_member_id', memberIds);
+    const bonusesByMember: Record<string, { hp: number; attack: number; defense: number; speed: number }> = {};
+    (memberEquipRows || []).forEach((row: any) => {
+      const raw = row.user_equipment?.equipment_definitions;
+      const def = raw != null ? (Array.isArray(raw) ? raw[0] : raw) : null;
+      if (!def) return;
+      const id = row.user_member_id;
+      if (!bonusesByMember[id]) bonusesByMember[id] = { hp: 0, attack: 0, defense: 0, speed: 0 };
+      bonusesByMember[id].hp += def.hp_bonus ?? 0;
+      bonusesByMember[id].attack += def.attack_bonus ?? 0;
+      bonusesByMember[id].defense += def.defense_bonus ?? 0;
+      bonusesByMember[id].speed += def.speed_bonus ?? 0;
+    });
+    const partyWithEquip: Member[] = initializedParty.map((m) => {
+      const b = bonusesByMember[m.id] || { hp: 0, attack: 0, defense: 0, speed: 0 };
+      const maxHp = (m.max_hp ?? m.hp) + b.hp;
+      const hp = (m.hp ?? m.max_hp) + b.hp;
+      return {
+        ...m,
+        hp,
+        max_hp: maxHp,
+        attack: (m.attack ?? 0) + b.attack,
+        defense: (m.defense ?? 0) + b.defense,
+        speed: (m.speed ?? 0) + b.speed
+      };
+    });
     
     const initialHp: { [key: string]: number } = {};
-    initializedParty.forEach(member => {
+    partyWithEquip.forEach(member => {
       initialHp[member.id] = member.hp;
     });
     setOriginalHp(initialHp);
-    setParty(initializedParty);
+    setParty(partyWithEquip);
 
-    const stageInfo = getStageInfo(stageId);
-    setEnemies(stageInfo.enemies.map(enemy => ({ ...enemy })));
-    addLog(inviteId ? `ステージ${stageId} 協力バトル開始！（推奨レベル: ${stageInfo.recommendedLevel}）` : `ステージ${stageId}の戦闘が始まった！（推奨レベル: ${stageInfo.recommendedLevel}）`);
+    if (partyStageId) {
+      // パーティーモード: party_stages から敵データを取得
+      const { data: partyStage, error: psErr } = await supabase
+        .from('party_stages')
+        .select('stage_order, name, recommended_level, enemies, exp_reward, points_reward')
+        .eq('id', partyStageId)
+        .eq('is_active', true)
+        .single();
+      if (psErr || !partyStage) {
+        alert('パーティーステージの取得に失敗しました');
+        router.push('/party/stages');
+        setLoading(false);
+        return;
+      }
+      const enemyList = (partyStage.enemies || []) as Enemy[];
+      setEnemies(enemyList.map(e => ({ ...e })));
+      setPartyStageInfo({
+        order: partyStage.stage_order ?? 0,
+        recommendedLevel: partyStage.recommended_level ?? 1,
+        expReward: partyStage.exp_reward ?? 0,
+        pointsReward: partyStage.points_reward ?? 0
+      });
+      setRewards({ exp: partyStage.exp_reward ?? 0, points: partyStage.points_reward ?? 0 });
+      addLog(`パーティステージ「${partyStage.name}」の戦闘が始まった！（推奨レベル: ${partyStage.recommended_level}）`);
+    } else {
+      // 冒険モード
+      const stageInfo = getStageInfo(stageId);
+      setEnemies(stageInfo.enemies.map(enemy => ({ ...enemy })));
+      setRewards({ exp: stageInfo.expReward, points: stageInfo.pointsReward });
+      addLog(inviteId ? `ステージ${stageId} 協力バトル開始！（推奨レベル: ${stageInfo.recommendedLevel}）` : `ステージ${stageId}の戦闘が始まった！（推奨レベル: ${stageInfo.recommendedLevel}）`);
+    }
     setLoading(false);
   }
 
@@ -1351,40 +1415,43 @@ export default function BattlePage() {
           .eq('user_id', user.id);
       }
 
-      // 進行状況更新
-      const { data: progress, error: progressError } = await supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // 進行状況更新（パーティーモードでは冒険の進行は更新しない）
+      if (!partyStageId) {
+        const { data: progress, error: progressError } = await supabase
+          .from('user_progress')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (progress && !progressError) {
-        await supabase
-          .from('user_progress')
-          .update({
-            current_stage: Math.max(stageId + 1, progress.current_stage),
-            total_battles: (progress.total_battles || 0) + 1,
-            total_victories: (progress.total_victories || 0) + 1,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.id);
-      } else {
-        await supabase
-          .from('user_progress')
-          .insert({
-            user_id: user.id,
-            current_stage: stageId + 1,
-            total_battles: 1,
-            total_victories: 1
-          });
+        if (progress && !progressError) {
+          await supabase
+            .from('user_progress')
+            .update({
+              current_stage: Math.max(stageId + 1, progress.current_stage),
+              total_battles: (progress.total_battles || 0) + 1,
+              total_victories: (progress.total_victories || 0) + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+        } else {
+          await supabase
+            .from('user_progress')
+            .insert({
+              user_id: user.id,
+              current_stage: stageId + 1,
+              total_battles: 1,
+              total_victories: 1
+            });
+        }
       }
 
-      // バトルログ保存
+      // バトルログ保存（パーティーモードは stage 0 で記録）
+      const logStage = partyStageId ? (partyStageInfo?.order ?? 0) : stageId;
       await supabase
         .from('battle_logs')
         .insert({
           user_id: user.id,
-          stage: stageId,
+          stage: logStage,
           party_members: updatedParty.map(m => ({ 
             id: m.id, 
             name: m.member_name,
@@ -1911,13 +1978,13 @@ export default function BattlePage() {
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
+                      onClick={() => router.push(partyStageId ? `/party/stages?party=${partyIds.join(',')}` : `/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
-                      次のステージへ
+                      {partyStageId ? 'ステージ一覧へ' : '次のステージへ'}
                     </button>
                     <button
-                      onClick={() => router.push('/adventure')}
+                      onClick={() => router.push(partyStageId ? '/party' : '/adventure')}
                       className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
                     >
                       パーティ編成に戻る
@@ -1930,7 +1997,7 @@ export default function BattlePage() {
                     <div className="text-8xl mb-6 animate-pulse">💀</div>
                     <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
                     <p className="text-2xl text-gray-700 mb-2 font-semibold">全滅してしまいました...</p>
-                    <p className="text-lg text-gray-500">ステージ{stageId}で敗北しました</p>
+                    <p className="text-lg text-gray-500">{partyStageId ? `パーティステージ${partyStageInfo?.order ?? ''}で敗北しました` : `ステージ${stageId}で敗北しました`}</p>
                   </div>
                   
                   <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">
@@ -1947,13 +2014,13 @@ export default function BattlePage() {
                   
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(`/adventure/stage/${stageId}?party=${partyIds.join(',')}`)}
+                      onClick={() => router.push(partyStageId ? `/adventure/battle?party_stage_id=${partyStageId}&party=${partyIds.join(',')}` : `/adventure/stage/${stageId}?party=${partyIds.join(',')}`)}
                       className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-lg font-bold text-lg hover:opacity-90 shadow-lg transform hover:scale-105 transition-all"
                     >
                       🔄 リトライ
                     </button>
                     <button
-                      onClick={() => router.push('/adventure')}
+                      onClick={() => router.push(partyStageId ? '/party' : '/adventure')}
                       className="flex-1 bg-gray-200 text-gray-700 px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-300 shadow-lg transform hover:scale-105 transition-all"
                     >
                       🏠 パーティ編成に戻る

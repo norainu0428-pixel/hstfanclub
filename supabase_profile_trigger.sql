@@ -1,6 +1,13 @@
+-- ========================================
 -- 新規ユーザー登録時にプロフィールを自動作成するトリガー
--- これがないと「一部のメンバーがログインできない」原因になる
+-- ========================================
+-- 実装内容:
+-- ・auth.users にINSERTされたら profiles に1行自動作成
+-- ・display_name は Discord の full_name / global_name / name / email から取得
+-- ・これがないと「一部のメンバーがログインできない」原因になる
+-- ・末尾で既存の auth.users のうち profiles がないユーザーにも一括でプロフィール作成
 -- Supabase SQL Editorで実行してください
+-- ========================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$

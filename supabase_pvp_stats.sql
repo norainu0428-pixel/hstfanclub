@@ -1,5 +1,12 @@
+-- ========================================
 -- PvPランキング用テーブル
+-- ========================================
+-- 実装内容:
+-- ・PvP対戦の勝敗で rating / wins / losses / total_battles を更新
+-- ・ランキングページ（/ranking）でレーティングTop100と自分の順位を表示
+-- ・update_pvp_stats(p_user_id, p_won) のRPCでバトル結果を反映
 -- Supabase SQL Editorで実行してください
+-- ========================================
 
 CREATE TABLE IF NOT EXISTS pvp_stats (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,

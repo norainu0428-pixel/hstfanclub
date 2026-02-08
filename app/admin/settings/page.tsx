@@ -1,4 +1,11 @@
 'use client';
+/**
+ * 管理画面・システム設定
+ * 実装メモ:
+ * - メンテナンスモード: system_settings の maintenance_mode を ON/OFF。一般ユーザーはブロック、オーナー・スタッフはアクセス可。
+ * - お知らせ管理: AnnouncementsEditor で追加・表示/非表示・削除。トップページに反映。
+ * - プレミアム/通常会員ガチャ確率の編集（オーナーのみ）。
+ */
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';

@@ -1,3 +1,9 @@
+/**
+ * Discord OAuth コールバック
+ * 実装内容:
+ * - code をセッションに交換。失敗時は ?auth_error= でトップにリダイレクト。
+ * - OAuth の error / error_description があればトップでエラー表示用にリダイレクト。
+ */
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';

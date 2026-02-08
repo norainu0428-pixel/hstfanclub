@@ -83,6 +83,20 @@ export default function GamesPage() {
             </div>
           ))}
 
+          {/* パーティーモード */}
+          <div
+            className="bg-gradient-to-br from-amber-500 to-orange-600 border border-amber-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-amber-500/30 transition-all text-white"
+            onClick={() => router.push('/party')}
+          >
+            <div className="text-5xl mb-4">🎪</div>
+            <h2 className="text-xl font-bold mb-2">パーティーモード</h2>
+            <p className="text-white/90 mb-3">冒険とは別の専用ステージでパーティー編成を試そう！</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-white/80">10ステージ</span>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
+            </div>
+          </div>
+
           {/* PvP対戦 */}
           <div
             className="bg-gradient-to-br from-purple-500 to-pink-600 border border-purple-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-purple-500/30 transition-all text-white"
@@ -93,6 +107,20 @@ export default function GamesPage() {
             <p className="text-white/90 mb-3">フレンドや他プレイヤーと対戦しよう！</p>
             <div className="flex items-center justify-between">
               <span className="text-sm text-white/80">マッチング</span>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
+            </div>
+          </div>
+
+          {/* 装備 */}
+          <div
+            className="bg-gradient-to-br from-indigo-500 to-purple-600 border border-indigo-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-indigo-500/30 transition-all text-white"
+            onClick={() => router.push('/equipment')}
+          >
+            <div className="text-5xl mb-4">🛡️</div>
+            <h2 className="text-xl font-bold mb-2">装備</h2>
+            <p className="text-white/90 mb-3">装備・ガチャ・合成でメンバーを強化</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-white/80">装備ガチャ 1000pt</span>
               <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
             </div>
           </div>

@@ -1,4 +1,9 @@
 'use client';
+/**
+ * PvPランキング
+ * 実装メモ: pvp_stats からレーティングTop100を取得。profiles は別クエリで display_name 取得（FK結合なしで表示安定）。
+ * 自分の順位も表示。pvp_stats テーブルは supabase_pvp_stats.sql で作成。
+ */
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
