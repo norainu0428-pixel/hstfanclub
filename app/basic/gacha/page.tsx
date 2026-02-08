@@ -226,29 +226,10 @@ export default function BasicGachaPage() {
           return;
         }
 
-        // ownerとstaffは無条件でアクセス可能
-        if (profile.role === 'owner' || profile.role === 'staff') {
-          setIsAuthorized(true);
-          setCurrentPoints(profile.points || 0);
-          setIsOwner(profile.role === 'owner');
-          await loadGachaRates();
-          setLoading(false);
-          return;
-        }
-
-        // 一般ユーザーはpremium_untilをチェック
-        const now = new Date();
-        const premiumUntil = profile.premium_until ? new Date(profile.premium_until) : null;
-
-        if (!premiumUntil || premiumUntil < now) {
-          alert('プレミアム会員限定です');
-          router.push('/');
-          setLoading(false);
-          return;
-        }
-
+        // 全ユーザーがアクセス可能（通常会員ガチャはポイントで引く）
         setIsAuthorized(true);
         setCurrentPoints(profile.points || 0);
+        setIsOwner(profile.role === 'owner');
         await loadGachaRates();
         setLoading(false);
       } catch (error) {

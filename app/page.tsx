@@ -492,13 +492,15 @@ export default function Home() {
             </button>
           )}
           
-          {/* イベントガチャ（全ユーザー向け） */}
-          <button 
-            onClick={() => router.push('/events')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
-          >
-            🎪 イベントガチャ
-          </button>
+          {/* イベントガチャ（オーナー専用） */}
+          {profile.role === 'owner' && (
+            <button 
+              onClick={() => router.push('/events')}
+              className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            >
+              🎪 イベントガチャ
+            </button>
+          )}
           
           {profile.role === 'owner' && (
             <button 

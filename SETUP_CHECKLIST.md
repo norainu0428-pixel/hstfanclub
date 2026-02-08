@@ -21,6 +21,7 @@ Supabase SQL Editorで以下のSQLファイルを順番に実行してくださ�
 - ✅ `supabase_daily_missions_setup.sql` - デイリーミッション（supabase_setup.sqlに含まれている場合は不要）
 - ✅ `supabase_event_gacha_setup.sql` - イベントガチャ機能
 - ✅ `supabase_hst_rarity_setup.sql` - HSTレアリティ設定
+- ✅ `supabase_pvp_stats.sql` - PvPランキング表示用
 
 #### オーナー権限の設定（必須）
 - ✅ `supabase_set_owner.sql` - 自分のユーザーIDをオーナーに設定

@@ -111,23 +111,19 @@ export default function GamesPage() {
             </div>
           </div>
 
-          {/* 通常ガチャカード */}
-          {(profile?.membership_tier === 'basic' || profile?.membership_tier === 'premium') && (
-            <div
-              className="bg-gradient-to-br from-orange-500 to-orange-600 border border-orange-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-orange-500/30 transition-all text-white"
-              onClick={() => router.push('/basic/gacha')}
-            >
-              <div className="text-5xl mb-4">🎲</div>
-              <h2 className="text-xl font-bold mb-2">通常ガチャ</h2>
-              <p className="text-white/90 mb-3">メンバーを引いてコレクションを増やそう！</p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/80">単発: 30pt / 10連: 270pt</span>
-                <span className="text-xs bg-white/20 px-2 py-1 rounded">
-                  利用可能
-                </span>
-              </div>
+          {/* 通常ガチャカード（全ユーザー利用可能） */}
+          <div
+            className="bg-gradient-to-br from-orange-500 to-orange-600 border border-orange-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-orange-500/30 transition-all text-white"
+            onClick={() => router.push('/basic/gacha')}
+          >
+            <div className="text-5xl mb-4">🎲</div>
+            <h2 className="text-xl font-bold mb-2">通常ガチャ</h2>
+            <p className="text-white/90 mb-3">メンバーを引いてコレクションを増やそう！</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-white/80">単発: 30pt / 10連: 270pt</span>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
             </div>
-          )}
+          </div>
         </div>
 
         <button

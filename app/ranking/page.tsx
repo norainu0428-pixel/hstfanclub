@@ -28,34 +28,38 @@ export default function RankingPage() {
   async function loadRankings() {
     const { data: { user } } = await supabase.auth.getUser();
 
-    // トップ100取得
-    const { data } = await supabase
+    // トップ100取得（pvp_statsのみ、profilesは別途取得）
+    const { data: statsData, error: statsError } = await supabase
       .from('pvp_stats')
-      .select(`
-        user_id,
-        rating,
-        wins,
-        losses,
-        total_battles,
-        user:profiles!pvp_stats_user_id_fkey(display_name)
-      `)
+      .select('user_id, rating, wins, losses, total_battles')
       .order('rating', { ascending: false })
       .limit(100);
 
-    if (data) {
-      const formatted = data.map((entry: any, index) => {
-        const userProfile = Array.isArray(entry.user) ? entry.user[0] : entry.user;
-        return {
+    if (statsError) {
+      console.error('ランキング取得エラー:', statsError);
+      setLoading(false);
+      return;
+    }
+
+    if (statsData && statsData.length > 0) {
+      const userIds = [...new Set(statsData.map((s: any) => s.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .in('user_id', userIds);
+
+      const nameMap = new Map((profilesData || []).map((p: any) => [p.user_id, p.display_name || '不明']));
+
+      const formatted: RankingEntry[] = statsData.map((entry: any, index) => ({
         rank: index + 1,
         user_id: entry.user_id,
-        display_name: userProfile?.display_name || '不明',
+        display_name: nameMap.get(entry.user_id) || '不明',
         rating: entry.rating || 1000,
         wins: entry.wins || 0,
         losses: entry.losses || 0,
         total_battles: entry.total_battles || 0,
         win_rate: entry.total_battles > 0 ? (entry.wins / entry.total_battles) * 100 : 0
-      };
-      });
+      }));
 
       setRankings(formatted);
 
@@ -65,30 +69,22 @@ export default function RankingPage() {
         if (myEntry) {
           setMyRanking(myEntry);
         } else {
-          // ランク外の場合
-          const { data: myStats, error: myStatsError } = await supabase
+          const { data: myStats } = await supabase
             .from('pvp_stats')
-            .select(`
-              user_id,
-              rating,
-              wins,
-              losses,
-              total_battles,
-              user:profiles!pvp_stats_user_id_fkey(display_name)
-            `)
+            .select('user_id, rating, wins, losses, total_battles')
             .eq('user_id', user.id)
             .maybeSingle();
 
-          if (myStatsError) {
-            console.error('自分の戦績取得エラー:', myStatsError);
-          }
-
           if (myStats) {
-            const userProfile = Array.isArray(myStats.user) ? myStats.user[0] : myStats.user;
+            const { data: myProfile } = await supabase
+              .from('profiles')
+              .select('display_name')
+              .eq('user_id', user.id)
+              .maybeSingle();
             setMyRanking({
-              rank: 0, // ランク外
+              rank: 0,
               user_id: myStats.user_id,
-              display_name: userProfile?.display_name || '不明',
+              display_name: myProfile?.display_name || '不明',
               rating: myStats.rating || 1000,
               wins: myStats.wins || 0,
               losses: myStats.losses || 0,
