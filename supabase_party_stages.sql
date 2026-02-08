@@ -66,8 +66,8 @@ INSERT INTO party_stages (stage_order, name, description, recommended_level, ene
  '[{"name":"アークデーモン","emoji":"👿","hp":11280,"max_hp":11280,"attack":1880,"defense":1877,"speed":1880,"experience_reward":1400,"points_reward":700},{"name":"アークデーモン","emoji":"👿","hp":11280,"max_hp":11280,"attack":1880,"defense":1877,"speed":1880,"experience_reward":1400,"points_reward":700}]'::jsonb,
  1800, 750),
 (10, 'パーティー・マスター', '伝説＋混沌。推奨Lv1500の頂点', 1500,
- '[{"name":"レジェンドドラゴン","emoji":"🐲","hp":12700,"max_hp":12700,"attack":2113,"defense":2110,"speed":2113,"experience_reward":2000,"points_reward":1000},{"name":"カオスロード","emoji":"🌑","hp":15500,"max_hp":15500,"attack":2500,"defense":2300,"speed":2350,"experience_reward":2500,"points_reward":1250}]'::jsonb,
- 2200, 1100)
+ '[{"name":"レジェンドドラゴン","emoji":"🐲","hp":18000,"max_hp":18000,"attack":2800,"defense":2600,"speed":2700,"experience_reward":3000,"points_reward":1500},{"name":"カオスロード","emoji":"🌑","hp":22000,"max_hp":22000,"attack":3200,"defense":3000,"speed":3100,"experience_reward":4000,"points_reward":2000}]'::jsonb,
+ 3500, 1800)
 ON CONFLICT (stage_order) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,

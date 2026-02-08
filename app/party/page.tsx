@@ -200,29 +200,40 @@ export default function PartyPage() {
         </div>
 
         {showInviteModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-              <h3 className="text-xl font-bold mb-4">フレンドを誘う</h3>
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-2xl p-6 max-w-md w-full shadow-2xl border-4 border-cyan-400">
+              <h3 className="text-2xl font-bold mb-2 text-center text-gray-800">👥 フレンドを誘う</h3>
+              <p className="text-sm text-gray-600 text-center mb-4">招待するフレンドを選んでください</p>
               {friends.length === 0 ? (
-                <p className="text-gray-500 mb-4">フレンドがいません。フレンド申請を送ってから誘ってください。</p>
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4">
+                  <p className="text-amber-800 font-bold">フレンドがいません</p>
+                  <p className="text-amber-700 text-sm mt-1">フレンド申請を送ってから誘ってください。</p>
+                </div>
               ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+                <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
                   {friends.map((f) => (
                     <button
                       key={f.friend_id}
                       onClick={() => inviteFriend(f.friend_id)}
                       disabled={!!invitingFriendId}
-                      className="w-full p-3 text-left border-2 border-gray-200 rounded-lg hover:border-cyan-500 hover:bg-cyan-50 transition"
+                      className="w-full p-4 text-left bg-white border-2 border-cyan-300 rounded-xl hover:border-cyan-500 hover:bg-cyan-100 hover:shadow-lg transition-all flex items-center gap-3 font-bold text-gray-800"
                     >
-                      {f.display_name}
-                      {invitingFriendId === f.friend_id && ' (送信中...)'}
+                      <span className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white text-lg">
+                        {(f.display_name || '?').charAt(0)}
+                      </span>
+                      <span className="flex-1 truncate">{f.display_name || '名前なし'}</span>
+                      {invitingFriendId === f.friend_id ? (
+                        <span className="text-cyan-600 text-sm animate-pulse">送信中...</span>
+                      ) : (
+                        <span className="text-cyan-600 text-sm">→ 招待</span>
+                      )}
                     </button>
                   ))}
                 </div>
               )}
               <button
                 onClick={() => setShowInviteModal(false)}
-                className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300"
+                className="w-full py-3 bg-gray-700 text-white rounded-xl font-bold hover:bg-gray-800 transition"
               >
                 閉じる
               </button>
