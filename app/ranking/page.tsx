@@ -43,16 +43,19 @@ export default function RankingPage() {
       .limit(100);
 
     if (data) {
-      const formatted = data.map((entry: any, index) => ({
+      const formatted = data.map((entry: any, index) => {
+        const userProfile = Array.isArray(entry.user) ? entry.user[0] : entry.user;
+        return {
         rank: index + 1,
         user_id: entry.user_id,
-        display_name: entry.user?.display_name || '不明',
+        display_name: userProfile?.display_name || '不明',
         rating: entry.rating || 1000,
         wins: entry.wins || 0,
         losses: entry.losses || 0,
         total_battles: entry.total_battles || 0,
         win_rate: entry.total_battles > 0 ? (entry.wins / entry.total_battles) * 100 : 0
-      }));
+      };
+      });
 
       setRankings(formatted);
 
@@ -81,10 +84,11 @@ export default function RankingPage() {
           }
 
           if (myStats) {
+            const userProfile = Array.isArray(myStats.user) ? myStats.user[0] : myStats.user;
             setMyRanking({
               rank: 0, // ランク外
               user_id: myStats.user_id,
-              display_name: myStats.user?.display_name || '不明',
+              display_name: userProfile?.display_name || '不明',
               rating: myStats.rating || 1000,
               wins: myStats.wins || 0,
               losses: myStats.losses || 0,
