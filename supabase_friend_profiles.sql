@@ -10,16 +10,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 -- ※ 既存ポリシー「Users can view own profile and owners can view all」がある場合、
 --    以下のポリシーを追加するか、既存ポリシーに OR 条件でマージしてください
 
--- フレンドのプロフィールを読めるようにする（既存の own/owner ポリシーに追加）
+-- 認証済みユーザーはプロフィールを読める（フレンド一覧・検索用）
 DROP POLICY IF EXISTS "Users can read friend profiles" ON profiles;
-CREATE POLICY "Users can read friend profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM friendships f
-      WHERE f.status = 'accepted'
-        AND (
-          (f.user_id = auth.uid() AND f.friend_id = profiles.user_id)
-          OR (f.friend_id = auth.uid() AND f.user_id = profiles.user_id)
-        )
-    )
-  );
+DROP POLICY IF EXISTS "Authenticated can read profiles for friends" ON profiles;
+CREATE POLICY "Authenticated can read profiles for friends" ON profiles
+  FOR SELECT USING (auth.role() = 'authenticated');

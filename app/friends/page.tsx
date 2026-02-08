@@ -53,23 +53,13 @@ export default function FriendsPage() {
       r.user_id === user.id ? r.friend_id : r.user_id
     ))];
 
-    // フレンドのプロフィールを直接取得（RLS でフレンドの読み取り許可）
-    let profileRows: FriendProfileRow[] = [];
-    const { data: profiles, error } = await supabase
+    // フレンドのプロフィールを直接取得
+    const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, display_name, avatar_url, membership_tier, last_seen_at')
       .in('user_id', friendIds);
 
-    if (error) {
-      // avatar_url/last_seen_at 未追加時は基本カラムのみで再試行
-      const { data: fallback } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, membership_tier')
-        .in('user_id', friendIds);
-      profileRows = (fallback ?? []) as FriendProfileRow[];
-    } else {
-      profileRows = (profiles ?? []) as FriendProfileRow[];
-    }
+    const profileRows = (profiles ?? []) as FriendProfileRow[];
     const profileMap = new Map<string, FriendProfileRow>(
       profileRows.map(p => [String(p.user_id), p])
     );
