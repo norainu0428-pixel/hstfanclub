@@ -41,18 +41,19 @@ export default function AdventureInvitesPage() {
 
     const adventureInvites = (inviteRows || []).filter((r: { invite_mode?: string }) => !r.invite_mode || r.invite_mode === 'adventure');
     if (adventureInvites.length > 0) {
+      const hostIds = adventureInvites.map((i: { host_id: string }) => i.host_id);
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, display_name')
-        .in('user_id', adventureInvites.map((i: InviteRow) => i.host_id));
-      const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name]));
+        .in('user_id', hostIds);
+      const nameMap = new Map((profiles || []).map((p: { user_id: string; display_name: string }) => [p.user_id, p.display_name]));
       setInvites(adventureInvites.map((row: { id: string; host_id: string; host_party_ids?: string[]; status: string }) => ({
         id: row.id,
         host_id: row.host_id,
         host_name: nameMap.get(row.host_id) || 'ホスト',
         host_party_ids: row.host_party_ids || [],
         status: row.status
-      })));
+      } as InviteRow)));
     } else {
       setInvites([]);
     }
