@@ -288,19 +288,21 @@ export default function PvPBattlePage() {
         newLog.push(`🛡️ ${attackerMember.member_emoji} ${attackerMember.member_name}の防御力が${skillPower}アップ！`);
       } else if (skillType === 'heal') {
         const targetIdx = selectedAllyTarget ?? selectedMember;
-        const healTarget = attacker.party[targetIdx];
-        if (healTarget) {
-          const healHpKey = healTarget.id;
-          const currentHp = isPlayer1 
-            ? newPlayer1Hp[healHpKey] ?? healTarget.max_hp
-            : newPlayer2Hp[healHpKey] ?? healTarget.max_hp;
-          const newHp = Math.min(currentHp + skillPower, healTarget.max_hp);
-          if (isPlayer1) {
-            newPlayer1Hp[healHpKey] = newHp;
-          } else {
-            newPlayer2Hp[healHpKey] = newHp;
+        if (targetIdx != null) {
+          const healTarget = attacker.party[targetIdx];
+          if (healTarget) {
+            const healHpKey = healTarget.id;
+            const currentHp = isPlayer1 
+              ? newPlayer1Hp[healHpKey] ?? healTarget.max_hp
+              : newPlayer2Hp[healHpKey] ?? healTarget.max_hp;
+            const newHp = Math.min(currentHp + skillPower, healTarget.max_hp);
+            if (isPlayer1) {
+              newPlayer1Hp[healHpKey] = newHp;
+            } else {
+              newPlayer2Hp[healHpKey] = newHp;
+            }
+            newLog.push(`💚 ${attackerMember.member_emoji} ${attackerMember.member_name}が ${healTarget.member_name}のHPを${skillPower}回復！`);
           }
-          newLog.push(`💚 ${attackerMember.member_emoji} ${attackerMember.member_name}が ${healTarget.member_name}のHPを${skillPower}回復！`);
         }
       } else if (skillType === 'power_strike' && selectedTarget !== null) {
         const targetMember = defender.party[selectedTarget];
