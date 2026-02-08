@@ -137,8 +137,7 @@ export default function PartyPage() {
       return;
     }
     setShowInviteModal(false);
-    alert('招待を送りました！フレンドが参加したらステージを選べます。');
-    router.push(`/party/stages?invite_id=${invite.id}`);
+    router.push(`/party/lobby?invite_id=${invite.id}`);
   }
 
   if (loading) {
@@ -157,6 +156,7 @@ export default function PartyPage() {
         <div className="text-center text-white mb-6">
           <h1 className="text-4xl font-bold mb-2">🎭 パーティーモード</h1>
           <p className="text-lg opacity-90">冒険とは別の専用ステージに挑戦しよう</p>
+          <p className="text-sm text-white/70 mt-1">フレンドを招待してロビーで待ち、一緒に戦闘開始！</p>
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">

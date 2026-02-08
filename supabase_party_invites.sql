@@ -8,3 +8,6 @@
 ALTER TABLE adventure_invites ADD COLUMN IF NOT EXISTS invite_mode TEXT DEFAULT 'adventure' CHECK (invite_mode IN ('adventure', 'party'));
 
 COMMENT ON COLUMN adventure_invites.invite_mode IS 'adventure=冒険モード, party=パーティーモード';
+
+-- ロビー用リアルタイム同期: Supabase Dashboard → Database → Replication
+-- で adventure_invites を supabase_realtime に追加してください

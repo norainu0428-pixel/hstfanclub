@@ -205,11 +205,13 @@
 - **場所**: `app/page.tsx`、`app/games/page.tsx`
 - **内容**: トップに「🎪 パーティーモード」ボタン、ゲームページにパーティーモードカードを追加。
 
-### 10.5 フレンド招待（パーティーモード）
-- **場所**: `app/party/page.tsx` - 「👥 誘う」ボタンでフレンド選択し招待作成
-- **場所**: `app/party/invites/page.tsx` - 招待を受けたフレンドがパーティを組んで参加
-- **DB**: `supabase_party_invites.sql` で `adventure_invites` に `invite_mode` 列追加（'adventure' | 'party'）
-- **フロー**: ホストがパーティ編成→「誘う」→フレンド選択→招待作成→`/party/stages?invite_id=xxx` へ。フレンドは `/party/invites` で参加。ホストがステージ選択→戦闘開始で協力バトル。
+### 10.5 フレンド招待・ロビー（パーティーモード）
+- **場所**: `app/party/page.tsx` - 「👥 誘う」ボタンでフレンド選択し招待作成→ロビーへ
+- **場所**: `app/party/lobby/page.tsx` - ロビー画面。ホスト・フレンド双方のパーティ表示、ステージ選択、リアルタイムで参加状態を表示
+- **場所**: `app/party/invites/page.tsx` - 招待を受けたフレンドがパーティを組んで参加→ロビーへ
+- **DB**: `supabase_party_invites.sql` で `adventure_invites` に `invite_mode` 列追加
+- **Realtime**: `supabase_adventure_invites_realtime.sql` で `adventure_invites` を Realtime 購読可能に（ロビーでフレンド参加を即時反映）
+- **フロー**: ホストがパーティ編成→「誘う」→フレンド選択→招待作成→`/party/lobby?invite_id=xxx` へ。フレンドは `/party/invites` で参加→同じロビーへ。リアルタイムでホストに参加が表示される。ホストがステージ選択→「戦闘開始」で協力バトル。
 
 ### 10.6 使い方
 1. Supabase SQL Editor で `supabase_party_stages.sql` を実行

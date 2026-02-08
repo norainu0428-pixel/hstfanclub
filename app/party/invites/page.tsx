@@ -107,9 +107,8 @@ export default function PartyInvitesPage() {
       alert('参加に失敗しました: ' + error.message);
       return;
     }
-    alert('参加しました！ホストがステージを選ぶとパーティバトルが始まります。');
     setSelectedParty([null, null, null]);
-    load();
+    router.push(`/party/lobby?invite_id=${inviteId}`);
   }
 
   if (loading) {
