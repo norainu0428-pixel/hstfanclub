@@ -10,7 +10,6 @@
  */
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { initializeDailyMissions } from '@/utils/missionTracker';
@@ -486,11 +485,11 @@ export default function Home() {
           {(profile.membership_tier === 'basic' || profile.membership_tier === 'premium' || profile.role === 'member' || profile.role === 'owner' || profile.role === 'staff' || !profile.membership_tier) && (
             <>
               <button onClick={() => router.push('/basic/gacha')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-yellow-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
-                <span className="block mb-1"><Image src="/icons/gacha-capsule.svg" alt="" width={32} height={32} /></span>
+                <span className="text-2xl block mb-1">🎲</span>
                 <span className="text-sm">通常ガチャ</span>
               </button>
               <button onClick={() => router.push('/events')} className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-red-500 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
-                <span className="block mb-1"><Image src="/icons/gacha-event.svg" alt="" width={32} height={32} /></span>
+                <span className="text-2xl block mb-1">🎪</span>
                 <span className="text-sm">HST Smileガチャ</span>
               </button>
             </>
@@ -499,7 +498,7 @@ export default function Home() {
             <>
               {profile.membership_tier === 'premium' && (
                 <button onClick={() => router.push('/premium/gacha')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
-                  <span className="block mb-1"><Image src="/icons/gacha-premium.svg" alt="" width={32} height={32} /></span>
+                  <span className="text-2xl block mb-1">🎰</span>
                   <span className="text-sm">プレミアムガチャ</span>
                 </button>
               )}

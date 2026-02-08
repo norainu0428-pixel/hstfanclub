@@ -359,10 +359,7 @@ export default function EventsPage() {
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-6">
-          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-3">
-            <Image src="/icons/gacha-event.svg" alt="" width={48} height={48} />
-            HST Smileガチャ
-          </h1>
+          <h1 className="text-4xl font-bold mb-2">🎪 HST Smileガチャ</h1>
           <p className="text-xl opacity-90 mb-4">HST Smileが出る限定イベントガチャ！</p>
           <div className="text-3xl font-bold">
             ポイント: {points.toLocaleString()}pt
@@ -426,7 +423,7 @@ export default function EventsPage() {
                       );
                     })()
                   ) : (
-                    <Image src="/icons/gacha-event.svg" alt="ガチャ" width={80} height={80} className="opacity-90" />
+                    <span className="text-6xl">🎰</span>
                   )}
                 </div>
 
@@ -468,10 +465,7 @@ export default function EventsPage() {
               <>
                 {/* 10連ガチャUI */}
                 <div className="mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <Image src="/icons/gacha-event.svg" alt="" width={48} height={48} />
-                    <span className="text-2xl">×10</span>
-                  </div>
+                  <div className="text-4xl mb-4">🎰✨</div>
                   <div className="text-2xl font-bold mb-2">10連ガチャ</div>
                   <div className="text-gray-600 mb-4">10回目はスーパーレア以上確定！</div>
 

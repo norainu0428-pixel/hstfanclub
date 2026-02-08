@@ -467,14 +467,10 @@ export default function PremiumGachaPage() {
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-8">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 px-6 py-2 rounded-full font-bold text-lg mb-4">
-            <Image src="/icons/gacha-premium.svg" alt="" width={28} height={28} className="flex-shrink-0" />
-            プレミアム限定ガチャ
+          <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 px-6 py-2 rounded-full font-bold text-lg mb-4">
+            💎 プレミアム限定ガチャ
           </div>
-          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-3">
-            <Image src="/icons/gacha-premium.svg" alt="" width={48} height={48} />
-            HSTメンバーガチャ
-          </h1>
+          <h1 className="text-4xl font-bold mb-2">HSTメンバーガチャ</h1>
           <p className="text-lg opacity-90">推しメンバーを引き当てよう！</p>
         </div>
 
@@ -535,7 +531,7 @@ export default function PremiumGachaPage() {
                       );
                     })()
                   ) : (
-                    <Image src="/icons/gacha-premium.svg" alt="ガチャ" width={80} height={80} className="opacity-90" />
+                    <span className="text-6xl">🎰</span>
                   )}
                 </div>
 
@@ -593,10 +589,7 @@ export default function PremiumGachaPage() {
               <>
                 {/* 10連ガチャUI */}
                 <div className="mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <Image src="/icons/gacha-premium.svg" alt="" width={48} height={48} />
-                    <span className="text-2xl">×10</span>
-                  </div>
+                  <div className="text-4xl mb-4">🎰✨</div>
                   <div className="text-2xl font-bold mb-2">10連ガチャ</div>
                   <div className="text-gray-600 mb-4">10回目はレア以上確定！</div>
                   
