@@ -48,7 +48,7 @@ export default function ProfileEditPage() {
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ display_name: displayName.trim() || null, updated_at: new Date().toISOString() })
+      .update({ display_name: displayName.trim() || null })
       .eq('user_id', profile.user_id);
     if (error) {
       alert('保存に失敗しました: ' + error.message);
@@ -82,7 +82,7 @@ export default function ProfileEditPage() {
     const url = urlData.publicUrl;
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ avatar_url: url, updated_at: new Date().toISOString() })
+      .update({ avatar_url: url })
       .eq('user_id', user.id);
     if (updateError) {
       alert('プロフィール更新に失敗しました: ' + updateError.message);
