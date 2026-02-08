@@ -126,7 +126,7 @@ export async function initializeDailyMissions(userId: string) {
   }
 }
 
-// ミッション報酬を受け取る
+// ミッション報酬を受け取る（二重受け取り防止: claimed=false のときだけ更新してから報酬付与）
 export async function claimMissionReward(
   userId: string,
   progressId: string,
@@ -134,19 +134,22 @@ export async function claimMissionReward(
   rewardExp: number
 ) {
   try {
-    // 進捗を確認
-    const { data: progress } = await supabase
+    // 未受け取りのものだけ「受け取り済み」に更新（連打で二重付与されないように先に更新）
+    const { data: updated, error: updateError } = await supabase
       .from('user_mission_progress')
-      .select('*')
+      .update({ claimed: true })
       .eq('id', progressId)
       .eq('user_id', userId)
-      .single();
+      .eq('claimed', false)
+      .eq('completed', true)
+      .select('id')
+      .maybeSingle();
 
-    if (!progress || !progress.completed || progress.claimed) {
-      return { success: false, message: '報酬を受け取れません' };
+    if (updateError || !updated) {
+      return { success: false, message: '報酬を受け取れません（受け取り済みか未達成です）' };
     }
 
-    // 報酬を付与
+    // ここに来た = この1回だけ受け取り権を取得したので報酬を付与
     if (rewardPoints > 0) {
       const { data: profile } = await supabase
         .from('profiles')
@@ -162,7 +165,6 @@ export async function claimMissionReward(
       }
     }
 
-    // 経験値報酬は全メンバーに付与（簡易実装）
     if (rewardExp > 0) {
       const { data: members } = await supabase
         .from('user_members')
@@ -179,12 +181,6 @@ export async function claimMissionReward(
         }
       }
     }
-
-    // 報酬受け取り済みにマーク
-    await supabase
-      .from('user_mission_progress')
-      .update({ claimed: true })
-      .eq('id', progressId);
 
     return { success: true, message: '報酬を受け取りました！' };
   } catch (error) {

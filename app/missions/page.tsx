@@ -30,6 +30,7 @@ export default function MissionsPage() {
   const [loading, setLoading] = useState(true);
   const [missions, setMissions] = useState<MissionProgress[]>([]);
   const [currentPoints, setCurrentPoints] = useState(0);
+  const [claimingId, setClaimingId] = useState<string | null>(null); // 単体: progress.id / 一括: 'bulk'
 
   useEffect(() => {
     loadMissions();
@@ -91,24 +92,54 @@ export default function MissionsPage() {
   }
 
   async function handleClaimReward(progress: MissionProgress) {
-    if (!progress.completed || progress.claimed) return;
+    if (!progress.completed || progress.claimed || claimingId) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const result = await claimMissionReward(
-      user.id,
-      progress.id,
-      progress.mission.reward_points,
-      progress.mission.reward_exp
-    );
+    setClaimingId(progress.id);
+    try {
+      const result = await claimMissionReward(
+        user.id,
+        progress.id,
+        progress.mission.reward_points,
+        progress.mission.reward_exp
+      );
 
-    if (result.success) {
-      alert(result.message);
-      // 再読み込み
-      await loadMissions();
-    } else {
-      alert(result.message);
+      if (result.success) {
+        alert(result.message);
+        await loadMissions();
+      } else {
+        alert(result.message);
+      }
+    } finally {
+      setClaimingId(null);
+    }
+  }
+
+  async function handleClaimAll(claimableList: MissionProgress[]) {
+    if (claimableList.length === 0 || claimingId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setClaimingId('bulk');
+    try {
+      let claimed = 0;
+      for (const progress of claimableList) {
+        const result = await claimMissionReward(
+          user.id,
+          progress.id,
+          progress.mission.reward_points,
+          progress.mission.reward_exp
+        );
+        if (result.success) claimed++;
+      }
+      if (claimed > 0) {
+        alert(`${claimed}件の報酬を受け取りました！`);
+        await loadMissions();
+      }
+    } finally {
+      setClaimingId(null);
     }
   }
 
@@ -183,6 +214,21 @@ export default function MissionsPage() {
           <div className="text-sm text-gray-400 mt-2 text-center">
             {progressPercent.toFixed(0)}% 完了
           </div>
+          {(() => {
+            const claimable = missions.filter(m => m.completed && !m.claimed);
+            if (claimable.length === 0) return null;
+            return (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={() => handleClaimAll(claimable)}
+                  disabled={claimingId !== null}
+                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {claimingId === 'bulk' ? '受け取り中...' : `🎁 完了分を一括受け取り（${claimable.length}件）`}
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ミッション一覧 */}
@@ -244,9 +290,10 @@ export default function MissionsPage() {
                       {isCompleted && !isClaimed ? (
                         <button
                           onClick={() => handleClaimReward(progress)}
-                          className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg font-bold hover:scale-105 transition shadow-lg shadow-orange-500/30"
+                          disabled={claimingId !== null}
+                          className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg font-bold hover:scale-105 transition shadow-lg shadow-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
-                          🎁 報酬受け取り
+                          {claimingId === progress.id ? '受け取り中...' : '🎁 報酬受け取り'}
                         </button>
                       ) : isClaimed ? (
                         <div className="bg-gray-800 text-gray-400 border border-gray-700 px-6 py-3 rounded-lg font-bold">
