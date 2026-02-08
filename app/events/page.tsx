@@ -210,43 +210,37 @@ export default function EventsPage() {
       .select('*')
       .order('rate', { ascending: false });
 
+    // 表示は常に固定7種。DBの値で上書き、なければデフォルト使用（重複を完全に回避）
+    const TO_CANONICAL: Record<string, string> = {
+      'hst': 'HST', 'stary': 'stary', 'legendary': 'legendary',
+      'ultra-rare': 'ultra-rare', 'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common',
+      'コモン': 'common', 'レア': 'rare', 'スーパーレア': 'super-rare',
+      'ウルトラレア': 'ultra-rare', 'レジェンド': 'legendary', '★1': 'common', '★2': 'rare',
+      '★3': 'super-rare', '★4': 'ultra-rare', '★5': 'legendary', '★6': 'stary', '★7': 'HST'
+    };
+    const dbByCanonical = new Map<string, { rate: number; ten_pull_rate: number }>();
     if (ratesData && ratesData.length > 0) {
-      // DBの値をベースに、stary・HSTが欠けている or rate=0 の場合はデフォルトで補完
-      const merged = [...ratesData];
-      for (const def of DEFAULT_EVENT_RATES) {
-        const existing = merged.find((r: any) => (r.rarity || '').toLowerCase() === def.rarity.toLowerCase());
-        if (!existing || parseFloat(existing.rate || '0') === 0) {
-          if (existing) {
-            const idx = merged.indexOf(existing);
-            merged[idx] = { ...merged[idx], rate: def.rate, ten_pull_rate: def.ten_pull_rate };
-          } else {
-            merged.push(def);
-          }
-        }
-      }
-      // レアリティで重複を除去（DBに重複がある場合の対策。同一レアリティは ten_pull_rate が大きい方を採用）
-      const CANONICAL_RARITY: Record<string, string> = {
-        'hst': 'HST', 'stary': 'stary', 'legendary': 'legendary',
-        'ultra-rare': 'ultra-rare', 'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common'
-      };
-      const byKey = new Map<string, { rarity: string; rate: number; ten_pull_rate: number }>();
-      for (const r of merged) {
-        const key = (r.rarity || '').trim().toLowerCase();
-        if (!key) continue;
-        const curr = byKey.get(key);
+      for (const r of ratesData) {
+        const raw = (r.rarity || '').trim();
+        const key = raw.toLowerCase();
+        const canonical = TO_CANONICAL[key] ?? TO_CANONICAL[raw] ?? (raw || 'common');
         const rate = parseFloat(r.rate || '0');
         const tenPull = parseFloat(r.ten_pull_rate || '0');
+        const curr = dbByCanonical.get(canonical);
         if (!curr || tenPull > curr.ten_pull_rate) {
-          const canonical = CANONICAL_RARITY[key] || r.rarity || key;
-          byKey.set(key, { rarity: canonical, rate, ten_pull_rate: tenPull });
+          dbByCanonical.set(canonical, { rate, ten_pull_rate: tenPull });
         }
       }
-      const deduped = Array.from(byKey.values());
-      deduped.sort((a: any, b: any) => (parseFloat(b.rate || '0') - parseFloat(a.rate || '0')));
-      setRates(deduped);
-    } else {
-      setRates(DEFAULT_EVENT_RATES);
     }
+    const finalRates = DEFAULT_EVENT_RATES.map(def => {
+      const fromDb = dbByCanonical.get(def.rarity);
+      return {
+        rarity: def.rarity,
+        rate: fromDb ? fromDb.rate : def.rate,
+        ten_pull_rate: fromDb ? fromDb.ten_pull_rate : def.ten_pull_rate
+      };
+    });
+    setRates(finalRates);
 
     setLoading(false);
   }
