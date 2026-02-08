@@ -2,8 +2,9 @@
 -- Supabase SQL Editor で実行してください
 -- RPC の代わりに RLS ポリシーでフレンドのプロフィール読み取りを許可
 
--- last_seen_at が無い場合に追加（最終アクセス時刻用）
+-- last_seen_at, avatar_url が無い場合に追加
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 -- 既存の SELECT ポリシーを確認し、フレンドのプロフィール読み取りを追加
 -- ※ 既存ポリシー「Users can view own profile and owners can view all」がある場合、
