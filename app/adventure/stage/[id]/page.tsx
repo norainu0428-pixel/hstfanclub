@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
-import { getStageInfo } from '@/utils/stageGenerator';
+import { getStageInfo, EXTRA_STAGE_ID } from '@/utils/stageGenerator';
 
 export default function StagePage() {
   const params = useParams();
@@ -25,7 +25,7 @@ export default function StagePage() {
   }, []);
 
   async function loadParty() {
-    if (isNaN(stageId) || stageId < 1 || stageId > 400) {
+    if (isNaN(stageId) || (stageId < 1 || stageId > 400) && stageId !== EXTRA_STAGE_ID) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
@@ -105,8 +105,8 @@ export default function StagePage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">ステージ {stageId}</h1>
-          <p className="text-lg opacity-90 mb-4">敵が現れた！</p>
+          <h1 className="text-4xl font-bold mb-2">{stageId === EXTRA_STAGE_ID ? '⭐ エクストラステージ' : `ステージ ${stageId}`}</h1>
+          <p className="text-lg opacity-90 mb-4">{stageId === EXTRA_STAGE_ID ? '最強のボスたちが襲いかかる！武器ドロップの可能性あり' : '敵が現れた！'}</p>
           <div className="bg-white/20 rounded-lg px-6 py-3 inline-block">
             <div className="text-xl font-bold mb-1">
               推奨レベル: {stageInfo.recommendedLevel}

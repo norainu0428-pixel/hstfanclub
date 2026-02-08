@@ -1,10 +1,14 @@
 import { Enemy } from '@/types/adventure';
 
+// エクストラステージのID（ステージ100クリアで解放）
+export const EXTRA_STAGE_ID = 999;
+
 // ステージ情報
 export interface StageInfo {
   stage: number;
   recommendedLevel: number;
   enemies: Enemy[];
+  isExtra?: boolean;
 }
 
 // 敵の種類と絵文字（400ステージまで対応）
@@ -188,7 +192,69 @@ export function getAllStages(): StageInfo[] {
   return stages;
 }
 
+// エクストラステージ用：最強クラスの攻撃系スキル（回復以外）
+const EXTRA_BOSS_SKILLS = [
+  { skill_type: 'critical_strike', skill_power: 200 }, // 必殺の一撃
+  { skill_type: 'insta_kill', skill_power: 15 },       // 確率即死15%
+  { skill_type: 'execute', skill_power: 250 },         // 弱点突き
+  { skill_type: 'blade_storm', skill_power: 150 },     // ブレードストーム
+  { skill_type: 'damage_reflect', skill_power: 50 },   // ダメージ反射
+  { skill_type: 'thunder_strike', skill_power: 180 },  // 雷撃
+  { skill_type: 'dark_strike', skill_power: 180 },     // 闇の裁き
+];
+
+// エクストラステージ生成（ステージ100クリアで挑戦可能、武器ドロップあり）
+export function generateExtraStageInfo(): StageInfo {
+  const recommendedLevel = 80;
+  const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
+  const bossMultiplier = 1.8;
+  const enemyPowerRatio = 1.8;
+
+  const enemies: Enemy[] = [];
+  const extraEnemyTypes = [
+    { name: 'カオスデーモン', emoji: '😈⚡' },
+    { name: 'アビスロード', emoji: '🌊' },
+    { name: 'インフェルノキング', emoji: '🔥👑' },
+    { name: 'ヴォイドウォーカー', emoji: '🌌' },
+    { name: 'エクストラボス', emoji: '💀👑' },
+  ];
+
+  for (let i = 0; i < 5; i++) {
+    const isBoss = i === 4;
+    const mult = isBoss ? bossMultiplier : 1.5;
+    const skill = EXTRA_BOSS_SKILLS[i % EXTRA_BOSS_SKILLS.length];
+    const hp = Math.floor(baseStats.hp * enemyPowerRatio * mult);
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio * mult * 2.5);
+    const defense = Math.floor(baseStats.defense * enemyPowerRatio * mult * 2);
+    const speed = Math.floor(baseStats.speed * enemyPowerRatio * mult);
+
+    enemies.push({
+      name: isBoss ? `${extraEnemyTypes[i].name}（極）` : extraEnemyTypes[i].name,
+      emoji: extraEnemyTypes[i].emoji,
+      hp,
+      max_hp: hp,
+      attack,
+      defense,
+      speed,
+      experience_reward: Math.floor(500 * mult),
+      points_reward: Math.floor(30 * mult),
+      skill_type: skill.skill_type,
+      skill_power: skill.skill_power,
+    });
+  }
+
+  return {
+    stage: EXTRA_STAGE_ID,
+    recommendedLevel,
+    enemies,
+    isExtra: true,
+  };
+}
+
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
+  if (stage === EXTRA_STAGE_ID) {
+    return generateExtraStageInfo();
+  }
   return generateStageInfo(stage);
 }

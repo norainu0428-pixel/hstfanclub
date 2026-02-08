@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getStageInfo } from '@/utils/stageGenerator';
+import { getStageInfo, EXTRA_STAGE_ID } from '@/utils/stageGenerator';
 
 export default function StagesPage() {
   const searchParams = useSearchParams();
@@ -61,6 +61,9 @@ export default function StagesPage() {
     for (let i = 1; i <= nextUnlocked; i++) {
       unlocked.push(i);
     }
+    if (cleared.has(100)) {
+      unlocked.push(EXTRA_STAGE_ID);
+    }
     setUnlockedStages(unlocked);
     
     // 現在のステージに応じてページを設定
@@ -70,7 +73,7 @@ export default function StagesPage() {
 
   function selectStage(stage: number) {
     if (!unlockedStages.includes(stage)) {
-      alert(`ステージ${stage}はまだアンロックされていません！`);
+      alert(stage === EXTRA_STAGE_ID ? 'ステージ100をクリアするとエクストラステージに挑戦できます！' : `ステージ${stage}はまだアンロックされていません！`);
       return;
     }
     const params = new URLSearchParams({ party: partyIds || '_' });
@@ -114,6 +117,20 @@ export default function StagesPage() {
             </button>
           </div>
         </div>
+
+        {/* エクストラステージ案内（ステージ100クリアで表示） */}
+        {clearedStages.includes(100) && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 shadow-2xl mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">⭐ エクストラステージ</h2>
+            <p className="text-white/90 mb-4">ステージ100クリアで解放！強力なボスが最強スキルで襲いかかる。勝利時わずかな確率で武器ドロップ！</p>
+            <button
+              onClick={() => selectStage(EXTRA_STAGE_ID)}
+              className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-xl hover:bg-orange-100 transition shadow-lg"
+            >
+              💀 エクストラステージに挑戦
+            </button>
+          </div>
+        )}
 
         {/* ステージグリッド */}
         <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">

@@ -35,6 +35,8 @@ export interface Enemy {
   speed: number;
   experience_reward: number;
   points_reward: number;
+  skill_type?: string | null;
+  skill_power?: number;
 }
 
 export interface BattleAction {

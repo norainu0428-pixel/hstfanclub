@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo } from '@/utils/stageGenerator';
+import { getStageInfo, EXTRA_STAGE_ID } from '@/utils/stageGenerator';
 import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
@@ -39,6 +39,7 @@ export default function BattlePage() {
   const [pendingEnemyTargetMember, setPendingEnemyTargetMember] = useState<number | null>(null);
   const [battleResult, setBattleResult] = useState<'victory' | 'defeat' | null>(null);
   const [rewards, setRewards] = useState({ exp: 0, points: 0 });
+  const [droppedWeapon, setDroppedWeapon] = useState<string | null>(null);
   const [levelUpResults, setLevelUpResults] = useState<LevelUpResult[]>([]);
   const [memberReviveStatus, setMemberReviveStatus] = useState<{ [key: string]: boolean }>({});
   const [skillCooldown, setSkillCooldown] = useState<{ [key: string]: number }>({});
@@ -105,7 +106,7 @@ export default function BattlePage() {
   }, [party, loading, battleResult]);
 
   async function initBattle() {
-    if (!partyStageId && (isNaN(stageId) || stageId < 1 || stageId > 400)) {
+    if (!partyStageId && (isNaN(stageId) || ((stageId < 1 || stageId > 400) && stageId !== EXTRA_STAGE_ID))) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
@@ -1315,6 +1316,32 @@ export default function BattlePage() {
             const boostedDefense = target.defense + defenseBoostAmount;
             const baseDamage = effectiveEnemyAtk - boostedDefense;
             let damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+            let skillLog = '';
+
+            // 敵スキル効果（攻撃系・回復以外）
+            const enemySkill = (enemy as { skill_type?: string; skill_power?: number }).skill_type;
+            const enemyPower = (enemy as { skill_type?: string; skill_power?: number }).skill_power || 100;
+            if (enemySkill === 'insta_kill') {
+              const chance = Math.min(enemyPower, 20) / 100;
+              if (Math.random() < chance) {
+                damage = target.hp;
+                skillLog = ` ${getSkillName(enemySkill)}発動！`;
+              }
+            } else if (enemySkill === 'critical_strike') {
+              damage = Math.floor(damage * 2);
+              skillLog = ` ${getSkillName(enemySkill)}！`;
+            } else if (enemySkill === 'execute') {
+              if (target.hp <= target.max_hp * 0.3) {
+                damage = Math.floor(damage * 1.8);
+                skillLog = ` ${getSkillName(enemySkill)}！`;
+              }
+            } else if (enemySkill === 'blade_storm' || enemySkill === 'thunder_strike' || enemySkill === 'dark_strike') {
+              damage = Math.floor(damage * 1.5);
+              skillLog = ` ${getSkillName(enemySkill)}！`;
+            } else if (enemySkill === 'damage_reflect' && damage > 0) {
+              damage = Math.floor(damage * 1.3);
+              skillLog = ` ${getSkillName(enemySkill)}！`;
+            }
 
             // バリア吸収（最新のbarrierをrefから取得）
             const barrierAmount = barrierRef.current[target.id] || 0;
@@ -1339,7 +1366,7 @@ export default function BattlePage() {
 
             const boostText = defenseBoostAmount > 0 ? `（防御力+${defenseBoostAmount}で軽減）` : '';
             const barrierText = absorbed > 0 ? `（バリアで${absorbed}吸収）` : '';
-            addLog(`${enemy.emoji} ${enemy.name}の攻撃${boostText}${barrierText}！ ${target.member_emoji} ${target.member_name}に${damage}ダメージ！`);
+            addLog(`${enemy.emoji} ${enemy.name}の攻撃${skillLog}${boostText}${barrierText}！ ${target.member_emoji} ${target.member_name}に${damage}ダメージ！`);
 
             // パーティのHPを更新
             setParty(partyState => {
@@ -1444,8 +1471,8 @@ export default function BattlePage() {
           .eq('user_id', user.id);
       }
 
-      // 進行状況更新（パーティーモードでは冒険の進行は更新しない）
-      if (!partyStageId) {
+      // 進行状況更新（パーティーモード・エクストラステージでは進行は更新しない）
+      if (!partyStageId && stageId !== EXTRA_STAGE_ID) {
         const { data: progress, error: progressError } = await supabase
           .from('user_progress')
           .select('*')
@@ -1462,7 +1489,7 @@ export default function BattlePage() {
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user.id);
-        } else {
+        } else if (stageId !== EXTRA_STAGE_ID) {
           await supabase
             .from('user_progress')
             .insert({
@@ -1492,6 +1519,27 @@ export default function BattlePage() {
           experience_gained: totalExp,
           points_earned: totalPoints
         });
+
+      // エクストラステージ勝利時：1%で武器ドロップ（本当に低確率）
+      if (!partyStageId && stageId === EXTRA_STAGE_ID) {
+        const dropRoll = Math.random() * 100;
+        if (dropRoll < 1) {
+          const { data: weaponDefs } = await supabase
+            .from('equipment_definitions')
+            .select('id, name, icon')
+            .eq('slot', 'weapon')
+            .limit(20);
+          if (weaponDefs && weaponDefs.length > 0) {
+            const pick = weaponDefs[Math.floor(Math.random() * weaponDefs.length)];
+            await supabase.from('user_equipment').insert({
+              user_id: user.id,
+              definition_id: pick.id,
+              level: 1
+            });
+            setDroppedWeapon(`${pick.icon} ${pick.name}`);
+          }
+        }
+      }
 
       // ミッション進捗更新
       await updateMissionProgress(user.id, 'battle_win', 1);
@@ -2003,14 +2051,20 @@ export default function BattlePage() {
                         <span>ポイント:</span>
                         <span className="font-bold text-green-600">+{rewards.points}</span>
                       </div>
+                      {droppedWeapon && (
+                        <div className="flex justify-between items-center mt-2 pt-2 border-t-2 border-green-200">
+                          <span>武器ドロップ:</span>
+                          <span className="font-bold text-amber-600">🎉 {droppedWeapon}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(partyStageId ? `/party/stages?party=${partyIds.join(',')}` : `/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
+                      onClick={() => router.push(partyStageId ? `/party/stages?party=${partyIds.join(',')}` : stageId === EXTRA_STAGE_ID ? '/adventure/stages' : `/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
-                      {partyStageId ? 'ステージ一覧へ' : '次のステージへ'}
+                      {partyStageId ? 'ステージ一覧へ' : stageId === EXTRA_STAGE_ID ? 'ステージ選択へ' : '次のステージへ'}
                     </button>
                     <button
                       onClick={() => router.push(partyStageId ? '/party' : '/adventure')}
