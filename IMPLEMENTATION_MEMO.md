@@ -169,7 +169,17 @@
 - **場所**: `SETUP_CHECKLIST.md`
 - **内容**: プロフィールトリガー、PvPランキング、装備システムなどの SQL 実行手順を追記。
 
-### 9.3 冒険招待の廃止
+### 9.3 フレンド機能の強化
+- **場所**: `app/friends/page.tsx`、`app/friends/search/page.tsx`、`app/friends/requests/page.tsx`、`supabase_friends_fix.sql`
+- **内容**: フレンド基礎機能を構築・修正
+- **変更点**:
+  - **双方向フレンド一覧**: `user_id=me` または `friend_id=me` の両方から取得。承認時に双方向2行挿入可能に RLS 修正（`supabase_friends_fix.sql`）
+  - **プレイヤー検索**: 検索時に `getUser` で user 取得（state のタイミング依存を解消）。既にフレンド/申請中は重複防止
+  - **送信した申請**: フレンド申請ページで「送信した申請」を表示。「取り消す」で削除可能
+  - **プロフィール取得**: FK 結合に依存せず、手動で profiles を取得して表示（動作安定性向上）
+  - **UI**: スマホアプリ風（スレート系ダークテーマ）に統一
+
+### 9.4 冒険招待の廃止
 - **場所**: `app/friends/page.tsx`、`app/adventure/invites/page.tsx`
 - **内容**: 冒険モードのフレンド招待機能を廃止。パーティーモードの招待のみ利用可能。
 - **変更点**:

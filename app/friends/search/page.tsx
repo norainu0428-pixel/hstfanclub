@@ -17,23 +17,17 @@ export default function PlayerSearchPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<PlayerSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string>('');
   const router = useRouter();
-
-  useEffect(() => {
-    getCurrentUser();
-  }, []);
-
-  async function getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setCurrentUserId(user.id);
-    }
-  }
 
   async function searchPlayers() {
     if (!searchTerm.trim()) {
       alert('検索キーワードを入力してください');
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('ログインしてください');
       return;
     }
 
@@ -44,7 +38,7 @@ export default function PlayerSearchPage() {
       .from('profiles')
       .select('user_id, display_name, membership_tier, avatar_url')
       .ilike('display_name', `%${searchTerm}%`)
-      .neq('user_id', currentUserId)
+      .neq('user_id', user.id)
       .limit(20);
 
     if (!players) {
@@ -52,22 +46,25 @@ export default function PlayerSearchPage() {
       return;
     }
 
-    // フレンド状態をチェック
+    // フレンド状態をチェック（双方向）
     const { data: friendships } = await supabase
       .from('friendships')
-      .select('friend_id, status')
-      .eq('user_id', currentUserId)
-      .in('friend_id', players.map(p => p.user_id));
+      .select('user_id, friend_id')
+      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+      .eq('status', 'accepted');
 
     // フレンド申請チェック
     const { data: requests } = await supabase
       .from('friend_requests')
       .select('receiver_id')
-      .eq('sender_id', currentUserId)
+      .eq('sender_id', user.id)
       .eq('status', 'pending')
       .in('receiver_id', players.map(p => p.user_id));
 
-    const friendIds = new Set(friendships?.filter(f => f.status === 'accepted').map(f => f.friend_id) || []);
+    const friendIds = new Set((friendships || []).map((f: { user_id: string; friend_id: string }) =>
+      f.user_id === user.id ? f.friend_id : f.user_id
+    ));
+
     const pendingIds = new Set(requests?.map(r => r.receiver_id) || []);
 
     const resultsWithStatus = players.map(player => ({
@@ -81,16 +78,23 @@ export default function PlayerSearchPage() {
   }
 
   async function sendFriendRequest(targetUserId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error } = await supabase
       .from('friend_requests')
       .insert({
-        sender_id: currentUserId,
+        sender_id: user.id,
         receiver_id: targetUserId,
         status: 'pending'
       });
 
     if (error) {
-      alert('フレンド申請に失敗しました');
+      if (error.code === '23505') {
+        alert('既に申請済み、またはフレンドです');
+      } else {
+        alert('フレンド申請に失敗しました: ' + error.message);
+      }
       return;
     }
 
@@ -98,84 +102,69 @@ export default function PlayerSearchPage() {
     searchPlayers(); // 再検索
   }
 
-  function getTierBadge(tier: string) {
-    const badges: any = {
-      free: { bg: 'bg-gray-100', text: 'text-gray-700', label: '無料' },
-      basic: { bg: 'bg-blue-100', text: 'text-blue-700', label: '通常' },
-      premium: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'プレミアム' }
-    };
-    const badge = badges[tier] || badges.free;
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-bold ${badge.bg} ${badge.text}`}>
-        {badge.label}
-      </span>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">🔍 プレイヤー検索</h1>
-          <p className="text-lg opacity-90">フレンドを探そう！</p>
-        </div>
+    <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
+      <div className="max-w-lg mx-auto">
+        <header className="mb-6">
+          <h1 className="text-xl font-bold text-white">プレイヤー検索</h1>
+          <p className="text-sm text-slate-400 mt-0.5">プレイヤー名で検索してフレンド申請を送れます</p>
+        </header>
 
         {/* 検索フォーム */}
-        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
-          <div className="flex gap-3">
+        <div className="rounded-2xl border border-slate-600 bg-slate-800 p-4 mb-6">
+          <div className="flex gap-2">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && searchPlayers()}
+              onKeyDown={(e) => e.key === 'Enter' && searchPlayers()}
               placeholder="プレイヤー名を入力..."
-              className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-3 text-lg"
+              className="flex-1 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3 text-white placeholder-slate-500"
             />
             <button
               onClick={searchPlayers}
               disabled={loading}
-              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-lg font-bold hover:opacity-90 disabled:opacity-50"
+              className="px-5 py-3 rounded-xl bg-orange-600 text-white font-bold active:scale-[0.98] disabled:opacity-50"
             >
-              {loading ? '検索中...' : '検索'}
+              {loading ? '...' : '検索'}
             </button>
           </div>
         </div>
 
         {/* 検索結果 */}
         {results.length > 0 && (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-xl font-bold mb-4">検索結果 ({results.length})</h2>
-            <div className="space-y-3">
+          <div className="rounded-2xl border border-slate-600 bg-slate-800 p-4 mb-6">
+            <h2 className="font-bold text-white mb-3">検索結果 ({results.length})</h2>
+            <div className="space-y-2">
               {results.map(player => (
                 <div
                   key={player.user_id}
-                  className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-400 transition"
+                  className="flex items-center justify-between p-3 rounded-xl border border-slate-600 bg-slate-700/50"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-orange-500/80 flex-shrink-0">
                       {player.display_name?.charAt(0) || '?'}
                     </div>
-                    <div>
-                      <div className="font-bold text-lg">{player.display_name}</div>
-                      <div className="text-sm text-gray-500">ID: {player.user_id.slice(0, 8)}...</div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-white truncate">{player.display_name || '不明'}</div>
+                      <div className="text-xs text-slate-500 truncate">{player.user_id.slice(0, 8)}...</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {getTierBadge(player.membership_tier)}
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {player.is_friend ? (
-                      <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-bold text-sm">
+                      <span className="px-2 py-1 bg-green-500/30 text-green-400 rounded-lg text-xs font-bold">
                         フレンド
                       </span>
                     ) : player.has_pending_request ? (
-                      <span className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg font-bold text-sm">
+                      <span className="px-2 py-1 bg-amber-500/30 text-amber-400 rounded-lg text-xs font-bold">
                         申請中
                       </span>
                     ) : (
                       <button
                         onClick={() => sendFriendRequest(player.user_id)}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600"
+                        className="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-sm font-bold active:scale-[0.98]"
                       >
-                        申請する
+                        申請
                       </button>
                     )}
                   </div>
@@ -185,15 +174,16 @@ export default function PlayerSearchPage() {
           </div>
         )}
 
-        {/* 戻るボタン */}
-        <div className="text-center mt-8">
-          <button
-            onClick={() => router.push('/friends')}
-            className="bg-white text-indigo-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition"
-          >
-            フレンド一覧に戻る
-          </button>
-        </div>
+        {results.length === 0 && !loading && searchTerm && (
+          <p className="text-slate-500 text-sm text-center py-4">該当するプレイヤーがいません</p>
+        )}
+
+        <button
+          onClick={() => router.push('/friends')}
+          className="w-full py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-400 text-sm font-medium"
+        >
+          フレンド一覧に戻る
+        </button>
       </div>
     </div>
   );

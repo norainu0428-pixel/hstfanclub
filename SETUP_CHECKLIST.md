@@ -26,6 +26,7 @@ Supabase SQL Editorで以下のSQLファイルを順番に実行してくださ�
 - ✅ `supabase_party_stages.sql` - パーティーモード用ステージ（冒険とは別の10ステージ）
 - ✅ `supabase_party_invites.sql` - パーティーモードでフレンド招待（adventure_invites に invite_mode 追加）
 - ✅ `supabase_adventure_invites_realtime.sql` - ロビー用リアルタイム同期（adventure_invites を Realtime に追加）
+- ✅ `supabase_friends_fix.sql` - フレンド機能の RLS 修正（双方向 friendships 挿入可能に）
 
 #### オーナー権限の設定（必須）
 - ✅ `supabase_set_owner.sql` - 自分のユーザーIDをオーナーに設定

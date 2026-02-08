@@ -25,28 +25,44 @@ export default function FriendsPage() {
 
   async function loadFriends() {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('friendships')
-      .select(`
-        friend_id,
-        friend:profiles!friendships_friend_id_fkey(display_name, membership_tier, last_seen_at)
-      `)
-      .eq('user_id', user.id)
-      .eq('status', 'accepted');
-
-    if (data) {
-      const formatted = data.map((f: any) => ({
-        friend_id: f.friend_id,
-        display_name: f.friend?.display_name || '不明',
-        membership_tier: f.friend?.membership_tier || 'free',
-        is_online: isOnline(f.friend?.last_seen_at),
-        last_seen_at: f.friend?.last_seen_at
-      }));
-      setFriends(formatted);
+    if (!user) {
+      setLoading(false);
+      return;
     }
 
+    // 双方向取得: user_id=me または friend_id=me
+    const { data: rows } = await supabase
+      .from('friendships')
+      .select('user_id, friend_id')
+      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+      .eq('status', 'accepted');
+
+    const friendIds = [...new Set((rows || []).map((r: { user_id: string; friend_id: string }) =>
+      r.user_id === user.id ? r.friend_id : r.user_id
+    ))];
+
+    if (friendIds.length === 0) {
+      setFriends([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, membership_tier, last_seen_at')
+      .in('user_id', friendIds);
+
+    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name: string; membership_tier: string; last_seen_at: string }) => [p.user_id, p]));
+    setFriends(friendIds.map((id) => {
+      const p = profileMap.get(id);
+      return {
+        friend_id: id,
+        display_name: p?.display_name || '不明',
+        membership_tier: p?.membership_tier || 'free',
+        is_online: isOnline(p?.last_seen_at),
+        last_seen_at: p?.last_seen_at || ''
+      };
+    }));
     setLoading(false);
   }
 
@@ -63,7 +79,7 @@ export default function FriendsPage() {
     setPendingCount(count || 0);
   }
 
-  function isOnline(lastSeenAt: string): boolean {
+  function isOnline(lastSeenAt: string | undefined): boolean {
     if (!lastSeenAt) return false;
     const diff = Date.now() - new Date(lastSeenAt).getTime();
     return diff < 5 * 60 * 1000; // 5分以内
@@ -88,88 +104,88 @@ export default function FriendsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-orange-500 text-xl">読み込み中...</div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-400">読み込み中...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-orange-500">👥 フレンド</h1>
-          <p className="text-lg text-gray-300">フレンド数: <span className="text-orange-400 font-bold">{friends.length}</span></p>
-        </div>
+    <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
+      <div className="max-w-lg mx-auto">
+        <header className="mb-6">
+          <h1 className="text-xl font-bold text-white">フレンド</h1>
+          <p className="text-sm text-slate-400 mt-0.5">フレンド数: <span className="text-orange-400 font-bold">{friends.length}</span></p>
+        </header>
 
         {/* メニューボタン */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <button
             onClick={() => router.push('/party/invites')}
-            className="bg-gray-900 border border-cyan-500/30 p-6 rounded-xl shadow-lg shadow-cyan-500/10 hover:border-cyan-500 hover:shadow-cyan-500/20 transition text-white"
+            className="rounded-2xl p-4 bg-cyan-500/20 border border-cyan-500/50 font-bold text-left active:scale-[0.98] transition"
           >
-            <div className="text-4xl mb-2">🎭</div>
-            <div className="font-bold text-lg">パーティの招待</div>
+            <span className="text-2xl block mb-1">🎭</span>
+            <span className="text-sm">パーティの招待</span>
           </button>
           <button
             onClick={() => router.push('/friends/search')}
-            className="bg-gray-900 border border-orange-500/30 p-6 rounded-xl shadow-lg shadow-orange-500/10 hover:border-orange-500 hover:shadow-orange-500/20 transition text-white"
+            className="rounded-2xl p-4 bg-orange-500/20 border border-orange-500/50 font-bold text-left active:scale-[0.98] transition"
           >
-            <div className="text-4xl mb-2">🔍</div>
-            <div className="font-bold text-lg">プレイヤー検索</div>
+            <span className="text-2xl block mb-1">🔍</span>
+            <span className="text-sm">プレイヤー検索</span>
           </button>
           <button
             onClick={() => router.push('/friends/requests')}
-            className="bg-gray-900 border border-orange-500/30 p-6 rounded-xl shadow-lg shadow-orange-500/10 hover:border-orange-500 hover:shadow-orange-500/20 transition relative text-white"
+            className="rounded-2xl p-4 bg-orange-500/20 border border-orange-500/50 font-bold text-left active:scale-[0.98] transition relative"
           >
-            <div className="text-4xl mb-2">📬</div>
-            <div className="font-bold text-lg">フレンド申請</div>
+            <span className="text-2xl block mb-1">📬</span>
+            <span className="text-sm">フレンド申請</span>
             {pendingCount > 0 && (
-              <div className="absolute top-2 right-2 bg-orange-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">
+              <span className="absolute top-2 right-2 bg-orange-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">
                 {pendingCount}
-              </div>
+              </span>
             )}
           </button>
         </div>
 
         {/* フレンドリスト */}
         {friends.length === 0 ? (
-          <div className="bg-gray-900 border border-orange-500/30 rounded-2xl p-12 shadow-2xl shadow-orange-500/10 text-center">
-            <div className="text-6xl mb-4">😊</div>
-            <h2 className="text-2xl font-bold mb-2 text-white">フレンドがいません</h2>
-            <p className="text-gray-300 mb-6">プレイヤーを検索してフレンド申請を送りましょう！</p>
+          <div className="rounded-2xl border border-slate-600 bg-slate-800/80 p-8 text-center">
+            <div className="text-5xl mb-4">😊</div>
+            <h2 className="text-lg font-bold mb-2 text-white">フレンドがいません</h2>
+            <p className="text-slate-400 text-sm mb-4">プレイヤーを検索してフレンド申請を送りましょう</p>
             <button
               onClick={() => router.push('/friends/search')}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-3 rounded-lg font-bold hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30"
+              className="w-full py-3 rounded-xl bg-orange-600 text-white font-bold active:scale-[0.98] transition"
             >
               プレイヤーを探す
             </button>
           </div>
         ) : (
-          <div className="bg-gray-900 border border-orange-500/30 rounded-2xl p-6 shadow-2xl shadow-orange-500/10">
-            <h2 className="text-xl font-bold mb-4 text-white">フレンド一覧</h2>
-            <div className="space-y-3">
+          <div className="rounded-2xl border border-slate-600 bg-slate-800/80 p-4">
+            <h2 className="font-bold text-white mb-3">フレンド一覧</h2>
+            <div className="space-y-2">
               {friends.map(friend => (
                 <div
                   key={friend.friend_id}
-                  className="flex items-center justify-between p-4 border-2 border-orange-500/20 bg-gray-800 rounded-lg hover:border-orange-500/50 transition"
+                  className="flex items-center justify-between p-3 rounded-xl border border-slate-600 bg-slate-700/50"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-gradient-to-br from-orange-500 to-orange-600">
                         {friend.display_name.charAt(0)}
                       </div>
                       {friend.is_online && (
-                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-orange-500 border-2 border-gray-900 rounded-full"></div>
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-slate-700" />
                       )}
                     </div>
                     <div>
-                      <div className="font-bold text-lg text-white">{friend.display_name}</div>
-                      <div className="text-sm text-gray-400">
+                      <div className="font-bold text-white">{friend.display_name}</div>
+                      <div className="text-xs text-slate-400">
                         {friend.is_online ? (
-                          <span className="text-orange-500">● オンライン</span>
+                          <span className="text-green-400">オンライン</span>
                         ) : (
-                          <span>最終: {new Date(friend.last_seen_at).toLocaleString('ja-JP')}</span>
+                          <span>最終: {friend.last_seen_at ? new Date(friend.last_seen_at).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
                         )}
                       </div>
                     </div>
@@ -177,13 +193,13 @@ export default function FriendsPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => router.push(`/pvp/matchmaking?friend=${friend.friend_id}`)}
-                      className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-bold hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30"
+                      className="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-sm font-bold active:scale-[0.98]"
                     >
-                      対戦する
+                      対戦
                     </button>
                     <button
                       onClick={() => removeFriend(friend.friend_id)}
-                      className="px-4 py-2 bg-gray-700 text-white rounded-lg font-bold hover:bg-gray-600 transition border border-gray-600"
+                      className="px-3 py-1.5 rounded-lg bg-slate-600 text-slate-300 text-sm font-medium active:scale-[0.98]"
                     >
                       削除
                     </button>
@@ -194,10 +210,10 @@ export default function FriendsPage() {
           </div>
         )}
 
-        <div className="text-center mt-8">
+        <div className="mt-6">
           <button
             onClick={() => router.push('/')}
-            className="bg-gray-800 text-orange-500 border border-orange-500 px-8 py-3 rounded-lg font-bold hover:bg-gray-700 transition"
+            className="w-full py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-400 text-sm font-medium"
           >
             トップに戻る
           </button>

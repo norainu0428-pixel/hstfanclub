@@ -12,42 +12,93 @@ interface FriendRequestWithProfile {
   created_at: string;
 }
 
+interface SentRequest {
+  id: string;
+  receiver_id: string;
+  receiver_name: string;
+  created_at: string;
+}
+
 export default function FriendRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestWithProfile[]>([]);
+  const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingSent, setLoadingSent] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     loadRequests();
+    loadSentRequests();
   }, []);
 
-  async function loadRequests() {
+  async function loadSentRequests() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
+    const { data: reqRows } = await supabase
       .from('friend_requests')
-      .select(`
-        id,
-        sender_id,
-        created_at,
-        sender:profiles!friend_requests_sender_id_fkey(display_name, membership_tier)
-      `)
+      .select('id, receiver_id, created_at')
+      .eq('sender_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (!reqRows || reqRows.length === 0) {
+      setSentRequests([]);
+      return;
+    }
+
+    const receiverIds = [...new Set(reqRows.map((r: { receiver_id: string }) => r.receiver_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name')
+      .in('user_id', receiverIds);
+
+    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name: string }) => [p.user_id, p.display_name]));
+    setSentRequests(reqRows.map((r: { id: string; receiver_id: string; created_at: string }) => ({
+      id: r.id,
+      receiver_id: r.receiver_id,
+      receiver_name: profileMap.get(r.receiver_id) || '不明',
+      created_at: r.created_at
+    })));
+  }
+
+  async function loadRequests() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const { data: reqRows } = await supabase
+      .from('friend_requests')
+      .select('id, sender_id, created_at')
       .eq('receiver_id', user.id)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
-    if (data) {
-      const formatted = data.map((req: any) => ({
-        id: req.id,
-        sender_id: req.sender_id,
-        sender_name: req.sender?.display_name || '不明',
-        sender_tier: req.sender?.membership_tier || 'free',
-        created_at: req.created_at
-      }));
-      setRequests(formatted);
+    if (!reqRows || reqRows.length === 0) {
+      setRequests([]);
+      setLoading(false);
+      return;
     }
 
+    const senderIds = [...new Set(reqRows.map((r: { sender_id: string }) => r.sender_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, membership_tier')
+      .in('user_id', senderIds);
+
+    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name: string; membership_tier: string }) => [p.user_id, p]));
+    setRequests(reqRows.map((r: { id: string; sender_id: string; created_at: string }) => {
+      const p = profileMap.get(r.sender_id);
+      return {
+        id: r.id,
+        sender_id: r.sender_id,
+        sender_name: p?.display_name || '不明',
+        sender_tier: p?.membership_tier || 'free',
+        created_at: r.created_at
+      };
+    }));
     setLoading(false);
   }
 
@@ -74,6 +125,20 @@ export default function FriendRequestsPage() {
 
     alert('フレンド申請を承認しました！');
     loadRequests();
+    loadSentRequests();
+  }
+
+  async function cancelSentRequest(requestId: string) {
+    const { error } = await supabase
+      .from('friend_requests')
+      .delete()
+      .eq('id', requestId);
+
+    if (error) {
+      alert('キャンセルに失敗しました');
+      return;
+    }
+    loadSentRequests();
   }
 
   async function rejectRequest(requestId: string) {
@@ -93,61 +158,91 @@ export default function FriendRequestsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-        <div className="text-white text-xl">読み込み中...</div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-400">読み込み中...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">📬 フレンド申請</h1>
-          <p className="text-lg opacity-90">受信した申請: {requests.length}件</p>
-        </div>
+    <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
+      <div className="max-w-lg mx-auto">
+        <header className="mb-6">
+          <h1 className="text-xl font-bold text-white">フレンド申請</h1>
+          <p className="text-sm text-slate-400 mt-0.5">受信: {requests.length}件 / 送信: {sentRequests.length}件</p>
+        </header>
 
+        {/* 送信した申請 */}
+        {sentRequests.length > 0 && (
+          <div className="rounded-2xl border border-slate-600 bg-slate-800 p-4 mb-6">
+            <h2 className="font-bold text-white mb-3">送信した申請</h2>
+            <div className="space-y-2">
+              {sentRequests.map(req => (
+                <div key={req.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-600 bg-slate-700/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold bg-slate-600">
+                      {req.receiver_name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="font-bold text-white">{req.receiver_name}</div>
+                      <div className="text-xs text-slate-500">{new Date(req.created_at).toLocaleString('ja-JP', { month: 'short', day: 'numeric' })}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => cancelSentRequest(req.id)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-600 text-slate-300 text-sm font-medium active:scale-[0.98]"
+                  >
+                    取り消す
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 受信した申請 */}
         {requests.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center">
-            <div className="text-6xl mb-4">📭</div>
-            <h2 className="text-2xl font-bold mb-2">申請はありません</h2>
-            <p className="text-gray-600 mb-6">新しいフレンド申請が届くとここに表示されます</p>
+          <div className="rounded-2xl border border-slate-600 bg-slate-800 p-8 text-center">
+            <div className="text-5xl mb-4">📭</div>
+            <h2 className="text-lg font-bold mb-2 text-white">受信した申請はありません</h2>
+            <p className="text-slate-400 text-sm mb-4">新しいフレンド申請が届くとここに表示されます</p>
             <button
               onClick={() => router.push('/friends/search')}
-              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-full font-bold hover:opacity-90"
+              className="w-full py-3 rounded-xl bg-orange-600 text-white font-bold active:scale-[0.98]"
             >
               プレイヤーを探す
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
-            <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-600 bg-slate-800 p-4 mb-6">
+            <h2 className="font-bold text-white mb-3">受信した申請</h2>
+            <div className="space-y-2">
               {requests.map(request => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg"
+                  className="flex items-center justify-between p-3 rounded-xl border border-slate-600 bg-slate-700/50"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-orange-500/80">
                       {request.sender_name.charAt(0)}
                     </div>
                     <div>
-                      <div className="font-bold text-lg">{request.sender_name}</div>
-                      <div className="text-sm text-gray-500">
-                        {new Date(request.created_at).toLocaleString('ja-JP')}
+                      <div className="font-bold text-white">{request.sender_name}</div>
+                      <div className="text-xs text-slate-500">
+                        {new Date(request.created_at).toLocaleString('ja-JP', { month: 'short', day: 'numeric' })}
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <button
                       onClick={() => acceptRequest(request.id, request.sender_id)}
-                      className="px-6 py-2 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600"
+                      className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-bold active:scale-[0.98]"
                     >
                       承認
                     </button>
                     <button
                       onClick={() => rejectRequest(request.id)}
-                      className="px-6 py-2 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600"
+                      className="px-3 py-1.5 rounded-lg bg-slate-600 text-slate-300 text-sm font-medium active:scale-[0.98]"
                     >
                       拒否
                     </button>
@@ -158,14 +253,12 @@ export default function FriendRequestsPage() {
           </div>
         )}
 
-        <div className="text-center mt-8">
-          <button
-            onClick={() => router.push('/friends')}
-            className="bg-white text-indigo-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition"
-          >
-            フレンド一覧に戻る
-          </button>
-        </div>
+        <button
+          onClick={() => router.push('/friends')}
+          className="w-full py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-400 text-sm font-medium"
+        >
+          フレンド一覧に戻る
+        </button>
       </div>
     </div>
   );
