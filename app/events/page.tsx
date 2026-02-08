@@ -240,8 +240,15 @@ export default function EventsPage() {
           member
         });
 
-        // メンバーをDBに追加
-        const stats = baseStats[rarity];
+        // メンバーをDBに追加（baseStatsのキーと揃える、undefined防止）
+        const rarityMap: Record<string, string> = {
+          'HST': 'HST', 'hst': 'HST',
+          'stary': 'stary', 'STARY': 'stary',
+          'legendary': 'legendary', 'ultra-rare': 'ultra-rare',
+          'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common'
+        };
+        const statsKey = rarityMap[rarity] ?? 'common';
+        const stats = baseStats[statsKey] ?? baseStats['common'];
         await supabase
           .from('user_members')
           .insert({
