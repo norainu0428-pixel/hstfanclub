@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { getEquipmentStats, getRarityColor } from '@/utils/equipment';
+import { getEquipmentStats, getRarityColor, getRarityLabel } from '@/utils/equipment';
 import type { UserEquipment, EquipmentMaster } from '@/types/equipment';
 import type { Member } from '@/types/adventure';
 import { getPlateImageUrl } from '@/utils/plateImage';
@@ -157,7 +157,7 @@ export default function AdventureEquipPage() {
                             <span className="text-lg">{eq.emoji}</span>
                             <span className="text-sm font-bold text-white truncate">{eq.name}</span>
                           </div>
-                          <div className="text-xs text-gray-400 mt-1">Lv.{equipped.level}</div>
+                          <div className="text-xs text-gray-400 mt-1">{getRarityLabel(eq.rarity)} Lv.{equipped.level}</div>
                           <div className="flex gap-2 mt-2">
                             <button
                               onClick={() => setSelectingFor({ memberId: member.id, slotType })}
@@ -204,7 +204,7 @@ export default function AdventureEquipPage() {
                               >
                                 <span>{m.emoji}</span>
                                 <span className="font-medium text-white">{m.name}</span>
-                                <span className="text-gray-400 text-xs">Lv.{ue.level}</span>
+                                <span className="text-gray-400 text-xs">{getRarityLabel(m.rarity)} Lv.{ue.level}</span>
                                 {isEquippedHere && <span className="text-xs text-green-400 ml-auto">装備中</span>}
                               </button>
                             );

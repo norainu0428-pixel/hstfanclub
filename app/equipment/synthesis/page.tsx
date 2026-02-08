@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { getEquipmentStats, getRarityColor } from '@/utils/equipment';
+import { getEquipmentStats, getRarityColor, getRarityLabel } from '@/utils/equipment';
 import type { UserEquipment, EquipmentMaster } from '@/types/equipment';
 
 type UserEquipmentWithMaster = UserEquipment & { equipment?: EquipmentMaster; equipment_master?: EquipmentMaster };
@@ -193,7 +193,7 @@ export default function EquipmentSynthesisPage() {
             <div className={`bg-gradient-to-r ${getRarityColor(result.equipment.rarity)} rounded-xl p-6 text-white text-center`}>
               <div className="text-5xl mb-2">{result.equipment.emoji}</div>
               <div className="font-bold text-xl">{result.equipment.name}</div>
-              <div className="text-sm opacity-90">Lv.{result.newLevel}</div>
+              <div className="text-sm opacity-90">{getRarityLabel(result.equipment.rarity)} Lv.{result.newLevel}</div>
             </div>
           </div>
         )}
@@ -224,7 +224,7 @@ export default function EquipmentSynthesisPage() {
                         <div>
                           <div className="font-bold text-gray-900">{eq.name}</div>
                           <div className="text-sm text-gray-800">
-                            {getSlotName(eq.slot_type)} Lv.{ue.level} × {arr.length}個
+                            {getRarityLabel(eq.rarity)} / {getSlotName(eq.slot_type)} Lv.{ue.level} × {arr.length}個
                           </div>
                         </div>
                       </div>

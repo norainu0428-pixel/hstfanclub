@@ -9,7 +9,7 @@ import { getStageInfo, isExtraStage, getExtraStageNum, isExpStage, getExpStageDi
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { calculateDamage } from '@/utils/damage';
 import { tryDropEquipmentFromExtraStage } from '@/utils/equipmentDrop';
-import { getRarityColor } from '@/utils/equipment';
+import { getRarityColor, getRarityLabel } from '@/utils/equipment';
 import type { EquipmentMaster } from '@/types/equipment';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
@@ -1266,6 +1266,7 @@ function BattleContent() {
                         <div className="text-5xl">{droppedEquipment.emoji}</div>
                         <div className="font-bold text-xl">{droppedEquipment.name}</div>
                         <div className="text-sm opacity-90">
+                          {getRarityLabel(droppedEquipment.rarity)} / {' '}
                           {droppedEquipment.slot_type === 'weapon' && '武器'}
                           {droppedEquipment.slot_type === 'armor' && '防具'}
                           {droppedEquipment.slot_type === 'accessory' && 'アクセサリ'}

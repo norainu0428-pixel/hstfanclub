@@ -19,3 +19,14 @@ export function getRarityColor(rarity: string): string {
     default: return 'from-gray-400 to-gray-500';
   }
 }
+
+export function getRarityLabel(rarity: string): string {
+  switch (rarity) {
+    case 'legendary': return 'レジェンド';
+    case 'ultra-rare': return 'ウルトラレア';
+    case 'super-rare': return 'スーパーレア';
+    case 'rare': return 'レア';
+    case 'common': return 'コモン';
+    default: return rarity;
+  }
+}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { getEquipmentStats, getRarityColor } from '@/utils/equipment';
+import { getEquipmentStats, getRarityColor, getRarityLabel } from '@/utils/equipment';
 import type { UserEquipment, EquipmentMaster } from '@/types/equipment';
 
 export default function EquipmentPage() {
@@ -101,8 +101,8 @@ export default function EquipmentPage() {
                   >
                     <div className="text-4xl text-center mb-2">{eq.emoji}</div>
                     <div className="font-bold text-center text-sm text-gray-900">{eq.name}</div>
-                    <div className="text-xs text-center text-gray-800 mt-1">
-                      {getSlotName(eq.slot_type)} Lv.{ue.level}
+                    <div className="text-xs text-center text-gray-700 mt-1">
+                      {getRarityLabel(eq.rarity)} / {getSlotName(eq.slot_type)} Lv.{ue.level}
                     </div>
                     <div className="mt-2 text-xs space-y-0.5">
                       {stats.atk > 0 && <div>ATK+{stats.atk}</div>}

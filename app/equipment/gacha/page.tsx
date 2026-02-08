@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateProfilePoints } from '@/utils/profilePoints';
-import { getEquipmentStats, getRarityColor } from '@/utils/equipment';
+import { getEquipmentStats, getRarityColor, getRarityLabel } from '@/utils/equipment';
 import type { EquipmentMaster, UserEquipment } from '@/types/equipment';
 
 const EQUIPMENT_GACHA_COST = 1000;
@@ -176,6 +176,7 @@ export default function EquipmentGachaPage() {
               <div className="text-6xl text-center mb-2">{result.equipment.emoji}</div>
               <div className="text-xl font-bold text-center">{result.equipment.name}</div>
               <div className="text-center text-white/90 text-sm mt-1">
+                {getRarityLabel(result.equipment.rarity)} / {' '}
                 {result.equipment.slot_type === 'weapon' && '武器'}
                 {result.equipment.slot_type === 'armor' && '防具'}
                 {result.equipment.slot_type === 'accessory' && 'アクセサリ'}
