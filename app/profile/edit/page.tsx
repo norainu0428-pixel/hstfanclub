@@ -14,6 +14,7 @@ export default function ProfileEditPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarCacheBust, setAvatarCacheBust] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -30,13 +31,24 @@ export default function ProfileEditPage() {
       router.push('/');
       return;
     }
-    const { data } = await supabase
+    let data: { user_id: string; display_name: string | null; avatar_url?: string | null } | null = null;
+    const { data: full } = await supabase
       .from('profiles')
       .select('user_id, display_name, avatar_url')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
+    if (full) {
+      data = full;
+    } else {
+      const { data: minimal } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      data = minimal;
+    }
     if (data) {
-      setProfile(data as Profile);
+      setProfile({ user_id: data.user_id, display_name: data.display_name, avatar_url: data.avatar_url ?? null });
       setDisplayName(data.display_name ?? '');
       setAvatarUrl(data.avatar_url ?? null);
     }
@@ -56,7 +68,7 @@ export default function ProfileEditPage() {
     setSaving(false);
   }
 
-  async function uploadAvatar(file: File) {
+  const uploadAvatar = useCallback(async (file: File) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
@@ -74,7 +86,7 @@ export default function ProfileEditPage() {
       .from('avatars')
       .upload(path, file, { upsert: true });
     if (uploadError) {
-      alert('アップロードに失敗しました: ' + uploadError.message);
+      alert('アップロードに失敗しました: ' + uploadError.message + '\n\nSupabase Dashboard → Storage で avatars バケットを作成（public=true）してください。');
       setUploading(false);
       return;
     }
@@ -85,13 +97,14 @@ export default function ProfileEditPage() {
       .update({ avatar_url: url })
       .eq('user_id', user.id);
     if (updateError) {
-      alert('プロフィール更新に失敗しました: ' + updateError.message);
+      alert('プロフィール更新に失敗しました: ' + updateError.message + '\n\nsupabase_profile_avatar.sql を実行して avatar_url カラムを追加してください。');
     } else {
       setAvatarUrl(url);
+      setAvatarCacheBust(Date.now());
       setProfile(prev => prev ? { ...prev, avatar_url: url } : null);
     }
     setUploading(false);
-  }
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -102,7 +115,7 @@ export default function ProfileEditPage() {
     } else {
       alert('画像ファイルをドロップしてください');
     }
-  }, []);
+  }, [uploadAvatar]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -147,9 +160,10 @@ export default function ProfileEditPage() {
           >
             {avatarUrl ? (
               <img
-                src={avatarUrl}
+                src={avatarUrl + (avatarCacheBust ? '?t=' + avatarCacheBust : '')}
                 alt="アバター"
                 className="w-full h-full object-cover pointer-events-none"
+                referrerPolicy="no-referrer"
               />
             ) : (
               <span className="text-4xl text-gray-500 pointer-events-none">+</span>
