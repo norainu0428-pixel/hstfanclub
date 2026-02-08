@@ -17,7 +17,9 @@ export default function BattlePage() {
 
   const stageIdParam = searchParams.get('stage') || '1';
   const stageId = parseInt(stageIdParam);
-  const partyIds = searchParams.get('party')?.split(',') || [];
+  const partyIds = searchParams.get('party')?.split(',').filter(Boolean) || [];
+  const inviteId = searchParams.get('invite_id') || '';
+  const mineIds = searchParams.get('mine')?.split(',').filter(Boolean) || [];
   
   // ステージIDが無効な場合のチェック
   if (isNaN(stageId) || stageId < 1 || stageId > 400) {
@@ -68,52 +70,81 @@ export default function BattlePage() {
   }, [party, loading, battleResult]);
 
   async function initBattle() {
-    // ステージIDが無効な場合
     if (isNaN(stageId) || stageId < 1 || stageId > 400) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
     }
     
-    // パーティ読み込み
-    if (partyIds.length === 0) {
-      alert('パーティが選択されていません');
-      router.push('/adventure');
-      return;
+    let initializedParty: Member[];
+
+    if (inviteId) {
+      const { data: invite, error: invErr } = await supabase
+        .from('adventure_invites')
+        .select('host_id, host_party_ids, friend_party_snapshot')
+        .eq('id', inviteId)
+        .single();
+      if (invErr || !invite) {
+        alert('招待の取得に失敗しました');
+        router.push('/adventure');
+        return;
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || user.id !== invite.host_id) {
+        alert('ホストのみ協力バトルを開始できます');
+        router.push('/adventure');
+        return;
+      }
+      const hostIds = (invite.host_party_ids || []).filter(Boolean);
+      const snapshot = (invite.friend_party_snapshot || []) as Partial<Member>[];
+      const { data: hostData } = await supabase
+        .from('user_members')
+        .select('*')
+        .in('id', hostIds);
+      const hostMembers = (hostData || []).map(m => ({
+        ...m,
+        current_hp: m.current_hp ?? m.hp,
+        hp: m.hp ?? m.max_hp
+      }));
+      const friendMembers = snapshot.map(m => ({
+        ...m,
+        id: m.id!,
+        current_hp: m.hp ?? m.max_hp,
+        hp: m.hp ?? m.max_hp
+      } as Member));
+      initializedParty = [...hostMembers, ...friendMembers] as Member[];
+    } else {
+      if (partyIds.length === 0) {
+        alert('パーティが選択されていません');
+        router.push('/adventure');
+        return;
+      }
+      const { data: partyData } = await supabase
+        .from('user_members')
+        .select('*')
+        .in('id', partyIds);
+      if (!partyData || partyData.length === 0) {
+        alert('パーティメンバーが見つかりません');
+        router.push('/adventure');
+        return;
+      }
+      initializedParty = partyData.map(member => ({
+        ...member,
+        current_hp: member.current_hp || member.hp,
+        hp: member.hp || member.max_hp
+      }));
     }
     
-    const { data: partyData } = await supabase
-      .from('user_members')
-      .select('*')
-      .in('id', partyIds);
-
-    if (!partyData || partyData.length === 0) {
-      alert('パーティメンバーが見つかりません');
-      router.push('/adventure');
-      return;
-    }
-
-    // current_hpを初期化（存在しない場合）
-    const initializedParty = partyData.map(member => ({
-      ...member,
-      current_hp: member.current_hp || member.hp,
-      hp: member.hp || member.max_hp // HPをmax_hpに設定（バトル開始時は全回復）
-    }));
-    
-    // バトル開始時のHPを保存（復元用）
     const initialHp: { [key: string]: number } = {};
     initializedParty.forEach(member => {
       initialHp[member.id] = member.hp;
     });
     setOriginalHp(initialHp);
-    
     setParty(initializedParty);
 
-    // 敵読み込み（ステージに応じて）
     const stageInfo = getStageInfo(stageId);
-    setEnemies(stageInfo.enemies.map(enemy => ({ ...enemy }))); // コピーを作成
-
-    addLog(`ステージ${stageId}の戦闘が始まった！（推奨レベル: ${stageInfo.recommendedLevel}）`);
+    setEnemies(stageInfo.enemies.map(enemy => ({ ...enemy })));
+    addLog(inviteId ? `ステージ${stageId} 協力バトル開始！（推奨レベル: ${stageInfo.recommendedLevel}）` : `ステージ${stageId}の戦闘が始まった！（推奨レベル: ${stageInfo.recommendedLevel}）`);
     setLoading(false);
   }
 
@@ -1273,11 +1304,11 @@ export default function BattlePage() {
     
     addLog(`戦闘に勝利した！ 経験値+${totalExp} ポイント+${totalPoints}`);
 
-    // データベース更新
+    // データベース更新（協力時は自分のメンバーのみ更新）
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      // ★ メンバーのステータスをデータベースに保存（勝利時はHPを全回復）
-      for (const member of updatedParty) {
+      const membersToUpdate = mineIds.length > 0 ? updatedParty.filter(m => mineIds.includes(m.id)) : updatedParty;
+      for (const member of membersToUpdate) {
         await supabase
           .from('user_members')
           .update({
@@ -1377,15 +1408,14 @@ export default function BattlePage() {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      // 敗北時も全キャラクターのHPを全回復
+      // 敗北時も全キャラクターのHPを全回復（協力時は自分のメンバーのみDB更新）
       const restoredParty = party.map(member => ({
         ...member,
         hp: member.max_hp,
         current_hp: member.max_hp
       }));
-
-      // データベースにHPを全回復して保存
-      for (const member of restoredParty) {
+      const toRestore = mineIds.length > 0 ? restoredParty.filter(m => mineIds.includes(m.id)) : restoredParty;
+      for (const member of toRestore) {
         await supabase
           .from('user_members')
           .update({

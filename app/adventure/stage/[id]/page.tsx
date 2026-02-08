@@ -12,20 +12,52 @@ export default function StagePage() {
   const router = useRouter();
   
   const stageId = parseInt(params.id as string);
-  const partyIds = searchParams.get('party')?.split(',') || [];
+  const partyIdsParam = searchParams.get('party') || '';
+  const partyIds = partyIdsParam && partyIdsParam !== '_' ? partyIdsParam.split(',').filter(Boolean) : [];
+  const inviteId = searchParams.get('invite_id') || '';
   
   const [party, setParty] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hostPartyIds, setHostPartyIds] = useState<string[]>([]);
 
   useEffect(() => {
     loadParty();
   }, []);
 
   async function loadParty() {
-    // ステージIDが無効な場合
     if (isNaN(stageId) || stageId < 1 || stageId > 400) {
       alert('無効なステージIDです');
       router.push('/adventure');
+      return;
+    }
+    
+    if (inviteId) {
+      const { data: invite, error } = await supabase
+        .from('adventure_invites')
+        .select('host_id, host_party_ids, friend_party_snapshot')
+        .eq('id', inviteId)
+        .single();
+      if (error || !invite) {
+        alert('招待情報の取得に失敗しました');
+        router.push('/adventure');
+        return;
+      }
+      const hostIds = (invite.host_party_ids || []).filter(Boolean);
+      setHostPartyIds(hostIds);
+      const snapshot = (invite.friend_party_snapshot || []) as Partial<Member>[];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || user.id !== invite.host_id) {
+        router.push('/adventure');
+        return;
+      }
+      const { data: hostMembers } = await supabase
+        .from('user_members')
+        .select('*')
+        .in('id', hostIds);
+      const host = (hostMembers || []).map(m => ({ ...m, current_hp: m.current_hp ?? m.hp, hp: m.hp ?? m.max_hp }));
+      const friend = snapshot.map(m => ({ ...m, current_hp: m.hp ?? m.max_hp } as Member));
+      setParty([...host, ...friend]);
+      setLoading(false);
       return;
     }
     
@@ -44,8 +76,15 @@ export default function StagePage() {
   }
 
   function startBattle() {
-    const partyIdsParam = party.map(m => m.id).join(',');
-    router.push(`/adventure/battle?stage=${stageId}&party=${partyIdsParam}`);
+    if (inviteId) {
+      const mine = hostPartyIds.length > 0 ? hostPartyIds.join(',') : '';
+      const q = new URLSearchParams({ stage: String(stageId), invite_id: inviteId });
+      if (mine) q.set('mine', mine);
+      router.push(`/adventure/battle?${q.toString()}`);
+      return;
+    }
+    const ids = party.map(m => m.id).join(',');
+    router.push(`/adventure/battle?stage=${stageId}&party=${ids}`);
   }
 
   if (loading) {
@@ -137,8 +176,8 @@ export default function StagePage() {
 
         {/* パーティ情報 */}
         <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-center">あなたのパーティ</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h2 className="text-2xl font-bold mb-6 text-center">{inviteId ? '協力パーティ' : 'あなたのパーティ'}</h2>
+          <div className={`grid gap-4 ${party.length > 3 ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6' : 'grid-cols-1 md:grid-cols-3'}`}>
             {party.map(member => (
               <div key={member.id} className="bg-gradient-to-br from-blue-50 to-purple-50 border-4 border-blue-400 rounded-xl p-4">
                 <div className="text-center mb-3">
@@ -178,7 +217,7 @@ export default function StagePage() {
             ⚔️ 戦闘開始！
           </button>
           <button
-            onClick={() => router.push('/adventure')}
+            onClick={() => router.push(inviteId ? `/adventure/stages?invite_id=${inviteId}&current=1` : '/adventure')}
             className="bg-white text-gray-600 px-8 py-5 rounded-full text-xl font-bold border-2 border-gray-300 hover:bg-gray-50 transition"
           >
             戻る

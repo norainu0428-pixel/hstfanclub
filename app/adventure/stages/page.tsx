@@ -9,10 +9,10 @@ export default function StagesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const partyIds = searchParams.get('party') || '';
+  const inviteId = searchParams.get('invite_id') || '';
   const currentStageParam = searchParams.get('current') || '1';
   const parsedStage = parseInt(currentStageParam);
   
-  // ステージIDが無効な場合のデフォルト値
   const currentStage = (isNaN(parsedStage) || parsedStage < 1 || parsedStage > 400) ? 1 : parsedStage;
   const [unlockedStages, setUnlockedStages] = useState<number[]>([]);
   const [clearedStages, setClearedStages] = useState<number[]>([]);
@@ -50,18 +50,18 @@ export default function StagesPage() {
     }
     setClearedStages(Array.from(cleared));
 
-    if (progressResult.data) {
-      // 現在のステージまでと、次の1ステージまでをアンロック（1ステージずつ）
-      const maxUnlocked = Math.min(400, progressResult.data.current_stage + 1);
-      const unlocked = [];
-      for (let i = 1; i <= maxUnlocked; i++) {
-        unlocked.push(i);
-      }
-      setUnlockedStages(unlocked);
-    } else {
-      // 初期はステージ1-2まで（ステージ1と次のステージ2）
-      setUnlockedStages([1, 2]);
+    // 解放ステージ: 1から連続してクリアした最大番号+1まで（クリアしてないと次は解放されない）
+    let maxConsecutive = 0;
+    for (let s = 1; s <= 400; s++) {
+      if (!cleared.has(s)) break;
+      maxConsecutive = s;
     }
+    const nextUnlocked = Math.min(400, maxConsecutive + 1);
+    const unlocked: number[] = [];
+    for (let i = 1; i <= nextUnlocked; i++) {
+      unlocked.push(i);
+    }
+    setUnlockedStages(unlocked);
     
     // 現在のステージに応じてページを設定
     const page = Math.ceil(currentStage / stagesPerPage);
@@ -73,7 +73,9 @@ export default function StagesPage() {
       alert(`ステージ${stage}はまだアンロックされていません！`);
       return;
     }
-    router.push(`/adventure/stage/${stage}?party=${partyIds}`);
+    const params = new URLSearchParams({ party: partyIds || '_' });
+    if (inviteId) params.set('invite_id', inviteId);
+    router.push(`/adventure/stage/${stage}?${params.toString()}`);
   }
 
   return (
@@ -82,6 +84,7 @@ export default function StagesPage() {
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">🗺️ ステージ選択</h1>
           <p className="text-lg opacity-90">挑戦するステージを選んでください</p>
+          {inviteId && <p className="text-cyan-300 mt-2">👥 協力バトルモード</p>}
         </div>
 
         {/* ページネーション */}
