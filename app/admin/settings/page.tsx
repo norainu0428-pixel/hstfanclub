@@ -373,9 +373,9 @@ export default function SettingsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-500">★7が最上位</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">通常確率<br /><span className="text-xs font-normal text-gray-500">単発時の%</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連確率<br /><span className="text-xs font-normal text-gray-500">10回目確定の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-900">★7が最上位</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">通常確率<br /><span className="text-xs font-normal text-gray-900">単発時の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連確率<br /><span className="text-xs font-normal text-gray-900">10回目確定の%</span></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -470,9 +470,9 @@ export default function SettingsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-500">★7が最上位</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">通常確率<br /><span className="text-xs font-normal text-gray-500">単発時の%</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連確率<br /><span className="text-xs font-normal text-gray-500">10回目確定の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-900">★7が最上位</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">通常確率<br /><span className="text-xs font-normal text-gray-900">単発時の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連確率<br /><span className="text-xs font-normal text-gray-900">10回目確定の%</span></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -561,9 +561,9 @@ export default function SettingsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-500">★7が最上位</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">単発確率<br /><span className="text-xs font-normal text-gray-500">1回引く時の%</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連目確率<br /><span className="text-xs font-normal text-gray-500">10回目確定の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-900">★7が最上位</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">単発確率<br /><span className="text-xs font-normal text-gray-900">1回引く時の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連目確率<br /><span className="text-xs font-normal text-gray-900">10回目確定の%</span></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
