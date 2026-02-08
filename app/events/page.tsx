@@ -225,11 +225,13 @@ export default function EventsPage() {
     }
     const finalRates = DEFAULT_EVENT_RATES.map(def => {
       const fromDb = dbByCanonical.get(def.rarity);
-      return {
-        rarity: def.rarity,
-        rate: fromDb ? fromDb.rate : def.rate,
-        ten_pull_rate: fromDb ? fromDb.ten_pull_rate : def.ten_pull_rate
-      };
+      const rate = fromDb ? fromDb.rate : def.rate;
+      const tenPull = fromDb ? fromDb.ten_pull_rate : def.ten_pull_rate;
+      // stary が rate 0 だと出てこないため、0の場合はデフォルトを使用
+      if (def.rarity === 'stary' && rate === 0) {
+        return { rarity: def.rarity, rate: def.rate, ten_pull_rate: def.ten_pull_rate };
+      }
+      return { rarity: def.rarity, rate, ten_pull_rate: tenPull };
     });
     setRates(finalRates);
 
@@ -310,7 +312,8 @@ export default function EventsPage() {
       const results: GachaResult[] = [];
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 350));
-        const rarity = drawRarity();
+        const isTenth = i === 9;
+        const rarity = drawRarity(isTenth);
         const memberData = getMemberByRarity(rarity);
         const member = memberData[Math.floor(Math.random() * memberData.length)];
         results.push({ rarity: rarity as Rarity, member });
@@ -326,13 +329,13 @@ export default function EventsPage() {
     }
   }
 
-  function drawRarity(): string {
-    // 単発・10連ともに同じ確率（10連目もHST確定なし）
+  function drawRarity(useTenPullRate = false): string {
     const rand = Math.random() * 100;
     let cumulative = 0;
+    const field = useTenPullRate ? 'ten_pull_rate' : 'rate';
 
     for (const rate of rates) {
-      cumulative += parseFloat(rate.rate || '0');
+      cumulative += parseFloat(rate[field] || '0');
       if (rand < cumulative) {
         return rate.rarity;
       }

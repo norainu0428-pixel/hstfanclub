@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { getRarityLabelWithEmoji } from '@/utils/rarity';
+import { getRarityLabelWithEmoji, normalizeRarity } from '@/utils/rarity';
 
 interface Announcement {
   id: string;
@@ -178,6 +178,22 @@ export default function SettingsPage() {
     setMaintenanceMode(enabled);
   }
 
+  /** 同一レアリティの重複を除去（1レアリティ1行に統一） */
+  function dedupeByRarity<T extends { rarity?: string; id?: string }>(rows: T[]): T[] {
+    const byCanonical = new Map<string, T>();
+    for (const r of rows) {
+      const c = normalizeRarity((r.rarity || '').trim()) || 'common';
+      if (!byCanonical.has(c)) byCanonical.set(c, r);
+      else {
+        const curr = byCanonical.get(c)!;
+        const currTen = parseFloat(String(curr.ten_pull_rate ?? 0));
+        const rTen = parseFloat(String((r as any).ten_pull_rate ?? 0));
+        if (rTen > currTen) byCanonical.set(c, r);
+      }
+    }
+    return Array.from(byCanonical.values());
+  }
+
   async function loadRates() {
     try {
       // プレミアム用
@@ -187,7 +203,7 @@ export default function SettingsPage() {
         .order('rate', { ascending: false });
 
       if (premiumData) {
-        setRates(premiumData);
+        setRates(dedupeByRarity(premiumData));
       }
 
       // 通常会員用
@@ -197,7 +213,7 @@ export default function SettingsPage() {
         .order('rate', { ascending: false });
 
       if (basicData) {
-        setBasicRates(basicData);
+        setBasicRates(dedupeByRarity(basicData));
       }
 
       // イベントガチャ（HST Smile）用
@@ -207,7 +223,7 @@ export default function SettingsPage() {
         .order('rate', { ascending: false });
 
       if (eventData) {
-        setEventRates(eventData);
+        setEventRates(dedupeByRarity(eventData));
       }
     } catch (error) {
       console.log('ガチャ確率テーブルが見つかりません');
