@@ -230,8 +230,7 @@ export default function EventsPage() {
       const results: GachaResult[] = [];
 
       for (let i = 0; i < pulls; i++) {
-        const isLast = type === 'ten' && i === 9;
-        const rarity = drawRarity(isLast);
+        const rarity = drawRarity();
         const memberData = getMemberByRarity(rarity);
         const member = memberData[Math.floor(Math.random() * memberData.length)];
 
@@ -290,45 +289,19 @@ export default function EventsPage() {
     }
   }
 
-  function drawRarity(isTenthPull: boolean): string {
-    if (isTenthPull) {
-      // 10連目はHST以上確定（HST, stary, legendary, ultra-rare, super-rare）
-      const highRarities = rates.filter(r => 
-        r.rarity === 'HST' || 
-        r.rarity === 'stary' || 
-        r.rarity === 'legendary' || 
-        r.rarity === 'ultra-rare' || 
-        r.rarity === 'super-rare'
-      );
-      
-      // 10連目の確率で抽選
-      const rand = Math.random() * 100;
-      let cumulative = 0;
-      
-      for (const rate of highRarities) {
-        cumulative += parseFloat(rate.ten_pull_rate || '0');
-        if (rand < cumulative) {
-          return rate.rarity;
-        }
-      }
-      
-      // フォールバック（確率の合計が100%未満の場合や端数）
-      return highRarities[highRarities.length - 1]?.rarity || 'super-rare';
-    } else {
-      // 通常の単発ガチャ
-      const rateType = 'rate';
-      const rand = Math.random() * 100;
-      let cumulative = 0;
+  function drawRarity(): string {
+    // 単発・10連ともに同じ確率（10連目もHST確定なし）
+    const rand = Math.random() * 100;
+    let cumulative = 0;
 
-      for (const rate of rates) {
-        cumulative += parseFloat(rate[rateType] || '0');
-        if (rand < cumulative) {
-          return rate.rarity;
-        }
+    for (const rate of rates) {
+      cumulative += parseFloat(rate.rate || '0');
+      if (rand < cumulative) {
+        return rate.rarity;
       }
-
-      return 'common';
     }
+
+    return 'common';
   }
 
   function getMemberByRarity(rarity: string): any[] {
@@ -462,7 +435,7 @@ export default function EventsPage() {
                 900pt
               </div>
               <p className="text-sm opacity-80">
-                10%オフ + 10連目はHST以上確定
+                10%オフ
               </p>
             </div>
             <button
