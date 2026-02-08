@@ -101,7 +101,7 @@ export default function PartyLobbyPage() {
 
   useEffect(() => {
     if (!inviteId) {
-      router.push('/party');
+      setLoading(false);
       return;
     }
     loadInvite();
@@ -158,10 +158,27 @@ export default function PartyLobbyPage() {
     router.push(`/party/stage/${selectedStageId}?invite_id=${inviteId}`);
   }
 
-  if (!inviteId || loading) {
+  if (!inviteId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center">
-        <p className="text-white text-xl">ロビーを読み込み中...</p>
+      <div className="min-h-screen bg-slate-900 text-white p-4 flex flex-col items-center justify-center">
+        <p className="text-slate-400 mb-4">ロビーIDがありません</p>
+        <p className="text-slate-500 text-sm text-center mb-6">招待から参加するか、パーティーでフレンドを誘ってロビーに入ってください</p>
+        <div className="flex flex-col gap-2 w-full max-w-xs">
+          <button onClick={() => router.push('/party/invites')} className="py-3 rounded-xl bg-amber-600 text-white font-bold">
+            招待を確認する
+          </button>
+          <button onClick={() => router.push('/party')} className="py-3 rounded-xl border border-slate-600 text-slate-300 font-medium">
+            パーティーモードへ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-400">ロビーを読み込み中...</p>
       </div>
     );
   }
@@ -171,47 +188,41 @@ export default function PartyLobbyPage() {
   const friendJoined = invite.status === 'accepted' && friendParty.length > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-600 to-blue-600 p-4">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center text-white mb-6">
-          <h1 className="text-4xl font-bold mb-2">🎭 パーティー ロビー</h1>
-          <p className="text-lg opacity-90">協力バトルの準備ができたらステージを選んで戦闘開始</p>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/20 rounded-full">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              リアルタイム同期
-            </span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
+      <div className="max-w-lg mx-auto">
+        <header className="mb-6">
+          <h1 className="text-xl font-bold text-white">パーティー ロビー</h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {isHost ? 'ステージを選んで「戦闘開始」で始められます' : 'ホストが開始するまでお待ちください'}
+          </p>
+          <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+            リアルタイム同期
+          </span>
+        </header>
 
         {/* パーティー表示 */}
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-              <span className="bg-amber-500 text-white px-2 py-0.5 rounded text-sm">ホスト</span>
-              {invite.host_name} のパーティー
-            </h3>
-            <div className="flex gap-3 flex-wrap">
+        <div className="space-y-4 mb-6">
+          <section className="rounded-xl border border-slate-600 bg-slate-800 p-4">
+            <h3 className="text-sm font-bold text-amber-400 mb-2">ホスト {invite.host_name}</h3>
+            <div className="flex gap-2 flex-wrap">
               {hostParty.map((m) => (
                 <div key={m.id} className="flex-shrink-0">
                   <MemberCard member={m} showStats={true} />
                 </div>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-              <span className="bg-cyan-500 text-white px-2 py-0.5 rounded text-sm">フレンド</span>
-              {invite.friend_name} のパーティー
+          <section className="rounded-xl border border-slate-600 bg-slate-800 p-4">
+            <h3 className="text-sm font-bold text-cyan-400 mb-2">
+              フレンド {invite.friend_name}
               {!friendJoined && (
-                <span className="text-amber-600 text-sm font-normal">
-                  参加待ち...（フレンドは「パーティの招待」から参加）
-                </span>
+                <span className="text-amber-400 font-normal text-xs ml-2">（参加待ち・招待から「参加する」で参加）</span>
               )}
             </h3>
             {friendJoined ? (
-              <div className="flex gap-3 flex-wrap">
+              <div className="flex gap-2 flex-wrap">
                 {friendParty.map((m, i) => (
                   <div key={m.id || i} className="flex-shrink-0">
                     <MemberCard member={m as Member} showStats={true} />
@@ -219,58 +230,58 @@ export default function PartyLobbyPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex gap-3 min-h-[100px] items-center justify-center border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
-                <p className="text-gray-500">フレンドが参加するまでお待ちください</p>
+              <div className="min-h-[80px] flex items-center justify-center border-2 border-dashed border-slate-600 rounded-lg bg-slate-700/30">
+                <p className="text-slate-500 text-sm">フレンドの参加を待っています</p>
               </div>
             )}
-          </div>
+          </section>
         </div>
 
-        {/* ステージ選択 */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
-          <h2 className="text-xl font-bold mb-4">ステージを選ぶ</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-h-60 overflow-y-auto">
+        {/* ステージ選択（ホスト用） */}
+        <section className="rounded-xl border border-slate-600 bg-slate-800 p-4 mb-6">
+          <h2 className="font-bold text-white mb-3">ステージを選ぶ</h2>
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
             {stages.map((stage) => (
               <button
                 key={stage.id}
                 onClick={() => setSelectedStageId(stage.id)}
-                className={`p-4 rounded-xl text-left font-bold transition border-2 ${
+                className={`p-3 rounded-xl text-left text-sm transition border-2 ${
                   selectedStageId === stage.id
-                    ? 'border-cyan-500 bg-cyan-50 ring-2 ring-cyan-400'
-                    : 'border-gray-200 hover:border-cyan-300 bg-gray-50'
+                    ? 'border-cyan-500 bg-cyan-500/20 text-white'
+                    : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500'
                 }`}
               >
-                <div className="text-sm text-gray-600">ステージ{stage.stage_order}</div>
-                <div className="truncate">{stage.name}</div>
-                <div className="text-xs text-orange-600 mt-1">推奨Lv.{stage.recommended_level}</div>
+                <span className="text-slate-400 text-xs">ステージ{stage.stage_order}</span>
+                <p className="truncate font-medium">{stage.name}</p>
+                <p className="text-xs text-orange-400 mt-0.5">推奨Lv.{stage.recommended_level}</p>
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* アクション */}
-        <div className="flex flex-wrap gap-4 justify-center">
+        <div className="space-y-3">
           {isHost ? (
             <>
               <button
                 onClick={startBattle}
                 disabled={!friendJoined || !selectedStageId}
-                className="px-12 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-bold text-xl disabled:opacity-50 hover:opacity-90 shadow-lg"
+                className="w-full py-3 rounded-xl bg-cyan-600 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition"
               >
                 戦闘開始！
               </button>
               {!friendJoined && (
-                <p className="text-amber-600 font-bold py-4">フレンドの参加を待っています...</p>
+                <p className="text-amber-400 text-sm text-center">フレンドが「招待を確認」→「参加する」で参加すると開始できます</p>
               )}
             </>
           ) : (
-            <div className="bg-white/20 rounded-xl px-8 py-4 text-white">
-              <p className="font-bold">ホストがステージを選んで戦闘を開始するまでお待ちください</p>
+            <div className="rounded-xl border border-slate-600 bg-slate-800 p-4 text-center">
+              <p className="text-slate-300 text-sm">ホストがステージを選んで「戦闘開始」を押すと始まります</p>
             </div>
           )}
           <button
             onClick={() => router.push('/party')}
-            className="px-6 py-4 bg-gray-500 text-white rounded-xl font-bold hover:bg-gray-600"
+            className="w-full py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-400 text-sm font-medium"
           >
             ロビーを出る
           </button>

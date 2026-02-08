@@ -9,11 +9,17 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { Member } from '@/types/adventure';
-import MemberCard from '@/components/adventure/MemberCard';
+import PartySlotCard from '@/components/party/PartySlotCard';
 
 interface FriendOption {
   friend_id: string;
   display_name: string;
+}
+
+interface PartyInviteSummary {
+  id: string;
+  host_name: string;
+  status: string;
 }
 
 export default function PartyPage() {
@@ -24,7 +30,11 @@ export default function PartyPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [friends, setFriends] = useState<FriendOption[]>([]);
   const [invitingFriendId, setInvitingFriendId] = useState<string | null>(null);
+  const [partyInvites, setPartyInvites] = useState<PartyInviteSummary[]>([]);
   const router = useRouter();
+
+  const pendingCount = partyInvites.filter(i => i.status === 'pending').length;
+  const acceptedInvites = partyInvites.filter(i => i.status === 'accepted');
 
   useEffect(() => {
     loadData();
@@ -37,9 +47,14 @@ export default function PartyPage() {
       return;
     }
 
-    const [profileResult, membersResult] = await Promise.all([
+    const [profileResult, membersResult, inviteResult] = await Promise.all([
       supabase.from('profiles').select('role').eq('user_id', user.id).maybeSingle(),
-      supabase.from('user_members').select('*').eq('user_id', user.id).order('level', { ascending: false })
+      supabase.from('user_members').select('*').eq('user_id', user.id).order('level', { ascending: false }),
+      supabase
+        .from('adventure_invites')
+        .select('id, host_id, status, invite_mode')
+        .eq('friend_id', user.id)
+        .in('status', ['pending', 'accepted'])
     ]);
 
     setIsOwner(profileResult.data?.role === 'owner');
@@ -48,6 +63,21 @@ export default function PartyPage() {
       ? membersData
       : membersData.filter((m: Member) => m.rarity !== 'HST');
     setMembers(filtered);
+
+    const partyInviteRows = (inviteResult.data || []).filter((r: { invite_mode?: string }) => r.invite_mode === 'party');
+    if (partyInviteRows.length > 0) {
+      const hostIds = [...new Set(partyInviteRows.map((r: { host_id: string }) => r.host_id))];
+      const { data: profiles } = await supabase.from('profiles').select('user_id, display_name').in('user_id', hostIds);
+      const nameMap = new Map((profiles || []).map((p: { user_id: string; display_name: string }) => [p.user_id, p.display_name]));
+      setPartyInvites(partyInviteRows.map((r: { id: string; host_id: string; status: string }) => ({
+        id: r.id,
+        host_name: nameMap.get(r.host_id) || 'ホスト',
+        status: r.status
+      })));
+    } else {
+      setPartyInvites([]);
+    }
+
     setLoading(false);
   }
 
@@ -142,8 +172,8 @@ export default function PartyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center">
-        <p className="text-white text-xl">読み込み中...</p>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-300">読み込み中...</p>
       </div>
     );
   }
@@ -151,36 +181,79 @@ export default function PartyPage() {
   const filledCount = party.filter(m => m !== null).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-900/50 to-blue-900/50 p-4">
+    <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
       <div className="max-w-lg mx-auto">
-        <header className="text-center text-white mb-6">
-          <h1 className="text-2xl font-bold mb-1">🎭 パーティーモード</h1>
-          <p className="text-sm text-white/80">専用ステージに挑戦。フレンドを誘って協力バトル！</p>
+        <header className="mb-6">
+          <h1 className="text-xl font-bold text-white">パーティーモード</h1>
+          <p className="text-sm text-slate-400 mt-0.5">専用ステージに挑戦。フレンドを誘って協力バトル</p>
         </header>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4 backdrop-blur-sm">
-          <h2 className="font-bold text-white mb-3">パーティー編成 ({filledCount}/3)</h2>
-          <div className="flex gap-2 mb-4 border-2 border-dashed border-white/20 rounded-xl p-3 min-h-[100px]">
+        {/* 招待が届いているときのバナー */}
+        {pendingCount > 0 && (
+          <div className="mb-4 rounded-xl bg-amber-500/20 border border-amber-500/50 p-4">
+            <p className="font-bold text-amber-300">
+              📬 {pendingCount}件のパーティ招待が届いています
+            </p>
+            <p className="text-slate-300 text-sm mt-1">パーティを選んで「参加する」でロビーに入れます</p>
+            <button
+              onClick={() => router.push('/party/invites')}
+              className="mt-3 w-full py-2.5 rounded-xl bg-amber-500 text-white font-bold active:scale-[0.98] transition"
+            >
+              招待を確認する →
+            </button>
+          </div>
+        )}
+
+        {/* 参加済みの招待 → ロビーに入る */}
+        {acceptedInvites.length > 0 && (
+          <div className="mb-4 rounded-xl bg-cyan-500/20 border border-cyan-500/50 p-4">
+            <p className="font-bold text-cyan-300">ロビーに参加中</p>
+            <p className="text-slate-300 text-sm mt-1">ホストがステージを選ぶと戦闘開始できます</p>
+            <div className="mt-3 flex flex-col gap-2">
+              {acceptedInvites.map((inv) => (
+                <button
+                  key={inv.id}
+                  onClick={() => router.push(`/party/lobby?invite_id=${inv.id}`)}
+                  className="w-full py-2.5 rounded-xl bg-cyan-600 text-white font-bold active:scale-[0.98] transition"
+                >
+                  {inv.host_name} のロビーに入る
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 編成スロット */}
+        <section className="mb-6">
+          <p className="text-sm font-medium text-slate-300 mb-2">
+            編成 <span className="text-cyan-400 font-bold">{filledCount}/3</span>
+          </p>
+          <div className="grid grid-cols-3 gap-2">
             {party.map((m, i) => (
-              <div key={i} className="flex-1 min-w-0">
+              <div key={i} className="min-w-0">
                 {m ? (
-                  <div onClick={() => addToParty(m)} className="cursor-pointer">
-                    <MemberCard member={m} showStats={true} />
-                    <p className="text-center text-xs text-gray-400 mt-1">タップで外す</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addToParty(m)}
+                    className="w-full text-left rounded-xl border-2 border-cyan-500/50 bg-slate-800/90 shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition"
+                  >
+                    <PartySlotCard member={m} size="slot" />
+                    <p className="text-center text-[10px] text-slate-500 py-1">タップで外す</p>
+                  </button>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 border-2 border-dashed border-white/20 rounded-lg text-sm">
-                    空き
+                  <div className="rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/50 min-h-[140px] flex flex-col items-center justify-center text-slate-500 text-sm">
+                    <span className="text-2xl mb-1">＋</span>
+                    <span>空き</span>
                   </div>
                 )}
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-4">
             <button
               onClick={startParty}
               disabled={filledCount === 0}
-              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold disabled:opacity-50 active:scale-[0.98] transition"
+              className="flex-1 py-3 rounded-xl bg-cyan-600 text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition"
             >
               ステージを選ぶ
             </button>
@@ -190,23 +263,23 @@ export default function PartyPage() {
                 await loadFriends();
               }}
               disabled={filledCount === 0}
-              className="px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold disabled:opacity-50 active:scale-[0.98] transition"
+              className="px-5 py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition"
               title="フレンドを誘って協力バトル"
             >
-              👥 誘う
+              誘う
             </button>
           </div>
-        </div>
+        </section>
 
         {showInviteModal && (
-          <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center z-50 p-4">
-            <div className="rounded-2xl border border-white/10 bg-black/95 backdrop-blur-md p-6 max-w-md w-full shadow-2xl max-h-[85vh] overflow-hidden flex flex-col">
-              <h3 className="text-xl font-bold mb-2 text-center text-white">👥 フレンドを誘う</h3>
-              <p className="text-sm text-gray-400 text-center mb-4">招待するフレンドを選んでください</p>
+          <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-4">
+            <div className="rounded-2xl bg-slate-800 border border-slate-600 p-5 max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-xl">
+              <h3 className="text-lg font-bold text-white mb-1">フレンドを誘う</h3>
+              <p className="text-sm text-slate-400 mb-4">招待するフレンドを選んでください</p>
               {friends.length === 0 ? (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 mb-4">
-                  <p className="text-amber-400 font-bold">フレンドがいません</p>
-                  <p className="text-amber-300/80 text-sm mt-1">フレンド申請を送ってから誘ってください。</p>
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 mb-4">
+                  <p className="text-amber-400 font-bold text-sm">フレンドがいません</p>
+                  <p className="text-slate-400 text-xs mt-1">フレンド申請を送ってから誘ってください。</p>
                 </div>
               ) : (
                 <div className="space-y-2 flex-1 overflow-y-auto mb-4">
@@ -215,16 +288,16 @@ export default function PartyPage() {
                       key={f.friend_id}
                       onClick={() => inviteFriend(f.friend_id)}
                       disabled={!!invitingFriendId}
-                      className="w-full p-4 text-left rounded-2xl border border-white/10 bg-white/5 flex items-center gap-3 font-bold text-white active:scale-[0.98] transition"
+                      className="w-full p-3 text-left rounded-xl border border-slate-600 bg-slate-700/50 flex items-center gap-3 text-white active:scale-[0.98] transition"
                     >
-                      <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg bg-gradient-to-br from-cyan-400 to-blue-500">
+                      <span className="w-9 h-9 rounded-full flex items-center justify-center bg-cyan-600 text-sm font-bold">
                         {(f.display_name || '?').charAt(0)}
                       </span>
-                      <span className="flex-1 truncate">{f.display_name || '名前なし'}</span>
+                      <span className="flex-1 truncate text-sm font-medium">{f.display_name || '名前なし'}</span>
                       {invitingFriendId === f.friend_id ? (
-                        <span className="text-cyan-400 text-sm animate-pulse">送信中...</span>
+                        <span className="text-cyan-400 text-xs animate-pulse">送信中...</span>
                       ) : (
-                        <span className="text-cyan-400 text-sm">→ 招待</span>
+                        <span className="text-cyan-400 text-xs">招待</span>
                       )}
                     </button>
                   ))}
@@ -232,7 +305,7 @@ export default function PartyPage() {
               )}
               <button
                 onClick={() => setShowInviteModal(false)}
-                className="w-full py-3 rounded-2xl bg-white/10 text-white font-bold border border-white/10 active:scale-[0.98] transition"
+                className="w-full py-2.5 rounded-xl bg-slate-700 text-slate-200 text-sm font-medium border border-slate-600 active:scale-[0.98] transition"
               >
                 閉じる
               </button>
@@ -240,25 +313,43 @@ export default function PartyPage() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-          <h2 className="font-bold text-white mb-3">所持メンバー</h2>
-          <div className="flex flex-wrap gap-3">
-            {members.map((m) => (
-              <div
-                key={m.id}
-                onClick={() => addToParty(m)}
-                className={`cursor-pointer rounded-xl transition ${party.some(p => p?.id === m.id) ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-transparent' : ''}`}
-              >
-                <MemberCard member={m} showStats={true} />
-              </div>
-            ))}
+        {/* 所持メンバー */}
+        <section>
+          <p className="text-sm font-medium text-slate-300 mb-2">メンバーから選ぶ</p>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {members.map((m) => {
+              const inParty = party.some(p => p?.id === m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => addToParty(m)}
+                  className={`min-w-0 rounded-xl text-left transition active:scale-[0.98] ${
+                    inParty
+                      ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900 bg-slate-800'
+                      : 'border border-slate-600 bg-slate-800/80 hover:border-slate-500'
+                  }`}
+                >
+                  <PartySlotCard member={m} size="list" />
+                </button>
+              );
+            })}
           </div>
-          {members.length === 0 && <p className="text-gray-500">メンバーがいません。ガチャでメンバーを増やしましょう。</p>}
-        </div>
+          {members.length === 0 && (
+            <p className="text-slate-500 text-sm py-4 text-center">メンバーがいません。ガチャで増やしましょう。</p>
+          )}
+        </section>
 
-        <div className="mt-4 flex gap-3">
-          <button onClick={() => router.push('/party/invites')} className="flex-1 py-2 rounded-xl border border-white/20 bg-white/5 text-white text-sm font-bold active:scale-[0.98] transition">
-            📬 招待を見る
+        <div className="mt-6">
+          <button
+            onClick={() => router.push('/party/invites')}
+            className={`w-full py-2.5 rounded-xl border text-sm font-medium active:scale-[0.98] transition ${
+              pendingCount > 0
+                ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
+                : 'border-slate-600 bg-slate-800 text-slate-300'
+            }`}
+          >
+            {pendingCount > 0 ? `📬 招待を見る（${pendingCount}件）` : '招待を見る'}
           </button>
         </div>
       </div>

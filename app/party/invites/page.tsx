@@ -81,8 +81,8 @@ export default function PartyInvitesPage() {
 
   async function acceptInvite(inviteId: string) {
     const filled = selectedParty.filter(m => m !== null);
-    if (filled.length !== 3) {
-      alert('パーティを3体で組んでください');
+    if (filled.length === 0) {
+      alert('パーティに1体以上選んでください');
       return;
     }
     setAcceptingId(inviteId);
@@ -113,57 +113,67 @@ export default function PartyInvitesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center">
-        <div className="text-white text-xl">読み込み中...</div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-400">読み込み中...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-600 to-blue-600 p-4">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-2 text-center">👥 パーティの招待</h1>
-        <p className="text-white/80 text-center mb-6">フレンドから届いたパーティーモードの招待です</p>
+    <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
+      <div className="max-w-lg mx-auto">
+        <header className="mb-6">
+          <h1 className="text-xl font-bold text-white">パーティの招待</h1>
+          <p className="text-sm text-slate-400 mt-0.5">フレンドから届いた協力プレイの招待です。参加するとロビーに入れます</p>
+        </header>
 
         {invites.length === 0 ? (
-          <div className="bg-white/10 backdrop-blur rounded-2xl p-12 text-center border-2 border-white/20">
-            <p className="text-white/90 mb-4">現在、招待はありません。</p>
-            <button onClick={() => router.push('/party')} className="text-white underline font-bold">パーティーモードに戻る</button>
+          <div className="rounded-xl border border-slate-600 bg-slate-800/80 p-8 text-center">
+            <p className="text-slate-400 mb-4">現在、招待はありません。</p>
+            <button onClick={() => router.push('/party')} className="text-cyan-400 font-bold">← パーティーモードに戻る</button>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {invites.map(inv => (
-              <div key={inv.id} className="bg-white rounded-2xl p-6 shadow-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">{inv.host_name} から招待</h2>
-                  <span className={`px-3 py-1 rounded-full text-sm ${inv.status === 'accepted' ? 'bg-green-500/30 text-green-700' : 'bg-amber-500/30 text-amber-700'}`}>
+              <div key={inv.id} className="rounded-xl border border-slate-600 bg-slate-800 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-bold text-white">{inv.host_name} から招待</h2>
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${inv.status === 'accepted' ? 'bg-green-500/30 text-green-300' : 'bg-amber-500/30 text-amber-300'}`}>
                     {inv.status === 'accepted' ? '参加済み' : '未参加'}
                   </span>
                 </div>
-                {inv.status === 'pending' && (
+
+                {inv.status === 'accepted' ? (
+                  <button
+                    onClick={() => router.push(`/party/lobby?invite_id=${inv.id}`)}
+                    className="w-full py-3 rounded-xl bg-cyan-600 text-white font-bold active:scale-[0.98] transition"
+                  >
+                    ロビーに入る
+                  </button>
+                ) : (
                   <>
-                    <p className="text-gray-600 mb-4">あなたのパーティを3体選んで参加してください</p>
-                    <div className="grid grid-cols-3 gap-2 mb-4">
+                    <p className="text-slate-400 text-sm mb-3">1〜3体選んで「参加する」を押すとロビーに入れます</p>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
                       {[0, 1, 2].map(i => (
-                        <div key={i} className="border-2 border-dashed border-cyan-300 rounded-lg p-2 min-h-[140px] flex items-center justify-center bg-cyan-50">
+                        <div key={i} className="border-2 border-dashed border-slate-500 rounded-lg p-2 min-h-[100px] flex items-center justify-center bg-slate-700/50">
                           {selectedParty[i] ? (
-                            <div className="relative">
+                            <div className="relative w-full">
                               <MemberCard member={selectedParty[i]!} selected={true} showStats={false} />
                               <button
                                 type="button"
                                 onClick={() => setSelectedParty(prev => prev.map((m, j) => j === i ? null : m))}
-                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
+                                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
                               >
                                 ×
                               </button>
                             </div>
                           ) : (
-                            <span className="text-gray-500 text-sm">スロット{i + 1}</span>
+                            <span className="text-slate-500 text-xs">スロット{i + 1}</span>
                           )}
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-auto mb-4">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-40 overflow-auto mb-3">
                       {members.map(m => (
                         <div key={m.id} onClick={() => addToParty(m)} className="cursor-pointer">
                           <MemberCard member={m} selected={selectedParty.some(p => p?.id === m.id)} showStats={false} />
@@ -172,10 +182,10 @@ export default function PartyInvitesPage() {
                     </div>
                     <button
                       onClick={() => acceptInvite(inv.id)}
-                      disabled={selectedParty.filter(Boolean).length !== 3 || acceptingId === inv.id}
-                      className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-bold disabled:opacity-50 hover:opacity-90"
+                      disabled={selectedParty.filter(Boolean).length === 0 || acceptingId === inv.id}
+                      className="w-full py-3 rounded-xl bg-cyan-600 text-white font-bold disabled:opacity-50 active:scale-[0.98] transition"
                     >
-                      {acceptingId === inv.id ? '送信中...' : '参加する'}
+                      {acceptingId === inv.id ? '送信中...' : '参加する（ロビーへ）'}
                     </button>
                   </>
                 )}
@@ -184,8 +194,8 @@ export default function PartyInvitesPage() {
           </div>
         )}
 
-        <div className="text-center mt-8">
-          <button onClick={() => router.push('/party')} className="bg-white/20 text-white border-2 border-white px-8 py-3 rounded-lg font-bold hover:bg-white/30">
+        <div className="mt-6">
+          <button onClick={() => router.push('/party')} className="w-full py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-300 text-sm font-medium">
             パーティーモードに戻る
           </button>
         </div>

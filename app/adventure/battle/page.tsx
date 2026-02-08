@@ -384,14 +384,16 @@ export default function BattlePage() {
         break;
 
       case 'hst_power':
-        // HSTパワー：強力な攻撃スキル（全敵にダメージ）
-        const hstPower = member.skill_power || 100;
+        // HSTパワー：全体攻撃スキル（全敵にダメージ・弱体化済み）
+        const hstPower = member.skill_power || 40;
         const newEnemies = [...enemies];
         let totalDamage = 0;
+        // 攻撃力の効き方を抑えめに（/100だと高攻撃で膨れすぎるため /400）
+        const hstMultiplier = 1 + member.attack / 400;
         
         newEnemies.forEach((enemy, idx) => {
           if (enemy.hp > 0) {
-            const damage = Math.floor(hstPower * (1 + member.attack / 100));
+            const damage = Math.floor(hstPower * hstMultiplier);
             newEnemies[idx].hp = Math.max(newEnemies[idx].hp - damage, 0);
             totalDamage += damage;
           }

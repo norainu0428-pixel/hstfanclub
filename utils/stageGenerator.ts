@@ -116,11 +116,12 @@ export function generateStageInfo(stage: number): StageInfo {
     
     // 推奨レベルに基づいてステータスを計算（敵はプレイヤーより明確に強く）
     // 通常敵は推奨レベルの140%、ボスは1.6倍×multiplier（かなり手強い）
+    // 攻撃・防御は2倍で手応えある難易度に
     const enemyPowerRatio = isBoss ? 1.6 * multiplier : 1.4;
     
     const hp = Math.floor(baseStats.hp * enemyPowerRatio);
-    const attack = Math.floor(baseStats.attack * enemyPowerRatio);
-    const defense = Math.floor(baseStats.defense * enemyPowerRatio);
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio * 2);
+    const defense = Math.floor(baseStats.defense * enemyPowerRatio * 2);
     const speed = Math.floor(baseStats.speed * enemyPowerRatio);
     
     // 経験値とポイント報酬（400ステージまで適切にスケール）
