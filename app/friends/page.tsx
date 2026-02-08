@@ -45,10 +45,10 @@ export default function FriendsPage() {
       r.user_id === user.id ? r.friend_id : r.user_id
     ))];
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, avatar_url, membership_tier, last_seen_at')
-      .in('user_id', friendIds);
+    // フレンドのプロフィールを RPC で取得（RLS をバイパス）
+    const { data: profiles } = await supabase.rpc('get_profiles_for_friends', {
+      p_friend_ids: friendIds
+    });
 
     const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name?: string; avatar_url?: string | null; membership_tier?: string; last_seen_at?: string }) => [p.user_id, p]));
 
@@ -56,7 +56,7 @@ export default function FriendsPage() {
       const p = profileMap.get(fid);
       return {
         friend_id: fid,
-        display_name: p?.display_name || '不明',
+        display_name: p?.display_name || 'ユーザー',
         avatar_url: p?.avatar_url ?? null,
         membership_tier: p?.membership_tier || 'free',
         is_online: isOnline(p?.last_seen_at ?? ''),
@@ -184,7 +184,7 @@ export default function FriendsPage() {
                         {friend.is_online ? (
                           <span className="text-orange-500">● オンライン</span>
                         ) : (
-                          <span>最終: {new Date(friend.last_seen_at).toLocaleString('ja-JP')}</span>
+                          <span>最終: {friend.last_seen_at ? new Date(friend.last_seen_at).toLocaleString('ja-JP') : '---'}</span>
                         )}
                       </div>
                     </div>

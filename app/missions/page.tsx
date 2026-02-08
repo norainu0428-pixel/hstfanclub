@@ -115,6 +115,31 @@ export default function MissionsPage() {
     }
   }
 
+  async function handleClaimAllRewards() {
+    const claimable = missions.filter(m => m.completed && !m.claimed);
+    if (claimable.length === 0) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    let totalPoints = 0;
+    let totalExp = 0;
+    for (const progress of claimable) {
+      const result = await claimMissionReward(
+        user.id,
+        progress.id,
+        progress.mission.reward_points,
+        progress.mission.reward_exp
+      );
+      if (result.success) {
+        totalPoints += progress.mission.reward_points;
+        totalExp += progress.mission.reward_exp;
+      }
+    }
+    alert(`${claimable.length}件の報酬を受け取りました！\n💰 ${totalPoints}pt\n⭐ ${totalExp}EXP`);
+    await loadMissions();
+  }
+
   function getDifficultyColor(difficulty: string) {
     switch (difficulty) {
       case 'easy': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
@@ -155,6 +180,7 @@ export default function MissionsPage() {
   const completedCount = missions.filter(m => m.completed).length;
   const totalMissions = missions.length;
   const progressPercent = totalMissions > 0 ? (completedCount / totalMissions) * 100 : 0;
+  const claimableCount = missions.filter(m => m.completed && !m.claimed).length;
 
   return (
     <div className="min-h-screen bg-black p-4">
@@ -183,8 +209,18 @@ export default function MissionsPage() {
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="text-sm text-gray-300 mt-2 text-center">
-            {progressPercent.toFixed(0)}% 完了
+          <div className="flex items-center justify-between mt-4 gap-4">
+            <div className="text-sm text-gray-300">
+              {progressPercent.toFixed(0)}% 完了
+            </div>
+            {claimableCount > 0 && (
+              <button
+                onClick={handleClaimAllRewards}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg font-bold hover:scale-105 transition shadow-lg shadow-orange-500/30"
+              >
+                🎁 すべて受け取る（{claimableCount}件）
+              </button>
+            )}
           </div>
         </div>
 
