@@ -1,8 +1,8 @@
 'use client';
 /**
- * PvPランキング
- * 実装メモ: pvp_stats からレーティングTop100を取得。profiles は別クエリで display_name 取得（FK結合なしで表示安定）。
- * 自分の順位も表示。pvp_stats テーブルは supabase_pvp_stats.sql で作成。
+ * ランキング（最高到達ステージ）
+ * user_progress.current_stage で降順 Top100。自分の順位も表示。
+ * user_progress のランキング用 SELECT は supabase_ranking_stage.sql で許可。
  */
 
 import { useEffect, useState } from 'react';
@@ -13,11 +13,7 @@ interface RankingEntry {
   rank: number;
   user_id: string;
   display_name: string;
-  rating: number;
-  wins: number;
-  losses: number;
-  total_battles: number;
-  win_rate: number;
+  current_stage: number;
 }
 
 export default function RankingPage() {
@@ -33,21 +29,21 @@ export default function RankingPage() {
   async function loadRankings() {
     const { data: { user } } = await supabase.auth.getUser();
 
-    // トップ100取得（pvp_statsのみ、profilesは別途取得）
-    const { data: statsData, error: statsError } = await supabase
-      .from('pvp_stats')
-      .select('user_id, rating, wins, losses, total_battles')
-      .order('rating', { ascending: false })
+    // トップ100取得（最高到達ステージ = current_stage の降順）
+    const { data: progressData, error: progressError } = await supabase
+      .from('user_progress')
+      .select('user_id, current_stage')
+      .order('current_stage', { ascending: false })
       .limit(100);
 
-    if (statsError) {
-      console.error('ランキング取得エラー:', statsError);
+    if (progressError) {
+      console.error('ランキング取得エラー:', progressError);
       setLoading(false);
       return;
     }
 
-    if (statsData && statsData.length > 0) {
-      const userIds = [...new Set(statsData.map((s: any) => s.user_id))];
+    if (progressData && progressData.length > 0) {
+      const userIds = [...new Set(progressData.map((p: any) => p.user_id))];
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('user_id, display_name')
@@ -55,32 +51,27 @@ export default function RankingPage() {
 
       const nameMap = new Map((profilesData || []).map((p: any) => [p.user_id, p.display_name || '不明']));
 
-      const formatted: RankingEntry[] = statsData.map((entry: any, index) => ({
+      const formatted: RankingEntry[] = progressData.map((entry: any, index) => ({
         rank: index + 1,
         user_id: entry.user_id,
         display_name: nameMap.get(entry.user_id) || '不明',
-        rating: entry.rating || 1000,
-        wins: entry.wins || 0,
-        losses: entry.losses || 0,
-        total_battles: entry.total_battles || 0,
-        win_rate: entry.total_battles > 0 ? (entry.wins / entry.total_battles) * 100 : 0
+        current_stage: entry.current_stage ?? 1
       }));
 
       setRankings(formatted);
 
-      // 自分のランキング取得
       if (user) {
         const myEntry = formatted.find((e: RankingEntry) => e.user_id === user.id);
         if (myEntry) {
           setMyRanking(myEntry);
         } else {
-          const { data: myStats } = await supabase
-            .from('pvp_stats')
-            .select('user_id, rating, wins, losses, total_battles')
+          const { data: myProgress } = await supabase
+            .from('user_progress')
+            .select('user_id, current_stage')
             .eq('user_id', user.id)
             .maybeSingle();
 
-          if (myStats) {
+          if (myProgress) {
             const { data: myProfile } = await supabase
               .from('profiles')
               .select('display_name')
@@ -88,13 +79,9 @@ export default function RankingPage() {
               .maybeSingle();
             setMyRanking({
               rank: 0,
-              user_id: myStats.user_id,
+              user_id: myProgress.user_id,
               display_name: myProfile?.display_name || '不明',
-              rating: myStats.rating || 1000,
-              wins: myStats.wins || 0,
-              losses: myStats.losses || 0,
-              total_battles: myStats.total_battles || 0,
-              win_rate: myStats.total_battles > 0 ? (myStats.wins / myStats.total_battles) * 100 : 0
+              current_stage: myProgress.current_stage ?? 1
             });
           }
         }
@@ -124,7 +111,7 @@ export default function RankingPage() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">🏆 ランキング</h1>
-          <p className="text-lg opacity-90">レーティング Top 100</p>
+          <p className="text-lg opacity-90">最高到達ステージ Top 100</p>
         </div>
 
         {/* 自分のランキング */}
@@ -136,19 +123,9 @@ export default function RankingPage() {
                 {myRanking.rank > 0 ? getRankIcon(myRanking.rank) : 'ランク外'}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold">{myRanking.rating}</div>
-                <div className="text-xs opacity-90">レーティング</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{myRanking.wins}勝</div>
-                <div className="text-xs opacity-90">{myRanking.losses}敗</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{myRanking.win_rate.toFixed(1)}%</div>
-                <div className="text-xs opacity-90">勝率</div>
-              </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">ステージ {myRanking.current_stage}</div>
+              <div className="text-sm opacity-90">最高到達ステージ</div>
             </div>
           </div>
         )}
@@ -180,14 +157,12 @@ export default function RankingPage() {
                     </div>
                     <div>
                       <div className="font-bold text-lg">{entry.display_name}</div>
-                      <div className="text-sm text-gray-500">
-                        {entry.wins}勝 {entry.losses}敗（勝率 {entry.win_rate.toFixed(1)}%）
-                      </div>
+                      <div className="text-sm text-gray-500">ステージ {entry.current_stage} 到達</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-purple-600">{entry.rating}</div>
-                    <div className="text-xs text-gray-500">Rating</div>
+                    <div className="text-2xl font-bold text-purple-600">ステージ {entry.current_stage}</div>
+                    <div className="text-xs text-gray-500">最高到達</div>
                   </div>
                 </div>
               ))}

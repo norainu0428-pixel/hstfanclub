@@ -2,10 +2,14 @@
 -- フレンド名が「不明」になる問題の修正
 -- Supabase SQL Editorで実行してください
 -- ========================================
--- 原因: profiles の RLS で、フレンドのプロフィール行を SELECT できない
--- 対応: フレンド（friendships で accepted）のプロフィールを読めるポリシーを追加
+-- 原因: profiles の RLS で、他ユーザーのプロフィール行を SELECT できない
+-- 対応:
+--   1) フレンドのプロフィールを読めるポリシー（一覧・対戦など）
+--   2) ログイン済みユーザーが他ユーザーのプロフィールを読めるポリシー
+--      （プレイヤー検索・フレンド申請の送信者名表示に必要）
 -- ========================================
 
+-- 1. フレンドのプロフィールを閲覧可能
 DROP POLICY IF EXISTS "Users can view friends profiles" ON profiles;
 CREATE POLICY "Users can view friends profiles" ON profiles
   FOR SELECT USING (
@@ -18,5 +22,10 @@ CREATE POLICY "Users can view friends profiles" ON profiles
         )
     )
   );
+
+-- 2. ログイン済みなら他ユーザーのプロフィールを読める（検索・申請一覧用）
+DROP POLICY IF EXISTS "Authenticated users can view profiles for search" ON profiles;
+CREATE POLICY "Authenticated users can view profiles for search" ON profiles
+  FOR SELECT USING (auth.uid() IS NOT NULL);
 
 SELECT '✅ フレンドの名前が表示されるようになりました' AS status;
