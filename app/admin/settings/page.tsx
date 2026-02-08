@@ -13,11 +13,18 @@ interface GachaRate {
   updated_at: string;
 }
 
+interface MaintenanceMode {
+  enabled: boolean;
+  message: string;
+}
+
 export default function SettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<GachaRate[]>([]);
   const [basicRates, setBasicRates] = useState<GachaRate[]>([]);
+  const [maintenance, setMaintenance] = useState<MaintenanceMode>({ enabled: false, message: '只今メンテナンス中です。しばらくお待ちください。' });
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -44,8 +51,35 @@ export default function SettingsPage() {
     }
 
     setIsAdmin(true);
-    await loadRates();
+    await Promise.all([loadRates(), loadMaintenance()]);
     setLoading(false);
+  }
+
+  async function loadMaintenance() {
+    const { data } = await supabase
+      .from('maintenance_mode')
+      .select('enabled, message')
+      .eq('id', 1)
+      .single();
+    if (data) {
+      setMaintenance({ enabled: data.enabled ?? false, message: data.message ?? '只今メンテナンス中です。しばらくお待ちください。' });
+    }
+  }
+
+  async function updateMaintenance(enabled: boolean, message?: string) {
+    setMaintenanceSaving(true);
+    const payload = {
+      enabled,
+      ...(message !== undefined && { message }),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await supabase.from('maintenance_mode').update(payload).eq('id', 1);
+    if (error) {
+      alert('更新に失敗しました: ' + error.message);
+    } else {
+      setMaintenance(prev => ({ ...prev, enabled, ...(message !== undefined && { message }) }));
+    }
+    setMaintenanceSaving(false);
   }
 
   async function loadRates() {
@@ -177,11 +211,37 @@ export default function SettingsPage() {
           <div className="bg-white rounded-xl p-6 shadow-lg text-gray-900">
             <h2 className="text-xl font-bold mb-4 text-gray-900">🔧 メンテナンスモード</h2>
             <p className="text-gray-700 mb-4">
-              メンテナンスモードの設定機能は今後実装予定です。
+              メンテナンスモードを有効にすると、一般ユーザー（オーナー・スタッフ以外）は /maintenance にリダイレクトされます。
             </p>
+            <div className="flex items-center gap-4 mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={maintenance.enabled}
+                  onChange={(e) => updateMaintenance(e.target.checked)}
+                  disabled={maintenanceSaving}
+                  className="rounded border-gray-300"
+                />
+                <span className="font-bold text-gray-900">メンテナンスモードを有効にする</span>
+              </label>
+              {maintenance.enabled && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded font-bold text-sm">有効</span>
+              )}
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-bold mb-2 text-gray-900">表示メッセージ</label>
+              <textarea
+                value={maintenance.message}
+                onChange={(e) => setMaintenance(prev => ({ ...prev, message: e.target.value }))}
+                onBlur={(e) => updateMaintenance(maintenance.enabled, e.target.value)}
+                rows={3}
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
+                placeholder="只今メンテナンス中です。しばらくお待ちください。"
+              />
+            </div>
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                メンテナンスモードを有効にすると、一般ユーザーはサイトにアクセスできなくなります。
+                オーナーとスタッフはメンテナンス中も通常通りアクセスできます。
               </p>
             </div>
           </div>
