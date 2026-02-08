@@ -30,7 +30,7 @@ export interface Member {
   talent_value?: number;
 }
 
-export type EnemySkillType = 'heal' | 'revive' | 'attack_boost' | null;
+export type EnemySkillType = 'heal' | 'revive' | 'attack_boost' | 'defense_boost' | null;
 
 export interface Enemy {
   id?: string;

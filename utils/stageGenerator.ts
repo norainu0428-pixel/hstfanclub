@@ -167,9 +167,10 @@ export function generateStageInfo(stage: number): StageInfo {
     let skill_power = 0;
     if (stage >= 60 && isBoss) {
       const bossSkills: { type: EnemySkillType; power: number }[] = [
-        { type: 'heal', power: Math.floor(hp * 0.3) },           // 自分or味方のHP30%回復
-        { type: 'revive', power: Math.floor(hp * 0.5) },          // 倒れた味方を50%HPで蘇生
-        { type: 'attack_boost', power: Math.floor(attack * 0.5) } // 攻撃力50%上昇
+        { type: 'heal', power: Math.floor(hp * 0.3) },              // 自分or味方のHP30%回復
+        { type: 'revive', power: Math.floor(hp * 0.5) },            // 倒れた味方を50%HPで蘇生
+        { type: 'attack_boost', power: Math.floor(attack * 0.5) },  // 攻撃力50%上昇
+        { type: 'defense_boost', power: Math.floor(defense * 0.5) } // 防御力50%上昇
       ];
       const skillIndex = stage % bossSkills.length;
       skill_type = bossSkills[skillIndex].type;
@@ -233,7 +234,8 @@ function generateExtraStageInfo(extraStageNum: number): StageInfo {
   const bossSkills: { type: EnemySkillType; power: number }[] = [
     { type: 'heal', power: Math.floor(hp * 0.3) },
     { type: 'revive', power: Math.floor(hp * 0.5) },
-    { type: 'attack_boost', power: Math.floor(attack * 0.5) }
+    { type: 'attack_boost', power: Math.floor(attack * 0.5) },
+    { type: 'defense_boost', power: Math.floor(defense * 0.5) }
   ];
   const skillIndex = extraStageNum % bossSkills.length;
   const { type: skill_type, power: skill_power } = bossSkills[skillIndex];

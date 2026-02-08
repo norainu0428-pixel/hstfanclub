@@ -40,6 +40,7 @@ function BattleContent() {
   const [defenseBoost, setDefenseBoost] = useState<{ [key: string]: number }>({}); // 防御力ブースト（次の被ダメージまで）
   const [enemySkillCooldown, setEnemySkillCooldown] = useState<{ [key: string]: number }>({});
   const [enemyAttackBoost, setEnemyAttackBoost] = useState<{ [key: string]: number }>({});
+  const [enemyDefenseBoost, setEnemyDefenseBoost] = useState<{ [key: string]: number }>({});
   const enemiesRef = useRef<Enemy[]>([]);
   const [originalHp, setOriginalHp] = useState<{ [key: string]: number }>({}); // バトル開始時のHP（復元用）
   const [loading, setLoading] = useState(true);
@@ -422,16 +423,23 @@ function BattleContent() {
 
     setIsPlayerTurn(false);
 
-    // ダメージ計算（攻撃力ブーストを適用）
+    // ダメージ計算（攻撃力ブースト・敵の防御力ブーストを適用）
     const attackBoostAmount = attackBoost[member.id] || 0;
     const boostedAttack = member.attack + attackBoostAmount;
-    const damage = calculateDamage(boostedAttack, enemy.defense);
+    const defenseBoostAmount = enemy.id ? (enemyDefenseBoost[enemy.id] || 0) : 0;
+    const effectiveDefense = enemy.defense + defenseBoostAmount;
+    const damage = calculateDamage(boostedAttack, effectiveDefense);
 
-    // 攻撃力ブーストを消費（使用後は削除）
+    // 攻撃力ブースト・敵の防御力ブーストを消費（使用後は削除）
     if (attackBoost[member.id]) {
       const newAttackBoost = { ...attackBoost };
       delete newAttackBoost[member.id];
       setAttackBoost(newAttackBoost);
+    }
+    if (enemy.id && enemyDefenseBoost[enemy.id]) {
+      const newEnemyDefenseBoost = { ...enemyDefenseBoost };
+      delete newEnemyDefenseBoost[enemy.id];
+      setEnemyDefenseBoost(newEnemyDefenseBoost);
     }
 
     // 敵のHP減少
@@ -440,7 +448,8 @@ function BattleContent() {
     setEnemies(newEnemies);
 
     const boostText = attackBoostAmount > 0 ? `（攻撃力+${attackBoostAmount}）` : '';
-    addLog(`${member.member_emoji} ${member.member_name}の攻撃${boostText}！ ${enemy.emoji} ${enemy.name}に${damage}ダメージ！`);
+    const enemyDefText = defenseBoostAmount > 0 ? `（防御力+${defenseBoostAmount}で軽減）` : '';
+    addLog(`${member.member_emoji} ${member.member_name}の攻撃${boostText}！ ${enemy.emoji} ${enemy.name}${enemyDefText}に${damage}ダメージ！`);
 
     // 敵全滅チェック
     if (newEnemies.every(e => e.hp <= 0)) {
@@ -535,6 +544,7 @@ function BattleContent() {
           if (enemy.skill_type === 'revive' && deadEnemies.length > 0) useSkill = Math.random() < 0.6;
           else if (enemy.skill_type === 'heal' && damagedEnemies.length > 0) useSkill = Math.random() < 0.5;
           else if (enemy.skill_type === 'attack_boost') useSkill = Math.random() < 0.5;
+          else if (enemy.skill_type === 'defense_boost') useSkill = Math.random() < 0.5;
         }
 
         if (useSkill) {
@@ -560,6 +570,9 @@ function BattleContent() {
           } else if (enemy.skill_type === 'attack_boost') {
             setEnemyAttackBoost(prev => ({ ...prev, [enemy.id!]: enemy.skill_power || 0 }));
             addLog(`${enemy.emoji} ${enemy.name}が攻撃力上昇を発動！ 次の攻撃が強化される！`);
+          } else if (enemy.skill_type === 'defense_boost') {
+            setEnemyDefenseBoost(prev => ({ ...prev, [enemy.id!]: enemy.skill_power || 0 }));
+            addLog(`${enemy.emoji} ${enemy.name}が防御力上昇を発動！ 次の被ダメージが軽減される！`);
           }
           setTimeout(() => processEnemyAttack(enemyIndex + 1), 500);
         } else {
