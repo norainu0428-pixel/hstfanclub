@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getSkillName } from '@/utils/skills';
+import { getPlateImageUrl } from '@/utils/plateImage';
+import { getRarityLabel, getRarityShortLabel, getRarityLabelWithEmoji, getRarityColorClass, getRarityBorderColor } from '@/utils/rarity';
 
 type Rarity = 'HST' | 'stary' | 'common' | 'rare' | 'super-rare' | 'ultra-rare' | 'legendary';
 
@@ -193,7 +196,7 @@ export default function PremiumGachaPage() {
     initialize();
   }, []);
 
-  // ガチャ確率読み込み
+  // ガチャ確率読み込み（NaN対策: SupabaseのNUMERIC型が文字列で返る場合がある）
   async function loadGachaRates() {
     try {
       const { data } = await supabase
@@ -203,9 +206,11 @@ export default function PremiumGachaPage() {
       if (data && data.length > 0) {
         const ratesMap: any = {};
         data.forEach(rate => {
+          const single = Number(rate.rate);
+          const ten = Number(rate.ten_pull_rate);
           ratesMap[rate.rarity] = {
-            single: parseFloat(rate.rate),
-            ten: parseFloat(rate.ten_pull_rate)
+            single: Number.isFinite(single) ? single : 0,
+            ten: Number.isFinite(ten) ? ten : 0
           };
         });
         setGachaRates(ratesMap);
@@ -218,23 +223,41 @@ export default function PremiumGachaPage() {
 
   // ガチャ実行（共通処理）
   async function performGacha(guaranteedRare: boolean): Promise<GachaResult> {
-    const rates = guaranteedRare ? 
-      (gachaRates ? {
-        stary: gachaRates['stary']?.ten || DEFAULT_RATES.ten.stary,
-        legendary: gachaRates['legendary']?.ten || DEFAULT_RATES.ten.legendary,
-        'ultra-rare': gachaRates['ultra-rare']?.ten || DEFAULT_RATES.ten['ultra-rare'],
-        'super-rare': gachaRates['super-rare']?.ten || DEFAULT_RATES.ten['super-rare'],
-        rare: gachaRates['rare']?.ten || DEFAULT_RATES.ten.rare,
+    let rates: Record<string, number>;
+    if (guaranteedRare) {
+      rates = gachaRates ? {
+        stary: gachaRates['stary']?.ten ?? DEFAULT_RATES.ten.stary,
+        legendary: gachaRates['legendary']?.ten ?? DEFAULT_RATES.ten.legendary,
+        'ultra-rare': gachaRates['ultra-rare']?.ten ?? DEFAULT_RATES.ten['ultra-rare'],
+        'super-rare': gachaRates['super-rare']?.ten ?? DEFAULT_RATES.ten['super-rare'],
+        rare: gachaRates['rare']?.ten ?? DEFAULT_RATES.ten.rare,
         common: 0
-      } : DEFAULT_RATES.ten) :
-      (gachaRates ? {
-        stary: gachaRates['stary']?.single || DEFAULT_RATES.single.stary,
-        legendary: gachaRates['legendary']?.single || DEFAULT_RATES.single.legendary,
-        'ultra-rare': gachaRates['ultra-rare']?.single || DEFAULT_RATES.single['ultra-rare'],
-        'super-rare': gachaRates['super-rare']?.single || DEFAULT_RATES.single['super-rare'],
-        rare: gachaRates['rare']?.single || DEFAULT_RATES.single.rare,
-        common: gachaRates['common']?.single || DEFAULT_RATES.single.common
-      } : DEFAULT_RATES.single);
+      } : { ...DEFAULT_RATES.ten };
+    } else {
+      rates = gachaRates ? {
+        stary: gachaRates['stary']?.single ?? DEFAULT_RATES.single.stary,
+        legendary: gachaRates['legendary']?.single ?? DEFAULT_RATES.single.legendary,
+        'ultra-rare': gachaRates['ultra-rare']?.single ?? DEFAULT_RATES.single['ultra-rare'],
+        'super-rare': gachaRates['super-rare']?.single ?? DEFAULT_RATES.single['super-rare'],
+        rare: gachaRates['rare']?.single ?? DEFAULT_RATES.single.rare,
+        common: gachaRates['common']?.single ?? DEFAULT_RATES.single.common
+      } : { ...DEFAULT_RATES.single };
+    }
+    // NaN対策: 各確率を0以上に正規化
+    const safe = (v: number) => (Number.isFinite(v) && v >= 0 ? v : 0);
+    rates = {
+      stary: safe(rates.stary),
+      legendary: safe(rates.legendary),
+      'ultra-rare': safe(rates['ultra-rare']),
+      'super-rare': safe(rates['super-rare']),
+      rare: safe(rates.rare),
+      common: safe(rates.common)
+    };
+    // 合計が0の場合はデフォルト確率を使用
+    const total = rates.stary + rates.legendary + rates['ultra-rare'] + rates['super-rare'] + rates.rare + rates.common;
+    if (total <= 0) {
+      rates = guaranteedRare ? { ...DEFAULT_RATES.ten } : { ...DEFAULT_RATES.single };
+    }
 
     const random = Math.random() * 100;
     let cumulative = 0;
@@ -267,32 +290,6 @@ export default function PremiumGachaPage() {
     return { rarity, member };
   }
 
-  // ヘルパー関数
-  function getRarityBorderColor(rarity: Rarity): string {
-    const colors: any = {
-      'HST': '#f59e0b',
-      'stary': '#ec4899',
-      'legendary': '#f59e0b',
-      'ultra-rare': '#a855f7',
-      'super-rare': '#8b5cf6',
-      'rare': '#3b82f6',
-      'common': '#6b7280'
-    };
-    return colors[rarity] || '#6b7280';
-  }
-
-  function getRarityShortName(rarity: Rarity): string {
-    const names: any = {
-      'HST': 'HST',
-      'stary': 'STARY',
-      'legendary': 'L',
-      'ultra-rare': 'UR',
-      'super-rare': 'SR',
-      'rare': 'R',
-      'common': 'C'
-    };
-    return names[rarity] || 'C';
-  }
 
   // 単発ガチャ
   const spinSingleGacha = async () => {
@@ -409,41 +406,10 @@ export default function PremiumGachaPage() {
     }
   };
 
-  // レアリティの色
+  // レアリティの色（共通ユーティリティ使用）
   const getRarityColor = (rarity: Rarity) => {
-    switch (rarity) {
-      case 'HST': return 'bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 animate-pulse';
-      case 'stary': return 'bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 animate-pulse';
-      case 'legendary': return 'bg-gradient-to-r from-yellow-400 to-orange-500';
-      case 'ultra-rare': return 'bg-gradient-to-r from-purple-500 to-pink-500';
-      case 'super-rare': return 'bg-purple-500';
-      case 'rare': return 'bg-blue-500';
-      case 'common': return 'bg-gray-400';
-    }
-  };
-
-  const getRarityBorder = (rarity: Rarity) => {
-    switch (rarity) {
-      case 'HST': return 'border-yellow-400';
-      case 'stary': return 'border-pink-500';
-      case 'legendary': return 'border-yellow-500';
-      case 'ultra-rare': return 'border-purple-500';
-      case 'super-rare': return 'border-purple-400';
-      case 'rare': return 'border-blue-400';
-      case 'common': return 'border-gray-400';
-    }
-  };
-
-  const getRarityName = (rarity: Rarity) => {
-    switch (rarity) {
-      case 'HST': return '👑 HST';
-      case 'stary': return '🌠 STARY!!!';
-      case 'legendary': return 'レジェンド';
-      case 'ultra-rare': return 'ウルトラレア';
-      case 'super-rare': return 'スーパーレア';
-      case 'rare': return 'レア';
-      case 'common': return 'コモン';
-    }
+    const base = getRarityColorClass(rarity);
+    return (rarity === 'HST' || rarity === 'stary') ? `${base} animate-pulse` : base;
   };
 
   // 確率表示用
@@ -501,10 +467,14 @@ export default function PremiumGachaPage() {
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-8">
-          <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 px-6 py-2 rounded-full font-bold text-lg mb-4">
-            💎 プレミアム限定ガチャ
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 px-6 py-2 rounded-full font-bold text-lg mb-4">
+            <Image src="/icons/gacha-premium.svg" alt="" width={28} height={28} className="flex-shrink-0" />
+            プレミアム限定ガチャ
           </div>
-          <h1 className="text-4xl font-bold mb-2">HSTメンバーガチャ</h1>
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-3">
+            <Image src="/icons/gacha-premium.svg" alt="" width={48} height={48} />
+            HSTメンバーガチャ
+          </h1>
           <p className="text-lg opacity-90">推しメンバーを引き当てよう！</p>
         </div>
 
@@ -552,25 +522,57 @@ export default function PremiumGachaPage() {
             {pullType === 'single' ? (
               <>
                 {/* 単発ガチャUI */}
-                <div className={`w-32 h-32 mx-auto mb-6 rounded-full flex items-center justify-center text-6xl ${
+                <div className={`w-32 h-32 mx-auto mb-6 rounded-full flex items-center justify-center overflow-hidden ${
                   isSpinning ? 'animate-spin' : ''
                 } ${result ? getRarityColor(result.rarity) : 'bg-gradient-to-br from-gray-300 to-gray-400'} shadow-xl`}>
-                  {result ? result.member.emoji : '🎰'}
+                  {result ? (
+                    (() => {
+                      const imageUrl = getPlateImageUrl(result.member.name, result.rarity);
+                      return imageUrl ? (
+                        <Image src={imageUrl} alt={result.member.name} width={128} height={128} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-6xl">{result.member.emoji}</span>
+                      );
+                    })()
+                  ) : (
+                    <Image src="/icons/gacha-premium.svg" alt="ガチャ" width={80} height={80} className="opacity-90" />
+                  )}
                 </div>
 
                 {result && !isSpinning && (
                   <div className="mb-6 animate-fade-in">
-                    <div className={`inline-block px-6 py-3 rounded-full text-white font-bold text-xl mb-3 ${getRarityColor(result.rarity)}`}>
-                      {getRarityName(result.rarity)}
-                    </div>
-                    <div className="text-4xl mb-2">{result.member.emoji}</div>
-                    <div className="text-2xl font-bold mb-2">{result.member.name}</div>
-                    <div className="text-gray-600 mb-2">{result.member.description}</div>
-                    {result.member.skill_type && (
-                      <div className="mt-2 inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold">
-                        スキル: {getSkillName(result.member.skill_type)}
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-4 mx-auto max-w-sm"
+                         style={{ borderColor: getRarityBorderColor(result.rarity) }}>
+                      <div className="text-center text-sm font-bold text-gray-500 mb-3">🎉 当たり！</div>
+                      <div className={`inline-block px-6 py-3 rounded-full text-white font-bold text-xl mb-4 w-full text-center ${getRarityColor(result.rarity)}`}>
+                        {getRarityLabel(result.rarity)}
                       </div>
-                    )}
+                      {(() => {
+                        const imageUrl = getPlateImageUrl(result.member.name, result.rarity);
+                        return imageUrl ? (
+                          <div className="flex justify-center mb-4">
+                            <Image
+                              src={imageUrl}
+                              alt={result.member.name}
+                              width={120}
+                              height={120}
+                              className="w-28 h-28 object-cover rounded-xl shadow-lg"
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-6xl mb-4 text-center">{result.member.emoji}</div>
+                        );
+                      })()}
+                      <div className="text-2xl font-bold mb-2 text-center text-gray-900">{result.member.name}</div>
+                      <div className="text-gray-600 mb-3 text-center text-sm">{result.member.description}</div>
+                      {result.member.skill_type && (
+                        <div className="text-center">
+                          <span className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold">
+                            スキル: {getSkillName(result.member.skill_type)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -591,7 +593,10 @@ export default function PremiumGachaPage() {
               <>
                 {/* 10連ガチャUI */}
                 <div className="mb-6">
-                  <div className="text-4xl mb-4">🎰✨</div>
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Image src="/icons/gacha-premium.svg" alt="" width={48} height={48} />
+                    <span className="text-2xl">×10</span>
+                  </div>
                   <div className="text-2xl font-bold mb-2">10連ガチャ</div>
                   <div className="text-gray-600 mb-4">10回目はレア以上確定！</div>
                   
@@ -602,20 +607,38 @@ export default function PremiumGachaPage() {
                   )}
 
                   {tenPullResults.length > 0 && !isPulling && (
-                    <div className="grid grid-cols-5 gap-3 mb-6">
-                      {tenPullResults.map((result, index) => (
-                        <div
-                          key={index}
-                          className="p-3 rounded-lg border-2 bg-white shadow-lg"
-                          style={{ borderColor: getRarityBorderColor(result.rarity) }}
-                        >
-                          <div className="text-3xl mb-1">{result.member.emoji}</div>
-                          <div className="text-xs font-bold truncate">{result.member.name}</div>
-                          <div className={`text-xs px-2 py-1 rounded-full mt-1 ${getRarityColor(result.rarity)} text-white text-center`}>
-                            {getRarityShortName(result.rarity)}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="mb-6">
+                      <div className="text-lg font-bold text-gray-700 mb-4 text-center">🎊 獲得キャラクター</div>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                        {tenPullResults.map((result, index) => {
+                          const imageUrl = getPlateImageUrl(result.member.name, result.rarity);
+                          return (
+                            <div
+                              key={index}
+                              className="p-4 rounded-xl border-4 bg-white shadow-xl min-w-[110px]"
+                              style={{ borderColor: getRarityBorderColor(result.rarity) }}
+                            >
+                              {imageUrl ? (
+                                <div className="flex justify-center mb-2">
+                                  <Image
+                                    src={imageUrl}
+                                    alt={result.member.name}
+                                    width={64}
+                                    height={64}
+                                    className="w-16 h-16 object-cover rounded-lg"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="text-4xl mb-2 text-center">{result.member.emoji}</div>
+                              )}
+                              <div className="text-sm font-bold truncate text-center text-gray-900">{result.member.name}</div>
+                              <div className={`px-2 py-1 rounded-full mt-2 ${getRarityColor(result.rarity)} text-white text-center font-bold text-xs`}>
+                                {getRarityShortLabel(result.rarity)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -639,40 +662,41 @@ export default function PremiumGachaPage() {
 
         {/* 確率表示 */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-xl">
-          <h3 className="font-bold text-xl mb-4 text-center">
+          <h3 className="font-bold text-xl mb-2 text-center">
             {pullType === 'single' ? '通常確率' : '10連確率（10回目はレア以上確定）'}
           </h3>
+          <p className="text-sm text-gray-500 mb-4 text-center">★7が最上位、★1が最下位</p>
           <div className="space-y-2">
             {/* HSTはオーナーのみ表示（確率0%） */}
             {isOwner && (
               <div className="flex justify-between items-center p-3 bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 rounded-lg text-white">
-                <span className="font-bold">👑 HST</span>
+                <span className="font-bold">{getRarityLabelWithEmoji('HST')}</span>
                 <span className="font-bold">0.00%</span>
               </div>
             )}
             <div className="flex justify-between items-center p-3 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 rounded-lg text-white">
-              <span className="font-bold">🌠 STARY</span>
+              <span className="font-bold">{getRarityLabelWithEmoji('stary')}</span>
               <span className="font-bold">{displayRates[pullType].stary.toFixed(2)}%</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white">
-              <span className="font-bold">🏆 レジェンド</span>
+              <span className="font-bold">{getRarityLabelWithEmoji('legendary')}</span>
               <span className="font-bold">{displayRates[pullType].legendary.toFixed(2)}%</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white">
-              <span className="font-bold">💎 ウルトラレア</span>
+              <span className="font-bold">{getRarityLabelWithEmoji('ultra-rare')}</span>
               <span>{displayRates[pullType]['ultra-rare'].toFixed(2)}%</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-purple-500 rounded-lg text-white">
-              <span>⭐ スーパーレア</span>
+              <span>{getRarityLabelWithEmoji('super-rare')}</span>
               <span>{displayRates[pullType]['super-rare'].toFixed(2)}%</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-blue-500 rounded-lg text-white">
-              <span>✨ レア</span>
+              <span>{getRarityLabelWithEmoji('rare')}</span>
               <span>{displayRates[pullType].rare.toFixed(2)}%</span>
             </div>
             {pullType === 'single' && (
-              <div className="flex justify-between items-center p-3 bg-gray-400 rounded-lg text-white">
-                <span>📦 コモン</span>
+              <div className="flex justify-between items-center p-3 bg-gray-500 rounded-lg text-white">
+                <span>{getRarityLabelWithEmoji('common')}</span>
                 <span>{displayRates.single.common.toFixed(2)}%</span>
               </div>
             )}
@@ -710,7 +734,7 @@ export default function PremiumGachaPage() {
                     <div>
                       <div className="font-bold">{item.member.name}</div>
                       <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${getRarityColor(item.rarity)}`}>
-                        {getRarityName(item.rarity)}
+                        {getRarityLabel(item.rarity)}
                       </span>
                     </div>
                   </div>

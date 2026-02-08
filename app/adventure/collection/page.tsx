@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Member } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
+import { getRarityLabel, RARITY_FILTER_OPTIONS } from '@/utils/rarity';
 
 export default function CollectionPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -301,37 +302,38 @@ export default function CollectionPage() {
 
         {/* 統計 */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
-          <h2 className="text-xl font-bold mb-4">レアリティ別所持数</h2>
+          <h2 className="text-xl font-bold mb-2">レアリティ別所持数</h2>
+          <p className="text-sm text-gray-500 mb-4">★7が最上位、★1が最下位です</p>
           <div className={`grid grid-cols-2 md:grid-cols-${isOwner ? '7' : '6'} gap-3`}>
             {isOwner && (
               <div className="bg-gradient-to-br from-yellow-600 via-orange-600 to-red-600 text-white rounded-lg p-3 text-center">
                 <div className="text-2xl font-bold">{rarityCount.HST}</div>
-                <div className="text-xs">👑 HST</div>
+                <div className="text-xs">{getRarityLabel('HST')}</div>
               </div>
             )}
             <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 text-white rounded-lg p-3 text-center">
               <div className="text-2xl font-bold">{rarityCount.stary}</div>
-              <div className="text-xs">STARY</div>
+              <div className="text-xs">{getRarityLabel('stary')}</div>
             </div>
             <div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white rounded-lg p-3 text-center">
               <div className="text-2xl font-bold">{rarityCount.legendary}</div>
-              <div className="text-xs">レジェンド</div>
+              <div className="text-xs">{getRarityLabel('legendary')}</div>
             </div>
             <div className="bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-lg p-3 text-center">
               <div className="text-2xl font-bold">{rarityCount['ultra-rare']}</div>
-              <div className="text-xs">ウルトラレア</div>
+              <div className="text-xs">{getRarityLabel('ultra-rare')}</div>
             </div>
             <div className="bg-purple-500 text-white rounded-lg p-3 text-center">
               <div className="text-2xl font-bold">{rarityCount['super-rare']}</div>
-              <div className="text-xs">スーパーレア</div>
+              <div className="text-xs">{getRarityLabel('super-rare')}</div>
             </div>
             <div className="bg-blue-500 text-white rounded-lg p-3 text-center">
               <div className="text-2xl font-bold">{rarityCount.rare}</div>
-              <div className="text-xs">レア</div>
+              <div className="text-xs">{getRarityLabel('rare')}</div>
             </div>
-            <div className="bg-gray-400 text-white rounded-lg p-3 text-center">
+            <div className="bg-gray-500 text-white rounded-lg p-3 text-center">
               <div className="text-2xl font-bold">{rarityCount.common}</div>
-              <div className="text-xs">コモン</div>
+              <div className="text-xs">{getRarityLabel('common')}</div>
             </div>
           </div>
         </div>
@@ -359,13 +361,10 @@ export default function CollectionPage() {
                 className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
               >
                 <option value="all">すべて</option>
-                {isOwner && <option value="HST">👑 HST</option>}
-                <option value="stary">STARY</option>
-                <option value="legendary">レジェンド</option>
-                <option value="ultra-rare">ウルトラレア</option>
-                <option value="super-rare">スーパーレア</option>
-                <option value="rare">レア</option>
-                <option value="common">コモン</option>
+                {isOwner && <option value="HST">{getRarityLabel('HST')}</option>}
+                {RARITY_FILTER_OPTIONS.filter(o => o.value !== 'HST').map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
           </div>

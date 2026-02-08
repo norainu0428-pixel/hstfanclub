@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { getRarityLabel } from '@/utils/rarity';
 import { useRouter } from 'next/navigation';
 
 type Slot = 'weapon' | 'armor' | 'accessory';
@@ -203,7 +204,7 @@ export default function EquipmentPage() {
                     <span className="text-3xl">{m.member_emoji}</span>
                     <div>
                       <div className="font-bold">{m.member_name}</div>
-                      <div className="text-sm text-gray-400">Lv.{m.level} {m.rarity}</div>
+                      <div className="text-sm text-gray-400">Lv.{m.level} {getRarityLabel(m.rarity)}</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">

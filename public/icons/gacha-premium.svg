@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="premiumCap" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c084fc"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+    <linearGradient id="premiumBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="50%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    <linearGradient id="premiumHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  <!-- �׻�,S+	 -->
+  <ellipse cx="64" cy="75" rx="35" ry="45" fill="url(#premiumCap)" stroke="#6b21a8" stroke-width="2"/>
+  <ellipse cx="64" cy="75" rx="30" ry="40" fill="url(#premiumHighlight)" opacity="0.5"/>
+  <!-- ������ -->
+  <path d="M64 55 L72 75 L64 95 L56 75 Z" fill="#fbbf24" stroke="#b45309" stroke-width="1"/>
+  <!-- ��� -->
+  <rect x="44" y="115" width="40" height="8" rx="2" fill="url(#premiumBody)"/>
+  <rect x="50" y="105" width="28" height="10" rx="2" fill="url(#premiumBody)"/>
+</svg>

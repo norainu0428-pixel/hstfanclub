@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { getRarityLabel } from '@/utils/rarity';
 import { useRouter } from 'next/navigation';
 
 const SLOT_LABELS: Record<string, string> = { weapon: '武器', armor: '防具', accessory: 'アクセサリ' };
@@ -137,7 +138,7 @@ export default function EquipmentGachaPage() {
               <div>
                 <div className="font-bold text-lg">{result.def?.name}</div>
                 <div className="text-sm text-gray-400">
-                  {SLOT_LABELS[result.def?.slot]} | {result.def?.rarity} | Lv.{result.level}
+                  {SLOT_LABELS[result.def?.slot]} | {result.def?.rarity ? getRarityLabel(result.def.rarity) : '-'} | Lv.{result.level}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   HP+{result.def?.hp_bonus} ATK+{result.def?.attack_bonus} DEF+{result.def?.defense_bonus} SPD+{result.def?.speed_bonus}

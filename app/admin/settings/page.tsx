@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { getRarityLabelWithEmoji } from '@/utils/rarity';
 
 interface Announcement {
   id: string;
@@ -291,18 +292,7 @@ export default function SettingsPage() {
     loadRates();
   }
 
-  const getRarityLabel = (rarity: string) => {
-    const labels: any = {
-      'HST': '👑 HST',
-      'stary': '🌠 STARY',
-      'legendary': '🏆 レジェンド',
-      'ultra-rare': '💎 ウルトラレア',
-      'super-rare': '⭐ スーパーレア',
-      'rare': '✨ レア',
-      'common': '📦 コモン'
-    };
-    return labels[rarity] || rarity;
-  };
+  const getRarityLabel = (rarity: string) => getRarityLabelWithEmoji(rarity);
 
   if (loading) {
     return (

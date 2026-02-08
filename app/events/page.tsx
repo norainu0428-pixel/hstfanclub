@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { Rarity } from '@/types/adventure';
+import { getRarityLabel, getRarityLabelWithEmoji, getRarityColorClass } from '@/utils/rarity';
 
 // HSTメンバーデータ
 const HST_MEMBERS = {
@@ -323,27 +325,8 @@ export default function EventsPage() {
   }
 
   function getRarityColor(rarity: Rarity): string {
-    switch (rarity) {
-      case 'HST': return 'bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 animate-pulse';
-      case 'stary': return 'bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 animate-pulse';
-      case 'legendary': return 'bg-gradient-to-r from-yellow-400 to-orange-500';
-      case 'ultra-rare': return 'bg-gradient-to-r from-purple-500 to-pink-500';
-      case 'super-rare': return 'bg-purple-500';
-      case 'rare': return 'bg-blue-500';
-      case 'common': return 'bg-gray-400';
-    }
-  }
-
-  function getRarityName(rarity: Rarity): string {
-    switch (rarity) {
-      case 'HST': return '👑 HST';
-      case 'stary': return '🌠 STARY';
-      case 'legendary': return 'レジェンド';
-      case 'ultra-rare': return 'ウルトラレア';
-      case 'super-rare': return 'スーパーレア';
-      case 'rare': return 'レア';
-      case 'common': return 'コモン';
-    }
+    const base = getRarityColorClass(rarity);
+    return (rarity === 'HST' || rarity === 'stary') ? `${base} animate-pulse` : base;
   }
 
   function closeResult() {
@@ -364,7 +347,10 @@ export default function EventsPage() {
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">🎪 HST Smileガチャ</h1>
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-3">
+            <Image src="/icons/gacha-event.svg" alt="" width={48} height={48} />
+            HST Smileガチャ
+          </h1>
           <p className="text-xl opacity-90 mb-4">HST Smileが出る限定イベントガチャ！</p>
           <div className="text-3xl font-bold">
             ポイント: {points.toLocaleString()}pt
@@ -374,37 +360,44 @@ export default function EventsPage() {
         {/* 結果表示 */}
         {result && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
               <h2 className="text-3xl font-bold text-center mb-6">
                 🎉 ガチャ結果
               </h2>
-              <div className={`grid gap-4 mb-6 ${result.length === 1 ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-5'}`}>
-                {result.map((item, index) => (
-                  <div
-                    key={index}
-                    className={`p-4 rounded-lg border-2 ${
-                      item.rarity === 'HST'
-                        ? 'bg-gradient-to-br from-yellow-200 to-orange-200 border-yellow-500'
-                        : item.rarity === 'stary'
-                        ? 'bg-yellow-100 border-yellow-400'
-                        : 'bg-gray-100 border-gray-300'
-                    }`}
-                  >
-                    <div className="text-4xl text-center mb-2">
-                      {item.member.emoji}
+              <div className={`grid gap-5 mb-8 ${result.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-2 md:grid-cols-5'}`}>
+                {result.map((item, index) => {
+                  const borderColors: Record<string, string> = {
+                    'HST': '#f59e0b',
+                    'stary': '#ec4899',
+                    'legendary': '#f59e0b',
+                    'ultra-rare': '#a855f7',
+                    'super-rare': '#8b5cf6',
+                    'rare': '#3b82f6',
+                    'common': '#6b7280'
+                  };
+                  const borderColor = borderColors[item.rarity] || '#6b7280';
+                  return (
+                    <div
+                      key={index}
+                      className="p-5 rounded-xl border-4 bg-white shadow-xl"
+                      style={{ borderColor }}
+                    >
+                      <div className="text-5xl text-center mb-3">
+                        {item.member.emoji}
+                      </div>
+                      <div className={`text-sm text-center font-bold px-3 py-1.5 rounded-full mb-2 ${getRarityColor(item.rarity)} text-white`}>
+                        {getRarityLabel(item.rarity)}
+                      </div>
+                      <div className="text-base text-center font-bold text-gray-900">
+                        {item.member.name}
+                      </div>
                     </div>
-                    <div className={`text-xs text-center font-bold px-2 py-1 rounded ${getRarityColor(item.rarity)} text-white`}>
-                      {getRarityName(item.rarity)}
-                    </div>
-                    <div className="text-xs text-center mt-1 font-semibold">
-                      {item.member.name}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <button
                 onClick={closeResult}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90"
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90 transition"
               >
                 メンバー一覧へ
               </button>
@@ -417,7 +410,9 @@ export default function EventsPage() {
           {/* 単発 */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
             <div className="text-center text-white mb-6">
-              <div className="text-6xl mb-4">🎫</div>
+              <div className="flex justify-center mb-4">
+                <Image src="/icons/gacha-event.svg" alt="" width={64} height={64} />
+              </div>
               <h2 className="text-2xl font-bold mb-2">単発ガチャ</h2>
               <div className="text-4xl font-bold text-yellow-300 mb-2">
                 100pt
@@ -436,7 +431,10 @@ export default function EventsPage() {
           {/* 10連 */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
             <div className="text-center text-white mb-6">
-              <div className="text-6xl mb-4">🎟️</div>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Image src="/icons/gacha-event.svg" alt="" width={64} height={64} />
+                <span className="text-3xl font-bold">×10</span>
+              </div>
               <h2 className="text-2xl font-bold mb-2">10連ガチャ</h2>
               <div className="text-4xl font-bold text-yellow-300 mb-2">
                 900pt
@@ -457,9 +455,10 @@ export default function EventsPage() {
 
         {/* 確率表 */}
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
-          <h3 className="text-2xl font-bold text-white mb-6 text-center">
+          <h3 className="text-2xl font-bold text-white mb-2 text-center">
             📊 排出確率
           </h3>
+          <p className="text-white/80 text-sm mb-4 text-center">★7が最上位、★1が最下位</p>
           <div className="space-y-3">
             {rates.map(rate => (
               <div
@@ -467,16 +466,8 @@ export default function EventsPage() {
                 className="flex items-center justify-between bg-white/5 rounded-lg p-4"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-3xl">
-                    {rate.rarity === 'HST' ? '😊' :
-                     rate.rarity === 'stary' ? '🌠' :
-                     rate.rarity === 'legendary' ? '🏆' :
-                     rate.rarity === 'ultra-rare' ? '💎' :
-                     rate.rarity === 'super-rare' ? '⭐' :
-                     rate.rarity === 'rare' ? '✨' : '📦'}
-                  </span>
                   <span className="text-white font-bold text-lg">
-                    {getRarityName(rate.rarity as Rarity)}
+                    {getRarityLabelWithEmoji(rate.rarity)}
                   </span>
                 </div>
                 <div className="text-right">

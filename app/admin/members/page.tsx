@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { getRarityLabel } from '@/utils/rarity';
 
 interface UserMember {
   id: string;
@@ -141,7 +142,7 @@ export default function MembersManagement() {
                       <td className="px-6 py-4 text-sm text-gray-600">{member.user_name}</td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">
-                          {member.rarity}
+                          {getRarityLabel(member.rarity)}
                         </span>
                       </td>
                       <td className="px-6 py-4 font-bold">Lv.{member.level}</td>
