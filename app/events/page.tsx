@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { Rarity } from '@/types/adventure';
-import { getRarityLabel, getRarityLabelWithEmoji, getRarityColorClass } from '@/utils/rarity';
+import { getRarityLabel, getRarityLabelWithEmoji, getRarityColorClass, getRarityShortLabel, getRarityBorderColor } from '@/utils/rarity';
+import { getPlateImageUrl } from '@/utils/plateImage';
 
 // HSTメンバーデータ
 const HST_MEMBERS = {
@@ -166,7 +167,9 @@ export default function EventsPage() {
   const [points, setPoints] = useState(0);
   const [rates, setRates] = useState<any[]>([]);
   const [pulling, setPulling] = useState(false);
-  const [result, setResult] = useState<GachaResult[] | null>(null);
+  const [pullType, setPullType] = useState<'single' | 'ten'>('ten');
+  const [singleResult, setSingleResult] = useState<GachaResult | null>(null);
+  const [tenPullResults, setTenPullResults] = useState<GachaResult[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -215,84 +218,97 @@ export default function EventsPage() {
     setLoading(false);
   }
 
-  async function pullGacha(type: 'single' | 'ten') {
-    const cost = type === 'single' ? 100 : 900;
+  async function saveMemberAndConsumePoints(results: GachaResult[], pointCost: number) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    if (points < cost) {
-      alert('ポイントが足りません');
-      return;
+    for (const r of results) {
+      const rarityMap: Record<string, string> = {
+        'HST': 'HST', 'hst': 'HST',
+        'stary': 'stary', 'STARY': 'stary',
+        'legendary': 'legendary', 'ultra-rare': 'ultra-rare',
+        'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common'
+      };
+      const statsKey = rarityMap[r.rarity] ?? 'common';
+      const stats = baseStats[statsKey] ?? baseStats['common'];
+      const { error: insertErr } = await supabase
+        .from('user_members')
+        .insert({
+          user_id: user.id,
+          member_name: r.member.name,
+          member_emoji: r.member.emoji,
+          member_description: r.member.description,
+          rarity: r.rarity,
+          level: 1,
+          experience: 0,
+          max_hp: stats.hp,
+          hp: stats.hp,
+          current_hp: stats.hp,
+          attack: stats.attack,
+          defense: stats.defense,
+          speed: stats.speed,
+          skill_type: r.member.skill_type,
+          skill_power: r.member.skill_power || 0,
+          revive_used: false
+        });
+      if (insertErr) throw new Error(`メンバーの追加に失敗しました: ${insertErr.message}`);
     }
 
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ points: points - pointCost })
+      .eq('user_id', user.id);
+    if (updateErr) throw new Error(`ポイントの消費に失敗しました: ${updateErr.message}`);
+
+    await updateMissionProgress(user.id, 'gacha_pull', results.length);
+    setPoints(points - pointCost);
+  }
+
+  async function pullSingleGacha() {
+    if (points < 100) {
+      alert('ポイントが足りません（100pt）');
+      return;
+    }
     setPulling(true);
-
+    setSingleResult(null);
     try {
-      const pulls = type === 'single' ? 1 : 10;
-      const results: GachaResult[] = [];
+      await new Promise(r => setTimeout(r, 1500));
+      const rarity = drawRarity();
+      const memberData = getMemberByRarity(rarity);
+      const member = memberData[Math.floor(Math.random() * memberData.length)];
+      const gachaResult: GachaResult = { rarity: rarity as Rarity, member };
+      await saveMemberAndConsumePoints([gachaResult], 100);
+      setSingleResult(gachaResult);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : 'ガチャに失敗しました');
+    } finally {
+      setPulling(false);
+    }
+  }
 
-      for (let i = 0; i < pulls; i++) {
+  async function pullTenGacha() {
+    if (points < 900) {
+      alert('ポイントが足りません（900pt）');
+      return;
+    }
+    setPulling(true);
+    setTenPullResults([]);
+    try {
+      const results: GachaResult[] = [];
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 350));
         const rarity = drawRarity();
         const memberData = getMemberByRarity(rarity);
         const member = memberData[Math.floor(Math.random() * memberData.length)];
-
-        results.push({
-          rarity: rarity as Rarity,
-          member
-        });
-
-        // メンバーをDBに追加（baseStatsのキーと揃える、undefined防止）
-        const rarityMap: Record<string, string> = {
-          'HST': 'HST', 'hst': 'HST',
-          'stary': 'stary', 'STARY': 'stary',
-          'legendary': 'legendary', 'ultra-rare': 'ultra-rare',
-          'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common'
-        };
-        const statsKey = rarityMap[rarity] ?? 'common';
-        const stats = baseStats[statsKey] ?? baseStats['common'];
-        const { error: insertErr } = await supabase
-          .from('user_members')
-          .insert({
-            user_id: user.id,
-            member_name: member.name,
-            member_emoji: member.emoji,
-            member_description: member.description,
-            rarity: rarity,
-            level: 1,
-            experience: 0,
-            max_hp: stats.hp,
-            hp: stats.hp,
-            current_hp: stats.hp,
-            attack: stats.attack,
-            defense: stats.defense,
-            speed: stats.speed,
-            skill_type: member.skill_type,
-            skill_power: member.skill_power || 0,
-            revive_used: false
-          });
-        if (insertErr) {
-          console.error('メンバー追加エラー:', insertErr);
-          throw new Error(`メンバーの追加に失敗しました: ${insertErr.message}`);
-        }
+        results.push({ rarity: rarity as Rarity, member });
+        setTenPullResults([...results]);
       }
-
-      // ポイント消費
-      const { error: updateErr } = await supabase
-        .from('profiles')
-        .update({ points: points - cost })
-        .eq('user_id', user.id);
-      if (updateErr) {
-        throw new Error(`ポイントの消費に失敗しました: ${updateErr.message}`);
-      }
-
-      // ミッション進捗更新
-      await updateMissionProgress(user.id, 'gacha_pull', pulls);
-
-      setPoints(points - cost);
-      setResult(results);
+      await saveMemberAndConsumePoints(results, 900);
     } catch (error) {
       console.error(error);
-      alert('ガチャに失敗しました');
+      alert(error instanceof Error ? error.message : 'ガチャに失敗しました');
+      setTenPullResults([]);
     } finally {
       setPulling(false);
     }
@@ -329,10 +345,6 @@ export default function EventsPage() {
     return (rarity === 'HST' || rarity === 'stary') ? `${base} animate-pulse` : base;
   }
 
-  function closeResult() {
-    setResult(null);
-    router.push('/adventure/collection');
-  }
 
   if (loading) {
     return (
@@ -343,10 +355,10 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-cyan-600 p-4">
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
-        <div className="text-center text-white mb-8">
+        <div className="text-center text-white mb-6">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-3">
             <Image src="/icons/gacha-event.svg" alt="" width={48} height={48} />
             HST Smileガチャ
@@ -357,127 +369,184 @@ export default function EventsPage() {
           </div>
         </div>
 
-        {/* 結果表示 */}
-        {result && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-              <h2 className="text-3xl font-bold text-center mb-6">
-                🎉 ガチャ結果
-              </h2>
-              <div className={`grid gap-5 mb-8 ${result.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-2 md:grid-cols-5'}`}>
-                {result.map((item, index) => {
-                  const borderColors: Record<string, string> = {
-                    'HST': '#f59e0b',
-                    'stary': '#ec4899',
-                    'legendary': '#f59e0b',
-                    'ultra-rare': '#a855f7',
-                    'super-rare': '#8b5cf6',
-                    'rare': '#3b82f6',
-                    'common': '#6b7280'
-                  };
-                  const borderColor = borderColors[item.rarity] || '#6b7280';
-                  return (
-                    <div
-                      key={index}
-                      className="p-5 rounded-xl border-4 bg-white shadow-xl"
-                      style={{ borderColor }}
-                    >
-                      <div className="text-5xl text-center mb-3">
-                        {item.member.emoji}
-                      </div>
-                      <div className={`text-sm text-center font-bold px-3 py-1.5 rounded-full mb-2 ${getRarityColor(item.rarity)} text-white`}>
-                        {getRarityLabel(item.rarity)}
-                      </div>
-                      <div className="text-base text-center font-bold text-gray-900">
-                        {item.member.name}
-                      </div>
-                    </div>
-                  );
-                })}
+        {/* ポイント表示 */}
+        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
+          <div className="text-center">
+            <div className="text-gray-600 mb-2">現在のポイント</div>
+            <div className="text-5xl font-bold text-pink-600">{points}</div>
+            <div className="text-sm text-gray-500 mt-2">pt</div>
+            {points < 100 && (
+              <div className="mt-3 text-red-500 font-bold">
+                ガチャにはあと{100 - points}pt必要です
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* ガチャマシン（白カード） */}
+        <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl">
+          <div className="text-center">
+            {/* タブ切り替え */}
+            <div className="flex gap-2 mb-6 justify-center">
               <button
-                onClick={closeResult}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90 transition"
+                onClick={() => setPullType('single')}
+                className={`px-6 py-3 rounded-lg font-bold transition ${
+                  pullType === 'single'
+                    ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
               >
-                メンバー一覧へ
+                単発ガチャ
+              </button>
+              <button
+                onClick={() => setPullType('ten')}
+                className={`px-6 py-3 rounded-lg font-bold transition ${
+                  pullType === 'ten'
+                    ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                10連ガチャ
               </button>
             </div>
-          </div>
-        )}
 
-        {/* ガチャボタン */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* 単発 */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
-            <div className="text-center text-white mb-6">
-              <div className="flex justify-center mb-4">
-                <Image src="/icons/gacha-event.svg" alt="" width={64} height={64} />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">単発ガチャ</h2>
-              <div className="text-4xl font-bold text-yellow-300 mb-2">
-                100pt
-              </div>
-              <p className="text-sm opacity-80">通常の2倍のコスト</p>
-            </div>
-            <button
-              onClick={() => pullGacha('single')}
-              disabled={pulling || points < 100}
-              className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90 disabled:opacity-50 transition"
-            >
-              {pulling ? '抽選中...' : '1回引く'}
-            </button>
-          </div>
+            {pullType === 'single' ? (
+              <>
+                {/* 単発ガチャUI */}
+                <div className={`w-32 h-32 mx-auto mb-6 rounded-full flex items-center justify-center overflow-hidden ${
+                  pulling ? 'animate-spin' : ''
+                } ${singleResult ? getRarityColor(singleResult.rarity) : 'bg-gradient-to-br from-gray-300 to-gray-400'} shadow-xl`}>
+                  {singleResult ? (
+                    (() => {
+                      const imageUrl = getPlateImageUrl(singleResult.member.name, singleResult.rarity);
+                      return imageUrl ? (
+                        <Image src={imageUrl} alt={singleResult.member.name} width={128} height={128} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-6xl">{singleResult.member.emoji}</span>
+                      );
+                    })()
+                  ) : (
+                    <Image src="/icons/gacha-event.svg" alt="ガチャ" width={80} height={80} className="opacity-90" />
+                  )}
+                </div>
 
-          {/* 10連 */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
-            <div className="text-center text-white mb-6">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Image src="/icons/gacha-event.svg" alt="" width={64} height={64} />
-                <span className="text-3xl font-bold">×10</span>
-              </div>
-              <h2 className="text-2xl font-bold mb-2">10連ガチャ</h2>
-              <div className="text-4xl font-bold text-yellow-300 mb-2">
-                900pt
-              </div>
-              <p className="text-sm opacity-80">
-                10%オフ
-              </p>
-            </div>
-            <button
-              onClick={() => pullGacha('ten')}
-              disabled={pulling || points < 900}
-              className="w-full bg-gradient-to-r from-pink-500 to-red-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90 disabled:opacity-50 transition"
-            >
-              {pulling ? '抽選中...' : '10連ガチャ'}
-            </button>
+                {singleResult && !pulling && (
+                  <div className="mb-6 animate-fade-in">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl border-4 mx-auto max-w-sm" style={{ borderColor: getRarityBorderColor(singleResult.rarity) }}>
+                      <div className="text-center text-sm font-bold text-gray-500 mb-3">🎉 当たり！</div>
+                      <div className={`inline-block px-6 py-3 rounded-full text-white font-bold text-xl mb-4 w-full text-center ${getRarityColor(singleResult.rarity)}`}>
+                        {getRarityLabel(singleResult.rarity)}
+                      </div>
+                      {(() => {
+                        const imageUrl = getPlateImageUrl(singleResult.member.name, singleResult.rarity);
+                        return imageUrl ? (
+                          <div className="flex justify-center mb-4">
+                            <Image src={imageUrl} alt={singleResult.member.name} width={120} height={120} className="w-28 h-28 object-cover rounded-xl shadow-lg" />
+                          </div>
+                        ) : (
+                          <div className="text-6xl mb-4 text-center">{singleResult.member.emoji}</div>
+                        );
+                      })()}
+                      <div className="text-2xl font-bold mb-2 text-center text-gray-900">{singleResult.member.name}</div>
+                      <div className="text-gray-600 mb-3 text-center text-sm">{singleResult.member.description}</div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={pullSingleGacha}
+                  disabled={pulling || points < 100}
+                  className={`bg-gradient-to-r from-pink-500 to-red-500 text-white px-12 py-4 rounded-full text-xl font-bold shadow-lg transition transform ${
+                    pulling || points < 100 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 hover:shadow-2xl'
+                  }`}
+                >
+                  {pulling ? '抽選中...' : points < 100 ? 'ポイント不足' : 'ガチャを回す！（100pt）'}
+                </button>
+                <div className="text-sm text-gray-500 mt-4">ガチャ1回: 100pt消費</div>
+              </>
+            ) : (
+              <>
+                {/* 10連ガチャUI */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Image src="/icons/gacha-event.svg" alt="" width={48} height={48} />
+                    <span className="text-2xl">×10</span>
+                  </div>
+                  <div className="text-2xl font-bold mb-2">10連ガチャ</div>
+                  <div className="text-gray-600 mb-4">10回目はスーパーレア以上確定！</div>
+
+                  {pulling && (
+                    <div className="text-lg text-pink-600 font-bold animate-pulse mb-4">
+                      抽選中... {tenPullResults.length}/10
+                    </div>
+                  )}
+
+                  {tenPullResults.length > 0 && !pulling && (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <span className="text-lg font-bold text-gray-700">🎊 獲得キャラクター</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                        {tenPullResults.map((item, index) => {
+                          const imageUrl = getPlateImageUrl(item.member.name, item.rarity);
+                          return (
+                            <div
+                              key={index}
+                              className="p-4 rounded-xl border-4 bg-white shadow-xl min-w-[110px]"
+                              style={{ borderColor: getRarityBorderColor(item.rarity) }}
+                            >
+                              {imageUrl ? (
+                                <div className="flex justify-center mb-2">
+                                  <Image src={imageUrl} alt={item.member.name} width={64} height={64} className="w-16 h-16 object-cover rounded-lg" />
+                                </div>
+                              ) : (
+                                <div className="text-4xl mb-2 text-center">{item.member.emoji}</div>
+                              )}
+                              <div className={`text-sm font-bold truncate text-center ${item.rarity === 'common' ? 'text-gray-800' : 'text-gray-900'}`}>
+                                {item.member.name}
+                              </div>
+                              <div className={`px-2 py-1 rounded-full mt-2 ${getRarityColor(item.rarity)} text-white text-center font-bold text-xs`}>
+                                {getRarityShortLabel(item.rarity)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={pullTenGacha}
+                  disabled={pulling || points < 900}
+                  className={`bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-12 py-4 rounded-full text-xl font-bold shadow-lg transition transform ${
+                    pulling || points < 900 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 hover:shadow-2xl'
+                  }`}
+                >
+                  {pulling ? '抽選中...' : points < 900 ? 'ポイント不足' : '10連ガチャ！（900pt）'}
+                </button>
+                <div className="text-sm text-green-600 font-bold mt-2">10%オフ！</div>
+              </>
+            )}
           </div>
         </div>
 
         {/* 確率表 */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
-          <h3 className="text-2xl font-bold text-white mb-2 text-center">
+        <div className="bg-white rounded-2xl p-6 mb-6 shadow-xl">
+          <h3 className="font-bold text-xl mb-2 text-center text-gray-800">
             📊 排出確率
           </h3>
-          <p className="text-white/80 text-sm mb-4 text-center">★7が最上位、★1が最下位</p>
-          <div className="space-y-3">
+          <p className="text-gray-500 text-sm mb-4 text-center">★7が最上位、★1が最下位</p>
+          <div className="space-y-2">
             {rates.map(rate => (
               <div
                 key={rate.rarity}
-                className="flex items-center justify-between bg-white/5 rounded-lg p-4"
+                className={`flex justify-between items-center p-3 rounded-lg text-white ${getRarityColorClass(rate.rarity)}`}
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-white font-bold text-lg">
-                    {getRarityLabelWithEmoji(rate.rarity)}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <div className="text-yellow-300 font-bold">
-                    単発: {parseFloat(rate.rate || '0').toFixed(1)}%
-                  </div>
-                  <div className="text-pink-300 font-bold text-sm">
-                    10連目: {parseFloat(rate.ten_pull_rate || '0').toFixed(1)}%
-                  </div>
-                </div>
+                <span className="font-bold">{getRarityLabelWithEmoji(rate.rarity)}</span>
+                <span className="font-bold">
+                  単発: {parseFloat(rate.rate || '0').toFixed(1)}% / 10連: {parseFloat(rate.ten_pull_rate || '0').toFixed(1)}%
+                </span>
               </div>
             ))}
           </div>
@@ -487,9 +556,15 @@ export default function EventsPage() {
         <div className="text-center mt-8">
           <button
             onClick={() => router.push('/')}
-            className="text-white text-lg hover:underline"
+            className="bg-white text-pink-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition"
           >
             ← トップに戻る
+          </button>
+          <button
+            onClick={() => router.push('/adventure/collection')}
+            className="ml-4 bg-white text-pink-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition"
+          >
+            メンバー一覧へ
           </button>
         </div>
       </div>
