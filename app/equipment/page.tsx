@@ -232,7 +232,7 @@ export default function EquipmentPage() {
                               onClick={() => setSelectingSlot(isSelecting ? null : { memberId: m.id, slot })}
                               className="text-sm text-gray-500 hover:text-orange-400 w-full text-left"
                             >
-                              {isSelecting ? '装備を選ぶ ▼' : '+' 装備する'}
+                              {isSelecting ? '装備を選ぶ ▼' : '+ 装備する'}
                             </button>
                           )}
                           {isSelecting && (
