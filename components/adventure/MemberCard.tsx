@@ -3,24 +3,13 @@
 import Image from 'next/image';
 import { Member, MAX_LEVELS, getRequiredExp } from '@/types/adventure';
 import { getPlateImageUrl } from '@/utils/plateImage';
+import { getSkillName } from '@/utils/skills';
 
 interface MemberCardProps {
   member: Member;
   onClick?: () => void;
   selected?: boolean;
   showStats?: boolean;
-}
-
-function getSkillName(skillType: string | null | undefined): string {
-  if (!skillType) return '';
-  const names: { [key: string]: string } = {
-    'heal': '💚 HP回復',
-    'revive': '✨ 自己蘇生',
-    'attack_boost': '⚔️ 攻撃強化',
-    'defense_boost': '🛡️ 防御強化',
-    'hst_power': '👑 HSTパワー'
-  };
-  return names[skillType] || skillType;
 }
 
 export default function MemberCard({ member, onClick, selected = false, showStats = true }: MemberCardProps) {

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
+import { getSkillName } from '@/utils/skills';
 import Image from 'next/image';
 
 type Rarity = 'HST' | 'stary' | 'common' | 'rare' | 'super-rare' | 'ultra-rare' | 'legendary';
@@ -75,6 +76,13 @@ const HST_MEMBERS = {
       description: 'ストラテジスト',
       skill_type: 'defense_boost',
       skill_power: 12
+    },
+    { 
+      name: 'riemu', 
+      emoji: '🌟', 
+      description: '癒しの力',
+      skill_type: 'all_heal',
+      skill_power: 30
     }
   ],
   superRare: [
@@ -97,6 +105,13 @@ const HST_MEMBERS = {
       emoji: '🔥', 
       description: 'ストラテジスト',
       skill_type: null
+    },
+    { 
+      name: 'tetsuya', 
+      emoji: '⚔️', 
+      description: '一撃必殺',
+      skill_type: 'power_strike',
+      skill_power: 60
     }
   ],
   rare: [
@@ -119,6 +134,13 @@ const HST_MEMBERS = {
       emoji: '🔥', 
       description: 'ストラテジスト',
       skill_type: null
+    },
+    { 
+      name: 'meah', 
+      emoji: '😊', 
+      description: 'スピードスター',
+      skill_type: 'speed_boost',
+      skill_power: 12
     }
   ],
   common: [
@@ -162,17 +184,6 @@ const DEFAULT_RATES = {
     common: 0
   }
 };
-
-function getSkillName(skillType: string | null | undefined): string {
-  if (!skillType) return '';
-  const names: { [key: string]: string } = {
-    'heal': '回復',
-    'revive': '自己蘇生',
-    'attack_boost': '攻撃強化',
-    'defense_boost': '防御強化'
-  };
-  return names[skillType] || skillType;
-}
 
 export default function BasicGachaPage() {
   const [loading, setLoading] = useState(true);

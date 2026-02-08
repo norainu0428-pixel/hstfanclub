@@ -1,4 +1,4 @@
-export type SkillType = 'heal' | 'revive' | 'attack_boost' | 'defense_boost' | null;
+export type SkillType = string | null;
 
 export interface MemberSkill {
   skill_type: SkillType;

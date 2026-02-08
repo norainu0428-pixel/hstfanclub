@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
+import { getSkillName } from '@/utils/skills';
 
 type Rarity = 'HST' | 'stary' | 'common' | 'rare' | 'super-rare' | 'ultra-rare' | 'legendary';
 
@@ -160,17 +161,6 @@ const DEFAULT_RATES = {
     common: 0
   }
 };
-
-function getSkillName(skillType: string | null | undefined): string {
-  if (!skillType) return '';
-  const names: { [key: string]: string } = {
-    'heal': '回復',
-    'revive': '自己蘇生',
-    'attack_boost': '攻撃強化',
-    'defense_boost': '防御強化'
-  };
-  return names[skillType] || skillType;
-}
 
 export default function PremiumGachaPage() {
   const [loading, setLoading] = useState(true);

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
 import { getStageInfo } from '@/utils/stageGenerator';
+import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
@@ -29,6 +30,7 @@ export default function BattlePage() {
   const [battleLog, setBattleLog] = useState<string[]>([]);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
   const [selectedMember, setSelectedMember] = useState<number | null>(null);
+  const [pendingEnemyTargetMember, setPendingEnemyTargetMember] = useState<number | null>(null);
   const [battleResult, setBattleResult] = useState<'victory' | 'defeat' | null>(null);
   const [rewards, setRewards] = useState({ exp: 0, points: 0 });
   const [levelUpResults, setLevelUpResults] = useState<LevelUpResult[]>([]);
@@ -36,13 +38,23 @@ export default function BattlePage() {
   const [skillCooldown, setSkillCooldown] = useState<{ [key: string]: number }>({});
   const [attackBoost, setAttackBoost] = useState<{ [key: string]: number }>({}); // 攻撃力ブースト（次の攻撃まで）
   const [defenseBoost, setDefenseBoost] = useState<{ [key: string]: number }>({}); // 防御力ブースト（次の被ダメージまで）
+  const [barrier, setBarrier] = useState<{ [key: string]: number }>({}); // ダメージ吸収
+  const [regen, setRegen] = useState<{ [key: string]: { amount: number; turns: number } }>({}); // 再生
+  const [enemyPoison, setEnemyPoison] = useState<{ [key: string]: { damage: number; turns: number } }>({});
+  const [enemyParalyze, setEnemyParalyze] = useState<{ [key: string]: number }>({});
+  const [enemyAtkDown, setEnemyAtkDown] = useState<{ [key: string]: { amount: number; turns: number } }>({});
+  const [enemyDefDown, setEnemyDefDown] = useState<{ [key: string]: { amount: number; turns: number } }>({});
+  const [timeStop, setTimeStop] = useState(false);
   const [originalHp, setOriginalHp] = useState<{ [key: string]: number }>({}); // バトル開始時のHP（復元用）
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
+  const barrierRef = useRef<{ [key: string]: number }>({});
 
   useEffect(() => {
-    initBattle();
-  }, []);
+    barrierRef.current = barrier;
+  }, [barrier]);
+
+  useEffect(() => { initBattle(); }, []);
 
   // パーティ全滅チェック（useEffectで監視）
   useEffect(() => {
@@ -147,8 +159,10 @@ export default function BattlePage() {
     return false;
   }
 
+  const enemyKey = (e: Enemy, idx: number) => (e as { id?: string }).id || `e_${idx}`;
+
   // スキル使用処理
-  async function useSkill(memberIndex: number, targetIndex?: number) {
+  async function useSkill(memberIndex: number, targetIndex?: number, targetEnemyIndex?: number) {
     if (!isPlayerTurn) return;
     
     if (memberIndex < 0 || memberIndex >= party.length) return;
@@ -286,6 +300,627 @@ export default function BattlePage() {
           return;
         }
         break;
+
+      case 'all_heal':
+        // 全体回復
+        const allHealAmount = member.skill_power || 25;
+        const healedParty = newParty.map((m, i) => {
+          if (m.hp > 0 && m.hp < m.max_hp) {
+            const healed = Math.min(m.hp + allHealAmount, m.max_hp);
+            return { ...m, hp: healed };
+          }
+          return m;
+        });
+        setParty(healedParty);
+        addLog(`💚 ${member.member_emoji} ${member.member_name}が全体回復を発動！味方全員のHPを${allHealAmount}回復！`);
+        break;
+
+      case 'power_strike':
+        // 威力抜撃：敵1体に強力なダメージ（targetEnemyIndex必須）
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択してください');
+          setIsPlayerTurn(true);
+          return;
+        }
+        const targetEnemy = enemies[targetEnemyIndex];
+        if (!targetEnemy || targetEnemy.hp <= 0) {
+          alert('無効なターゲットです');
+          setIsPlayerTurn(true);
+          return;
+        }
+        const strikePower = (member.skill_power || 50) + member.attack;
+        const strikeDamage = Math.max(strikePower - targetEnemy.defense, Math.floor(strikePower * 0.3));
+        const newEnemiesAfterStrike = [...enemies];
+        newEnemiesAfterStrike[targetEnemyIndex].hp = Math.max(newEnemiesAfterStrike[targetEnemyIndex].hp - strikeDamage, 0);
+        setEnemies(newEnemiesAfterStrike);
+        addLog(`💥 ${member.member_emoji} ${member.member_name}の威力抜撃！ ${targetEnemy.emoji} ${targetEnemy.name}に${strikeDamage}ダメージ！`);
+        if (newEnemiesAfterStrike.every(e => e.hp <= 0)) {
+          setTimeout(() => {
+            if (!isProcessingVictory && !battleResult) handleVictory();
+          }, 1000);
+          return;
+        }
+        break;
+
+      case 'speed_boost':
+        const speedAmount = member.skill_power || 15;
+        setAttackBoost(prev => ({ ...prev, [member.id]: speedAmount }));
+        addLog(`⚡ ${member.member_emoji} ${member.member_name}の素早さが${speedAmount}アップ！次の攻撃が強化される！`);
+        break;
+
+      // === 攻撃系 追加 ===
+      case 'double_strike':
+      case 'triple_strike':
+      case 'dual_wield': {
+        const hits = member.skill_type === 'triple_strike' ? 3 : 2;
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択してください'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効なターゲット'); setIsPlayerTurn(true); return; }
+        const pwr = (member.skill_power || 30) + member.attack;
+        let dmg = Math.max(pwr - te.defense, Math.floor(pwr * 0.2));
+        dmg *= hits;
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - dmg, 0) };
+        setEnemies(nes);
+        addLog(`💥 ${member.member_emoji} ${member.member_name}の${hits}連撃！ ${te.emoji} ${te.name}に${dmg}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'aoe_attack':
+      case 'blade_storm': {
+        const pwr = (member.skill_power || 40) + member.attack;
+        const nes = enemies.map((e, i) => {
+          if (e.hp <= 0) return e;
+          const d = Math.max(Math.floor(pwr * 0.5) - e.defense, Math.floor(pwr * 0.15));
+          return { ...e, hp: Math.max(e.hp - d, 0) };
+        });
+        setEnemies(nes);
+        addLog(`💥 ${member.member_emoji} ${member.member_name}の全体攻撃！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'pierce_attack': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const pierceDmg = Math.floor((member.skill_power || 60) + member.attack * 1.2);
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - pierceDmg, 0) };
+        setEnemies(nes);
+        addLog(`⚔️ ${member.member_emoji} ${member.member_name}の貫通攻撃！ ${te.emoji} ${te.name}に${pierceDmg}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'poison_blade':
+      case 'poison': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const poiDmg = Math.max((member.skill_power || 40) + member.attack - te.defense, 10);
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - poiDmg, 0) };
+        setEnemies(nes);
+        setEnemyPoison(prev => ({ ...prev, [enemyKey(te, targetEnemyIndex)]: { damage: Math.floor(te.max_hp * 0.05), turns: 3 } }));
+        addLog(`☠️ ${member.member_emoji} ${member.member_name}の毒攻撃！ ${te.emoji} ${te.name}に${poiDmg}ダメージ＋毒！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'fire_strike':
+      case 'ice_strike':
+      case 'thunder_strike':
+      case 'dark_strike': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const elemDmg = Math.floor((member.skill_power || 50) * 1.2) + member.attack - Math.floor(te.defense * 0.8);
+        const eleNames: Record<string, string> = { fire_strike: '炎', ice_strike: '氷', thunder_strike: '雷', dark_strike: '闇' };
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - Math.max(elemDmg, 5), 0) };
+        setEnemies(nes);
+        addLog(`🔥 ${member.member_emoji} ${member.member_name}の${eleNames[member.skill_type!] || '属性'}攻撃！ ${te.emoji} ${te.name}に${Math.max(elemDmg, 5)}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'critical_strike': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const critDmg = Math.floor(((member.skill_power || 80) + member.attack) * 1.5) - te.defense;
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - Math.max(critDmg, 10), 0) };
+        setEnemies(nes);
+        addLog(`⭐ ${member.member_emoji} ${member.member_name}の必殺の一撃！ ${te.emoji} ${te.name}に${Math.max(critDmg, 10)}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'drain_attack': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const drainDmg = Math.max((member.skill_power || 40) + member.attack - te.defense, 5);
+        const healAmt = Math.floor(drainDmg * 0.5);
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - drainDmg, 0) };
+        setEnemies(nes);
+        const np = [...newParty];
+        np[memberIndex] = { ...member, hp: Math.min(member.hp + healAmt, member.max_hp) };
+        setParty(np);
+        addLog(`🩸 ${member.member_emoji} ${member.member_name}の吸血攻撃！ ${te.emoji} ${te.name}に${drainDmg}ダメージ、自分が${healAmt}回復！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'execute': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const bonus = te.hp <= te.max_hp * 0.3 ? 2 : 1;
+        const execDmg = Math.floor(((member.skill_power || 50) + member.attack) * bonus) - te.defense;
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - Math.max(execDmg, 5), 0) };
+        setEnemies(nes);
+        addLog(`💀 ${member.member_emoji} ${member.member_name}の弱点突き！ ${te.emoji} ${te.name}に${Math.max(execDmg, 5)}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'finish': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const finDmg = te.hp <= te.max_hp * 0.2 ? te.hp + 50 : Math.max((member.skill_power || 40) + member.attack - te.defense, 10);
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: 0 };
+        setEnemies(nes);
+        addLog(`⚔️ ${member.member_emoji} ${member.member_name}の追い打ち！ ${te.emoji} ${te.name}に${finDmg}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'poison_cloud': {
+        const pwr = member.skill_power || 30;
+        const poisonUpdates: { [key: string]: { damage: number; turns: number } } = {};
+        const nes = enemies.map((e, i) => {
+          if (e.hp <= 0) return e;
+          const d = Math.max(Math.floor(pwr * 0.8), 5);
+          poisonUpdates[enemyKey(e, i)] = { damage: Math.floor(e.max_hp * 0.03), turns: 2 };
+          return { ...e, hp: Math.max(e.hp - d, 0) };
+        });
+        setEnemies(nes);
+        setEnemyPoison(prev => ({ ...prev, ...poisonUpdates }));
+        addLog(`☠️ ${member.member_emoji} ${member.member_name}の毒霧！全敵に毒ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'quake':
+      case 'spin_attack':
+      case 'explosion': {
+        const pwr = (member.skill_power || 50) + member.attack;
+        const nes = enemies.map(e => {
+          if (e.hp <= 0) return e;
+          const d = Math.max(Math.floor(pwr * 0.7) - e.defense, Math.floor(pwr * 0.2));
+          return { ...e, hp: Math.max(e.hp - d, 0) };
+        });
+        setEnemies(nes);
+        addLog(`💥 ${member.member_emoji} ${member.member_name}の範囲攻撃！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'kamikaze': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const kDmg = Math.floor((member.skill_power || 100) * 2) - te.defense;
+        const selfDmg = Math.floor(member.max_hp * 0.3);
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - Math.max(kDmg, 20), 0) };
+        setEnemies(nes);
+        const np = [...newParty];
+        np[memberIndex] = { ...member, hp: Math.max(member.hp - selfDmg, 0) };
+        setParty(np);
+        addLog(`💥 ${member.member_emoji} ${member.member_name}の捨て身の一撃！ ${te.emoji} ${te.name}に${Math.max(kDmg, 20)}ダメージ！自分も${selfDmg}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'attack_down':
+      case 'defense_down':
+      case 'slow':
+      case 'weaken': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const amt = member.skill_power || 15;
+        const key = enemyKey(te, targetEnemyIndex);
+        if (member.skill_type === 'attack_down') setEnemyAtkDown(prev => ({ ...prev, [key]: { amount: amt, turns: 2 } }));
+        else if (member.skill_type === 'defense_down') setEnemyDefDown(prev => ({ ...prev, [key]: { amount: amt, turns: 2 } }));
+        addLog(`📉 ${member.member_emoji} ${member.member_name}が ${te.emoji} ${te.name}を弱体化！`);
+        break;
+      }
+      case 'paralyze':
+      case 'sleep':
+      case 'freeze': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        setEnemyParalyze(prev => ({ ...prev, [enemyKey(te, targetEnemyIndex)]: 1 }));
+        addLog(`❄️ ${member.member_emoji} ${member.member_name}が ${te.emoji} ${te.name}を止めた！`);
+        break;
+      }
+      case 'insta_kill': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const chance = Math.min((member.skill_power || 5) / 100, 0.3);
+        const nes = [...enemies];
+        if (Math.random() < chance) {
+          nes[targetEnemyIndex] = { ...te, hp: 0 };
+          addLog(`💀 ${member.member_emoji} ${member.member_name}の即死！ ${te.emoji} ${te.name}を倒した！`);
+        } else {
+          const d = Math.max((member.skill_power || 30) + member.attack - te.defense, 5);
+          nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - d, 0) };
+          addLog(`💥 ${member.member_emoji} ${member.member_name}の攻撃！ ${te.emoji} ${te.name}に${d}ダメージ！`);
+        }
+        setEnemies(nes);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'hp_drain': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const drainAmt = Math.min(te.hp, Math.floor(te.max_hp * 0.3));
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - drainAmt, 0) };
+        setEnemies(nes);
+        const np = [...newParty];
+        np[memberIndex] = { ...member, hp: Math.min(member.hp + drainAmt, member.max_hp) };
+        setParty(np);
+        addLog(`🩸 ${member.member_emoji} ${member.member_name}が ${te.emoji} ${te.name}のHPを${drainAmt}吸収！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'flash':
+      case 'preemptive': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return; }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const flashDmg = Math.floor((member.skill_power || 60) * 1.3) + member.attack - Math.floor(te.defense * 0.5);
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - Math.max(flashDmg, 10), 0) };
+        setEnemies(nes);
+        addLog(`⚡ ${member.member_emoji} ${member.member_name}の一閃！ ${te.emoji} ${te.name}に${Math.max(flashDmg, 10)}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+
+      // === 回復・防御系 追加 ===
+      case 'big_heal':
+        const bigHealAmt = member.skill_power || 60;
+        const tgt = targetIndex !== undefined && targetIndex >= 0 && targetIndex < newParty.length ? newParty[targetIndex] : newParty[memberIndex];
+        if (tgt && tgt.hp > 0) {
+          const ti = targetIndex ?? memberIndex;
+          newParty[ti] = { ...newParty[ti], hp: Math.min(newParty[ti].hp + bigHealAmt, newParty[ti].max_hp) };
+          setParty(newParty);
+          addLog(`💚 ${member.member_emoji} ${member.member_name}が大回復！ ${tgt.member_name}のHPを${bigHealAmt}回復！`);
+        }
+        break;
+      case 'regen':
+      case 'regen_long':
+      case 'life_spring':
+        setRegen(prev => ({ ...prev, [member.id]: { amount: member.skill_power || 20, turns: member.skill_type === 'regen_long' ? 5 : 3 } }));
+        addLog(`💚 ${member.member_emoji} ${member.member_name}が再生を発動！毎ターンHP回復！`);
+        break;
+      case 'all_defense': {
+        const amt = member.skill_power || 15;
+        const next: { [key: string]: number } = {};
+        newParty.forEach(m => { if (m.hp > 0) next[m.id] = (defenseBoost[m.id] || 0) + amt; });
+        setDefenseBoost(prev => ({ ...prev, ...next }));
+        addLog(`🛡️ ${member.member_emoji} ${member.member_name}が味方全員の防御をアップ！`);
+        break;
+      }
+      case 'barrier':
+        setBarrier(prev => ({ ...prev, [member.id]: member.skill_power || 50 }));
+        addLog(`🛡️ ${member.member_emoji} ${member.member_name}がバリアを張った！`);
+        break;
+      case 'iron_wall':
+        setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + (member.skill_power || 40) }));
+        addLog(`🛡️ ${member.member_emoji} ${member.member_name}が鉄壁！`);
+        break;
+      case 'prayer':
+        const prayAmt = member.skill_power || 15;
+        const prayed = newParty.map(m => m.hp > 0 ? { ...m, hp: Math.min(m.hp + prayAmt, m.max_hp) } : m);
+        setParty(prayed);
+        addLog(`🙏 ${member.member_emoji} ${member.member_name}の祈り！味方全員が${prayAmt}回復！`);
+        break;
+      case 'first_aid': {
+        const low = newParty.find(m => m.hp > 0 && m.hp < m.max_hp * 0.5);
+        const ti = low ? newParty.indexOf(low) : memberIndex;
+        const firstAidAmt = member.skill_power || 40;
+        newParty[ti] = { ...newParty[ti], hp: Math.min(newParty[ti].hp + firstAidAmt, newParty[ti].max_hp) };
+        setParty(newParty);
+        addLog(`💚 ${member.member_emoji} ${member.member_name}の応急手当！ ${newParty[ti].member_name}を${firstAidAmt}回復！`);
+        break;
+      }
+
+      // === バフ系 追加 ===
+      case 'all_attack': {
+        const amt = member.skill_power || 15;
+        const next: { [key: string]: number } = {};
+        newParty.forEach(m => { if (m.hp > 0) next[m.id] = (attackBoost[m.id] || 0) + amt; });
+        setAttackBoost(prev => ({ ...prev, ...next }));
+        addLog(`⚔️ ${member.member_emoji} ${member.member_name}が味方全員の攻撃をアップ！`);
+        break;
+      }
+      case 'quick': {
+        const amt = member.skill_power || 10;
+        const next: { [key: string]: number } = {};
+        newParty.forEach(m => { if (m.hp > 0) next[m.id] = (attackBoost[m.id] || 0) + amt; });
+        setAttackBoost(prev => ({ ...prev, ...next }));
+        addLog(`⚡ ${member.member_emoji} ${member.member_name}が味方全員をクイック！`);
+        break;
+      }
+      case 'rally':
+      case 'morale': {
+        const atkAmt = member.skill_power || 10;
+        const defAmt = Math.floor((member.skill_power || 10) * 0.8);
+        const nextAtk: { [key: string]: number } = {};
+        const nextDef: { [key: string]: number } = {};
+        newParty.forEach(m => {
+          if (m.hp > 0) {
+            nextAtk[m.id] = (attackBoost[m.id] || 0) + atkAmt;
+            nextDef[m.id] = (defenseBoost[m.id] || 0) + defAmt;
+          }
+        });
+        setAttackBoost(prev => ({ ...prev, ...nextAtk }));
+        setDefenseBoost(prev => ({ ...prev, ...nextDef }));
+        addLog(`📢 ${member.member_emoji} ${member.member_name}の鼓舞！味方全員が強化！`);
+        break;
+      }
+      case 'might':
+      case 'berserk':
+        const mightAmt = member.skill_power || 30;
+        setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + mightAmt }));
+        if (member.skill_type === 'berserk') setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) - 10 }));
+        addLog(`⚔️ ${member.member_emoji} ${member.member_name}の剛力！攻撃力が${mightAmt}アップ！`);
+        break;
+      case 'fortify':
+        setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + (member.skill_power || 25) }));
+        addLog(`🛡️ ${member.member_emoji} ${member.member_name}が堅陣！`);
+        break;
+      case 'haste':
+      case 'double_turn':
+        setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + (member.skill_power || 20) }));
+        addLog(`⚡ ${member.member_emoji} ${member.member_name}が加速！`);
+        break;
+      case 'awaken':
+      case 'last_awaken':
+        const awkAmt = member.skill_power || 25;
+        setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + awkAmt }));
+        setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + awkAmt }));
+        addLog(`✨ ${member.member_emoji} ${member.member_name}が覚醒！全ステータスアップ！`);
+        break;
+
+      // === 特殊系 ===
+      case 'time_stop':
+        setTimeStop(true);
+        addLog(`⏰ ${member.member_emoji} ${member.member_name}が時間停止！敵のターンをスキップ！`);
+        break;
+      case 'counter_prep':
+      case 'counter':
+        setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 999 }));
+        addLog(`🛡️ ${member.member_emoji} ${member.member_name}が反撃準備！`);
+        break;
+      case 'reflect_shield':
+      case 'damage_reflect':
+        setBarrier(prev => ({ ...prev, [member.id]: (member.skill_power || 30) * 2 }));
+        addLog(`🪞 ${member.member_emoji} ${member.member_name}が反射盾！`);
+        break;
+      case 'cheer': {
+        const cheerTarget = targetIndex !== undefined && targetIndex >= 0 ? newParty[targetIndex] : newParty.find(m => m.hp > 0);
+        if (cheerTarget) {
+          const ci = targetIndex ?? newParty.findIndex(m => m.id === cheerTarget.id);
+          setAttackBoost(prev => ({ ...prev, [cheerTarget.id]: (prev[cheerTarget.id] || 0) + (member.skill_power || 25) }));
+          addLog(`📣 ${member.member_emoji} ${member.member_name}が ${cheerTarget.member_name}を応援！`);
+        }
+        break;
+      }
+      case 'miracle': {
+        const healAll = member.skill_power || 50;
+        const mirac = newParty.map(m => m.hp > 0 ? { ...m, hp: Math.min(m.hp + healAll, m.max_hp) } : m);
+        setParty(mirac);
+        addLog(`✨ ${member.member_emoji} ${member.member_name}の奇跡！味方全員が${healAll}回復！`);
+        break;
+      }
+      case 'lucky_star': {
+        const r = Math.random();
+        if (r < 0.33) {
+          setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 50 }));
+          addLog(`🌟 ${member.member_emoji} ${member.member_name}のラッキースター！攻撃が大アップ！`);
+        } else if (r < 0.66) {
+          const healAmt = member.skill_power || 40;
+          newParty[memberIndex] = { ...member, hp: Math.min(member.hp + healAmt, member.max_hp) };
+          setParty(newParty);
+          addLog(`🌟 ${member.member_emoji} ${member.member_name}のラッキースター！HP回復！`);
+        } else {
+          const pwr = member.skill_power || 50;
+          const nes = enemies.map(e => e.hp > 0 ? { ...e, hp: Math.max(e.hp - pwr, 0) } : e);
+          setEnemies(nes);
+          addLog(`🌟 ${member.member_emoji} ${member.member_name}のラッキースター！全敵にダメージ！`);
+          if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        }
+        break;
+      }
+      case 'push':
+      case 'restrain':
+      case 'intimidate':
+      case 'curse_damage': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const cDmg = Math.max((member.skill_power || 35) + member.attack - te.defense, 5);
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...te, hp: Math.max(te.hp - cDmg, 0) };
+        setEnemies(nes);
+        addLog(`💥 ${member.member_emoji} ${member.member_name}の${getSkillName(member.skill_type)}！ ${te.emoji} ${te.name}に${cDmg}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'confusion':
+      case 'silence':
+      case 'shrink':
+      case 'fear':
+      case 'blind':
+      case 'bleed':
+      case 'curse': {
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択'); setIsPlayerTurn(true); return;
+        }
+        const te = enemies[targetEnemyIndex];
+        if (!te || te.hp <= 0) { alert('無効'); setIsPlayerTurn(true); return; }
+        const key = enemyKey(te, targetEnemyIndex);
+        if (member.skill_type === 'bleed') {
+          setEnemyPoison(prev => ({ ...prev, [key]: { damage: Math.floor(te.max_hp * 0.04), turns: 3 } }));
+        } else {
+          setEnemyParalyze(prev => ({ ...prev, [key]: 2 }));
+        }
+        addLog(`🎭 ${member.member_emoji} ${member.member_name}が ${te.emoji} ${te.name}に${getSkillName(member.skill_type)}！`);
+        break;
+      }
+      case 'purify': {
+        const pur = newParty.map(m => m.hp > 0 ? { ...m } : m);
+        setParty(pur);
+        setAttackBoost(prev => prev);
+        setDefenseBoost(prev => prev);
+        addLog(`✨ ${member.member_emoji} ${member.member_name}の浄化！味方の弱体を解除！`);
+        break;
+      }
+      case 'fortress':
+      case 'holy_guard': {
+        const fAmt = member.skill_power || 40;
+        const tgt = targetIndex !== undefined && targetIndex >= 0 ? newParty[targetIndex] : member;
+        if (tgt && tgt.hp > 0) {
+          setBarrier(prev => ({ ...prev, [tgt.id]: (prev[tgt.id] || 0) + fAmt }));
+          setDefenseBoost(prev => ({ ...prev, [tgt.id]: (prev[tgt.id] || 0) + Math.floor(fAmt * 0.5) }));
+          addLog(`🛡️ ${member.member_emoji} ${member.member_name}が ${tgt.member_name}を守護！`);
+        }
+        break;
+      }
+      case 'focus':
+      case 'spirit':
+      case 'lucky': {
+        const focAmt = member.skill_power || 20;
+        setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + focAmt }));
+        addLog(`✨ ${member.member_emoji} ${member.member_name}の集中！次攻撃が強化！`);
+        break;
+      }
+      case 'sacrifice':
+      case 'last_resort': {
+        const lowHpBonus = member.hp <= member.max_hp * 0.3 ? 2 : 1;
+        const sacDmg = Math.floor(((member.skill_power || 80) + member.attack) * 1.5 * lowHpBonus);
+        const selfDmg = member.skill_type === 'sacrifice' ? Math.floor(member.max_hp * 0.2) : 0;
+        const nes = enemies.map(e => e.hp > 0 ? { ...e, hp: Math.max(e.hp - sacDmg, 0) } : e);
+        setEnemies(nes);
+        if (selfDmg > 0) {
+          const np = [...newParty];
+          np[memberIndex] = { ...member, hp: Math.max(member.hp - selfDmg, 0) };
+          setParty(np);
+        }
+        addLog(`💀 ${member.member_emoji} ${member.member_name}の捨て身攻撃！全敵に${sacDmg}ダメージ！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'chain': {
+        const chainPwr = (member.skill_power || 30) * 2;
+        const nes = enemies.map(e => e.hp > 0 ? { ...e, hp: Math.max(e.hp - Math.floor(chainPwr * 0.5), 0) } : e);
+        setEnemies(nes);
+        addLog(`⚡ ${member.member_emoji} ${member.member_name}のチェイン！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'overheat': {
+        const OHdmg = Math.floor((member.skill_power || 100) * 1.5) + member.attack;
+        const nes = enemies.map(e => e.hp > 0 ? { ...e, hp: Math.max(e.hp - Math.floor(OHdmg * 0.3), 0) } : e);
+        setEnemies(nes);
+        const np = [...newParty];
+        np[memberIndex] = { ...member, hp: Math.max(member.hp - Math.floor(member.max_hp * 0.1), 0) };
+        setParty(np);
+        addLog(`🔥 ${member.member_emoji} ${member.member_name}のオーバーヒート！`);
+        if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+        break;
+      }
+      case 'mirage': {
+        setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 50 }));
+        addLog(`🌫️ ${member.member_emoji} ${member.member_name}がミラージュ！回避アップ！`);
+        break;
+      }
+      case 'revenge': {
+        setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 30 }));
+        setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 20 }));
+        addLog(`⚔️ ${member.member_emoji} ${member.member_name}のリベンジ準備！`);
+        break;
+      }
+      case 'echo': {
+        setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 15 }));
+        addLog(`🔊 ${member.member_emoji} ${member.member_name}のエコー！`);
+        break;
+      }
+      case 'summon':
+      case 'aura': {
+        const sumAmt = member.skill_power || 15;
+        const next: { [key: string]: number } = {};
+        newParty.forEach(m => { if (m.hp > 0) next[m.id] = (attackBoost[m.id] || 0) + sumAmt; });
+        setAttackBoost(prev => ({ ...prev, ...next }));
+        addLog(`✨ ${member.member_emoji} ${member.member_name}のオーラ！味方全員が強化！`);
+        break;
+      }
+      case 'convert': {
+        const cost = Math.floor(member.max_hp * 0.15);
+        const gained = Math.floor(member.attack * 0.5) + (member.skill_power || 20);
+        const np = [...newParty];
+        np[memberIndex] = { ...member, hp: Math.max(member.hp - cost, 0), attack: member.attack + gained };
+        setParty(np);
+        addLog(`🔄 ${member.member_emoji} ${member.member_name}の転換！HPを消費して攻撃アップ！`);
+        break;
+      }
+      case 'copy': {
+        setAttackBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 25 }));
+        addLog(`📋 ${member.member_emoji} ${member.member_name}がスキルをコピー！`);
+        break;
+      }
+      case 'holy_light':
+      case 'revive_light': {
+        const hlAmt = member.skill_power || 45;
+        const hl = newParty.map(m => m.hp > 0 ? { ...m, hp: Math.min(m.hp + hlAmt, m.max_hp) } : m);
+        setParty(hl);
+        addLog(`✨ ${member.member_emoji} ${member.member_name}の癒しの光！味方全員回復！`);
+        break;
+      }
+      case 'endure': {
+        setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 60 }));
+        addLog(`🛡️ ${member.member_emoji} ${member.member_name}が不屈！`);
+        break;
+      }
+      default:
+        addLog(`⚠️ ${member.member_emoji} ${member.member_name}のスキル${member.skill_type}は未実装の挙動です`);
     }
 
     // クールダウン設定（3ターン）
@@ -294,19 +929,8 @@ export default function BattlePage() {
       [member.id]: 3
     });
 
-    setTimeout(() => enemyTurn(), 1500);
-  }
-
-  function getSkillName(skillType: string | null | undefined): string {
-    if (!skillType) return '';
-    const names: { [key: string]: string } = {
-      'heal': '回復',
-      'revive': '自己蘇生',
-      'attack_boost': '攻撃強化',
-      'defense_boost': '防御強化',
-      'hst_power': 'HSTパワー'
-    };
-    return names[skillType] || skillType;
+    const usedTimeStop = member.skill_type === 'time_stop';
+    setTimeout(() => enemyTurn(usedTimeStop), 1500);
   }
 
   async function playerAttack(memberIndex: number, enemyIndex: number) {
@@ -322,10 +946,13 @@ export default function BattlePage() {
 
     setIsPlayerTurn(false);
 
-    // ダメージ計算（攻撃力ブーストを適用）
+    // ダメージ計算（攻撃力ブースト・敵防御ダウンを適用）
     const attackBoostAmount = attackBoost[member.id] || 0;
     const boostedAttack = member.attack + attackBoostAmount;
-    const baseDamage = boostedAttack - enemy.defense;
+    const eKey = enemyKey(enemy, enemyIndex);
+    const defDownAmount = enemyDefDown[eKey]?.amount || 0;
+    const effectiveDefense = Math.max(enemy.defense - defDownAmount, 0);
+    const baseDamage = boostedAttack - effectiveDefense;
     const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
 
     // 攻撃力ブーストを消費（使用後は削除）
@@ -361,19 +988,88 @@ export default function BattlePage() {
         return;
       }
       // 敵のターン
-      enemyTurn();
+      enemyTurn(false);
     }, 1500);
   }
 
-  function enemyTurn() {
+  function enemyTurn(timeStopUsed?: boolean) {
     const aliveEnemies = enemies.filter(e => e.hp > 0);
     const aliveParty = party.filter(m => m.hp > 0);
 
     if (aliveEnemies.length === 0 || aliveParty.length === 0) return;
 
+    // 時間停止時は敵のターンをスキップ
+    if (timeStopUsed) {
+      setTimeStop(false);
+      addLog('⏰ 時間停止の効果で敵のターンがスキップされた！');
+      setSkillCooldown(cd => {
+        const next: { [key: string]: number } = {};
+        Object.keys(cd).forEach(k => { const v = cd[k] - 1; if (v > 0) next[k] = v; });
+        return next;
+      });
+      setRegen(r => {
+        const next: { [key: string]: { amount: number; turns: number } } = {};
+        Object.entries(r).forEach(([k, v]) => {
+          const member = party.find(m => m.id === k);
+          if (member && member.hp > 0 && v.turns > 1) {
+            next[k] = { ...v, turns: v.turns - 1 };
+          }
+        });
+        return next;
+      });
+      setEnemyPoison(p => {
+        const next: { [key: string]: { damage: number; turns: number } } = {};
+        Object.entries(p).forEach(([k, v]) => {
+          if (v.turns > 1) next[k] = { ...v, turns: v.turns - 1 };
+        });
+        return next;
+      });
+      setEnemyParalyze(pp => {
+        const next: { [key: string]: number } = {};
+        Object.entries(pp).forEach(([k, v]) => { if (v > 1) next[k] = v - 1; });
+        return next;
+      });
+      setEnemyAtkDown(a => {
+        const next: { [key: string]: { amount: number; turns: number } } = {};
+        Object.entries(a).forEach(([k, v]) => { if (v.turns > 1) next[k] = { ...v, turns: v.turns - 1 }; });
+        return next;
+      });
+      setEnemyDefDown(d => {
+        const next: { [key: string]: { amount: number; turns: number } } = {};
+        Object.entries(d).forEach(([k, v]) => { if (v.turns > 1) next[k] = { ...v, turns: v.turns - 1 }; });
+        return next;
+      });
+      setTimeout(() => {
+        setTurn(prev => prev + 1);
+        setIsPlayerTurn(true);
+        setSelectedMember(null);
+        setPendingEnemyTargetMember(null);
+      }, 500);
+      return;
+    }
+
+    // 毒ダメージ処理（敵ターン開始時）
+    let currentEnemies = [...enemies];
+    const poisonEntries = Object.entries(enemyPoison);
+    if (poisonEntries.length > 0) {
+      const nextPoison: { [key: string]: { damage: number; turns: number } } = {};
+      poisonEntries.forEach(([key, val]) => {
+        const idx = currentEnemies.findIndex((e, i) => enemyKey(e, i) === key);
+        if (idx >= 0 && currentEnemies[idx].hp > 0) {
+          const dmg = val.damage;
+          currentEnemies = currentEnemies.map((e, i) => i === idx ? { ...e, hp: Math.max(e.hp - dmg, 0) } : e);
+          addLog(`☠️ 毒ダメージ！ ${currentEnemies[idx].emoji} ${currentEnemies[idx].name}に${dmg}ダメージ！`);
+          if (val.turns > 1) nextPoison[key] = { ...val, turns: val.turns - 1 };
+        }
+      });
+      setEnemies(currentEnemies);
+      setEnemyPoison(prev => ({ ...prev, ...nextPoison }));
+    }
+    const aliveEnemiesAfterPoison = currentEnemies.filter(e => e.hp > 0);
+
     // 各敵の攻撃を順次処理（関数型更新で最新の状態を常に参照）
     const processEnemyAttack = (enemyIndex: number) => {
-      if (enemyIndex >= aliveEnemies.length) {
+      if (enemyIndex >= aliveEnemiesAfterPoison.length) {
         // 全ての敵の攻撃が完了
         setTimeout(() => {
           setParty(finalParty => {
@@ -393,6 +1089,17 @@ export default function BattlePage() {
               });
               return newCooldown;
             });
+            // 敵デバフ時間減少
+            setEnemyAtkDown(a => {
+              const next: { [key: string]: { amount: number; turns: number } } = {};
+              Object.entries(a).forEach(([k, v]) => { if (v.turns > 1) next[k] = { ...v, turns: v.turns - 1 }; });
+              return next;
+            });
+            setEnemyDefDown(d => {
+              const next: { [key: string]: { amount: number; turns: number } } = {};
+              Object.entries(d).forEach(([k, v]) => { if (v.turns > 1) next[k] = { ...v, turns: v.turns - 1 }; });
+              return next;
+            });
             
             // 蘇生チェックの完了を待ってから全滅チェック（useEffectが検出する）
             setTimeout(() => {
@@ -403,6 +1110,24 @@ export default function BattlePage() {
                 setTurn(prev => prev + 1);
                 setIsPlayerTurn(true);
                 setSelectedMember(null);
+                setPendingEnemyTargetMember(null);
+                // リジェネ処理（プレイヤーターン開始時）
+                setRegen(currentRegen => {
+                  const nextRegen: { [key: string]: { amount: number; turns: number } } = {};
+                  const partyUpdates: { [key: string]: number } = {};
+                  Object.entries(currentRegen).forEach(([memberId, reg]) => {
+                    const m = finalParty.find(p => p.id === memberId);
+                    if (m && m.hp > 0 && reg.turns > 0) {
+                      const healAmt = Math.min(reg.amount, m.max_hp - m.hp);
+                      if (healAmt > 0) partyUpdates[memberId] = m.hp + healAmt;
+                      if (reg.turns > 1) nextRegen[memberId] = { ...reg, turns: reg.turns - 1 };
+                    }
+                  });
+                  if (Object.keys(partyUpdates).length > 0) {
+                    setParty(prev => prev.map(m => partyUpdates[m.id] !== undefined ? { ...m, hp: partyUpdates[m.id] } : m));
+                  }
+                  return nextRegen;
+                });
               }
             }, 800);
             
@@ -412,8 +1137,22 @@ export default function BattlePage() {
         return;
       }
 
-      const enemy = aliveEnemies[enemyIndex];
-      
+      const enemy = aliveEnemiesAfterPoison[enemyIndex];
+      const origIdx = currentEnemies.findIndex(e => e === enemy);
+      const eKey = origIdx >= 0 ? enemyKey(enemy, origIdx) : `e_${enemyIndex}`;
+
+      // 麻痺・睡眠・凍結時はターンスキップ
+      if (enemyParalyze[eKey] && enemyParalyze[eKey] > 0) {
+        setEnemyParalyze(pp => {
+          const next = { ...pp };
+          if (next[eKey] > 1) next[eKey] = next[eKey] - 1; else delete next[eKey];
+          return next;
+        });
+        addLog(`❄️ ${enemy.emoji} ${enemy.name}は状態異常で動けない！`);
+        setTimeout(() => processEnemyAttack(enemyIndex + 1), 300);
+        return;
+      }
+
       setTimeout(() => {
         // 最新のparty状態と防御力ブーストを取得
         setParty(currentParty => {
@@ -427,17 +1166,33 @@ export default function BattlePage() {
           const target = currentAliveParty[targetIndex];
           
           if (!target) {
-            // ターゲットが見つからない場合は次の敵の攻撃を処理
             processEnemyAttack(enemyIndex + 1);
             return currentParty;
           }
 
-          // 最新の防御力ブーストを取得してダメージ計算
+          // 最新の防御力ブースト・バリア・敵攻撃ダウンを取得してダメージ計算
           setDefenseBoost(currentDefenseBoost => {
             const defenseBoostAmount = currentDefenseBoost[target.id] || 0;
+            const atkDownAmount = enemyAtkDown[eKey]?.amount || 0;
+            const effectiveEnemyAtk = Math.max(enemy.attack - atkDownAmount, 1);
             const boostedDefense = target.defense + defenseBoostAmount;
-            const baseDamage = enemy.attack - boostedDefense;
-            const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+            const baseDamage = effectiveEnemyAtk - boostedDefense;
+            let damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+
+            // バリア吸収（最新のbarrierをrefから取得）
+            const barrierAmount = barrierRef.current[target.id] || 0;
+            let absorbed = 0;
+            if (barrierAmount > 0) {
+              absorbed = Math.min(damage, barrierAmount);
+              damage = Math.max(damage - absorbed, 0);
+              setBarrier(prev => {
+                const next = { ...prev };
+                const remain = (prev[target.id] || 0) - absorbed;
+                if (remain > 0) next[target.id] = remain; else delete next[target.id];
+                barrierRef.current = next;
+                return next;
+              });
+            }
 
             // 防御力ブーストを消費（使用後は削除）
             const newDefenseBoost = { ...currentDefenseBoost };
@@ -446,7 +1201,8 @@ export default function BattlePage() {
             }
 
             const boostText = defenseBoostAmount > 0 ? `（防御力+${defenseBoostAmount}で軽減）` : '';
-            addLog(`${enemy.emoji} ${enemy.name}の攻撃${boostText}！ ${target.member_emoji} ${target.member_name}に${damage}ダメージ！`);
+            const barrierText = absorbed > 0 ? `（バリアで${absorbed}吸収）` : '';
+            addLog(`${enemy.emoji} ${enemy.name}の攻撃${boostText}${barrierText}！ ${target.member_emoji} ${target.member_name}に${damage}ダメージ！`);
 
             // パーティのHPを更新
             setParty(partyState => {
@@ -736,7 +1492,12 @@ export default function BattlePage() {
               {party.map((member, index) => (
                 <div
                   key={member.id}
-                  onClick={() => isPlayerTurn && member.hp > 0 && setSelectedMember(index)}
+                  onClick={() => {
+                    if (isPlayerTurn && member.hp > 0) {
+                      setSelectedMember(index);
+                      setPendingEnemyTargetMember(null);
+                    }
+                  }}
                   className={`border-2 rounded-lg p-4 transition cursor-pointer ${
                     selectedMember === index ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                   } ${member.hp <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400'}`}
@@ -851,6 +1612,49 @@ export default function BattlePage() {
                             : `${getSkillName(member.skill_type)} 使用`
                           }
                         </button>
+                      ) : SKILLS_NEED_ENEMY_TARGET.has(member.skill_type || '') ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingEnemyTargetMember(index);
+                          }}
+                          disabled={skillCooldown[member.id] > 0}
+                          className={`w-full px-3 py-2 rounded text-sm font-bold transition ${
+                            skillCooldown[member.id] > 0
+                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                              : 'bg-orange-500 text-white hover:bg-orange-600'
+                          }`}
+                        >
+                          {skillCooldown[member.id] > 0 
+                            ? `クールダウン: ${skillCooldown[member.id]}`
+                            : '敵を選択してクリック'
+                          }
+                        </button>
+                      ) : SKILLS_NEED_ALLY_TARGET.has(member.skill_type || '') && member.skill_type !== 'heal' ? (
+                        <div className="space-y-1">
+                          {party.map((target, tIndex) => (
+                            target.hp > 0 && (
+                              <button
+                                key={tIndex}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  useSkill(index, tIndex);
+                                }}
+                                disabled={skillCooldown[member.id] > 0}
+                                className={`w-full px-2 py-1 rounded text-xs font-bold transition ${
+                                  skillCooldown[member.id] > 0
+                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                    : 'bg-green-500 text-white hover:bg-green-600'
+                                }`}
+                              >
+                                {skillCooldown[member.id] > 0 
+                                  ? `CT:${skillCooldown[member.id]}`
+                                  : `${target.member_name}に`
+                                }
+                              </button>
+                            )
+                          ))}
+                        </div>
                       ) : (
                         <button
                           onClick={(e) => {
@@ -891,9 +1695,16 @@ export default function BattlePage() {
               {enemies.map((enemy, index) => (
                 <div
                   key={index}
-                  onClick={() => selectedMember !== null && enemy.hp > 0 && isPlayerTurn && playerAttack(selectedMember, index)}
+                  onClick={() => {
+                    if (pendingEnemyTargetMember !== null && enemy.hp > 0 && isPlayerTurn) {
+                      useSkill(pendingEnemyTargetMember, undefined, index);
+                      setPendingEnemyTargetMember(null);
+                    } else if (selectedMember !== null && enemy.hp > 0 && isPlayerTurn) {
+                      playerAttack(selectedMember, index);
+                    }
+                  }}
                   className={`border-2 border-red-300 rounded-lg p-4 transition ${
-                    selectedMember !== null && enemy.hp > 0 && isPlayerTurn ? 'cursor-pointer hover:border-red-500 hover:bg-red-50' : ''
+                    (selectedMember !== null || pendingEnemyTargetMember !== null) && enemy.hp > 0 && isPlayerTurn ? 'cursor-pointer hover:border-red-500 hover:bg-red-50' : ''
                   } ${enemy.hp <= 0 ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-center gap-3 mb-2">
