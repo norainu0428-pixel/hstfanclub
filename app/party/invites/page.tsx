@@ -14,7 +14,7 @@ interface InviteRow {
   status: string;
 }
 
-export default function AdventureInvitesPage() {
+export default function PartyInvitesPage() {
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,14 +39,14 @@ export default function AdventureInvitesPage() {
       .eq('friend_id', user.id)
       .in('status', ['pending', 'accepted']);
 
-    const adventureInvites = (inviteRows || []).filter((r: { invite_mode?: string }) => !r.invite_mode || r.invite_mode === 'adventure');
-    if (adventureInvites.length > 0) {
+    const partyInvites = (inviteRows || []).filter((r: { invite_mode?: string }) => r.invite_mode === 'party');
+    if (partyInvites.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, display_name')
-        .in('user_id', adventureInvites.map((i: InviteRow) => i.host_id));
+        .in('user_id', partyInvites.map((i: { host_id: string }) => i.host_id));
       const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name]));
-      setInvites(adventureInvites.map((row: { id: string; host_id: string; host_party_ids?: string[]; status: string }) => ({
+      setInvites(partyInvites.map((row: { id: string; host_id: string; host_party_ids?: string[]; status: string }) => ({
         id: row.id,
         host_id: row.host_id,
         host_name: nameMap.get(row.host_id) || 'ホスト',
@@ -107,46 +107,46 @@ export default function AdventureInvitesPage() {
       alert('参加に失敗しました: ' + error.message);
       return;
     }
-    alert('参加しました！ホストが「一緒に冒険開始」を押すと冒険が始まります。');
+    alert('参加しました！ホストがステージを選ぶとパーティバトルが始まります。');
     setSelectedParty([null, null, null]);
     load();
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-orange-500 text-xl">読み込み中...</div>
+      <div className="min-h-screen bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center">
+        <div className="text-white text-xl">読み込み中...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black p-4">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-600 to-blue-600 p-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-orange-500 mb-2 text-center">👥 冒険の招待</h1>
-        <p className="text-gray-400 text-center mb-6">フレンドから届いた協力バトルの招待です</p>
+        <h1 className="text-3xl font-bold text-white mb-2 text-center">👥 パーティの招待</h1>
+        <p className="text-white/80 text-center mb-6">フレンドから届いたパーティーモードの招待です</p>
 
         {invites.length === 0 ? (
-          <div className="bg-gray-900 border border-orange-500/30 rounded-2xl p-12 text-center">
-            <p className="text-gray-400">現在、招待はありません。</p>
-            <button onClick={() => router.push('/adventure')} className="mt-4 text-orange-500 underline">冒険に戻る</button>
+          <div className="bg-white/10 backdrop-blur rounded-2xl p-12 text-center border-2 border-white/20">
+            <p className="text-white/90 mb-4">現在、招待はありません。</p>
+            <button onClick={() => router.push('/party')} className="text-white underline font-bold">パーティーモードに戻る</button>
           </div>
         ) : (
           <div className="space-y-6">
             {invites.map(inv => (
-              <div key={inv.id} className="bg-gray-900 border border-orange-500/30 rounded-2xl p-6">
+              <div key={inv.id} className="bg-white rounded-2xl p-6 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">{inv.host_name} から招待</h2>
-                  <span className={`px-3 py-1 rounded-full text-sm ${inv.status === 'accepted' ? 'bg-green-500/30 text-green-400' : 'bg-orange-500/30 text-orange-400'}`}>
+                  <h2 className="text-xl font-bold text-gray-800">{inv.host_name} から招待</h2>
+                  <span className={`px-3 py-1 rounded-full text-sm ${inv.status === 'accepted' ? 'bg-green-500/30 text-green-700' : 'bg-amber-500/30 text-amber-700'}`}>
                     {inv.status === 'accepted' ? '参加済み' : '未参加'}
                   </span>
                 </div>
                 {inv.status === 'pending' && (
                   <>
-                    <p className="text-gray-400 mb-4">あなたのパーティを3体選んで参加してください</p>
+                    <p className="text-gray-600 mb-4">あなたのパーティを3体選んで参加してください</p>
                     <div className="grid grid-cols-3 gap-2 mb-4">
                       {[0, 1, 2].map(i => (
-                        <div key={i} className="border-2 border-dashed border-orange-500/30 rounded-lg p-2 min-h-[140px] flex items-center justify-center bg-gray-800/50">
+                        <div key={i} className="border-2 border-dashed border-cyan-300 rounded-lg p-2 min-h-[140px] flex items-center justify-center bg-cyan-50">
                           {selectedParty[i] ? (
                             <div className="relative">
                               <MemberCard member={selectedParty[i]!} selected={true} showStats={false} />
@@ -174,7 +174,7 @@ export default function AdventureInvitesPage() {
                     <button
                       onClick={() => acceptInvite(inv.id)}
                       disabled={selectedParty.filter(Boolean).length !== 3 || acceptingId === inv.id}
-                      className="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-bold disabled:opacity-50"
+                      className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-bold disabled:opacity-50 hover:opacity-90"
                     >
                       {acceptingId === inv.id ? '送信中...' : '参加する'}
                     </button>
@@ -186,8 +186,8 @@ export default function AdventureInvitesPage() {
         )}
 
         <div className="text-center mt-8">
-          <button onClick={() => router.push('/adventure')} className="bg-gray-800 text-orange-500 border border-orange-500 px-8 py-3 rounded-lg font-bold">
-            冒険に戻る
+          <button onClick={() => router.push('/party')} className="bg-white/20 text-white border-2 border-white px-8 py-3 rounded-lg font-bold hover:bg-white/30">
+            パーティーモードに戻る
           </button>
         </div>
       </div>

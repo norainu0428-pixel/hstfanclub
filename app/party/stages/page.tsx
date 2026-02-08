@@ -19,6 +19,7 @@ export default function PartyStagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const partyIds = searchParams.get('party') || '';
+  const inviteId = searchParams.get('invite_id') || '';
   const [stages, setStages] = useState<PartyStage[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,11 +43,13 @@ export default function PartyStagesPage() {
   }
 
   function selectStage(stage: PartyStage) {
-    if (!partyIds) {
+    if (inviteId) {
+      router.push(`/party/stage/${stage.id}?invite_id=${inviteId}`);
+    } else if (partyIds) {
+      router.push(`/party/stage/${stage.id}?party=${partyIds}`);
+    } else {
       router.push('/party');
-      return;
     }
-    router.push(`/party/stage/${stage.id}?party=${partyIds}`);
   }
 
   if (loading) {
@@ -63,6 +66,7 @@ export default function PartyStagesPage() {
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">🎭 パーティーステージ</h1>
           <p className="text-lg opacity-90">挑戦するステージを選んでください</p>
+          {inviteId && <p className="text-cyan-300 mt-2">👥 協力バトルモード</p>}
         </div>
 
         <div className="space-y-4">

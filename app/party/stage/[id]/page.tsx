@@ -12,6 +12,8 @@ export default function PartyStagePage() {
   const router = useRouter();
   const stageId = params.id as string;
   const partyIds = (searchParams.get('party') || '').split(',').filter(Boolean);
+  const inviteId = searchParams.get('invite_id') || '';
+  const [hostPartyIds, setHostPartyIds] = useState<string[]>([]);
 
   const [stage, setStage] = useState<{
     id: string;
@@ -36,10 +38,56 @@ export default function PartyStagePage() {
       router.push('/');
       return;
     }
-    if (partyIds.length === 0) {
+
+    if (inviteId) {
+      const { data: invite, error: invErr } = await supabase
+        .from('adventure_invites')
+        .select('host_id, host_party_ids, friend_party_snapshot, invite_mode')
+        .eq('id', inviteId)
+        .single();
+      if (invErr || !invite || invite.invite_mode !== 'party') {
+        alert('招待情報の取得に失敗しました');
+        router.push('/party');
+        setLoading(false);
+        return;
+      }
+      if (user.id !== invite.host_id) {
+        alert('ホストのみバトルを開始できます');
+        router.push('/party');
+        setLoading(false);
+        return;
+      }
+      const hostIds = (invite.host_party_ids || []).filter(Boolean);
+      setHostPartyIds(hostIds);
+      const snapshot = (invite.friend_party_snapshot || []) as Partial<Member>[];
+      if (snapshot.length === 0) {
+        alert('フレンドがまだ参加していません。フレンドがパーティを組むまでお待ちください。');
+        router.push('/party/stages?invite_id=' + inviteId);
+        setLoading(false);
+        return;
+      }
+      const { data: hostMembers } = await supabase
+        .from('user_members')
+        .select('*')
+        .in('id', hostIds);
+      const host = (hostMembers || []).map((m: any) => ({ ...m, current_hp: m.current_hp ?? m.hp, hp: m.hp ?? m.max_hp }));
+      const friend = snapshot.map((m: Partial<Member>) => ({ ...m, current_hp: m.hp ?? m.max_hp } as Member));
+      setParty([...host, ...friend]);
+    } else if (partyIds.length === 0) {
       router.push('/party');
       setLoading(false);
       return;
+    } else {
+      const { data: membersData } = await supabase
+        .from('user_members')
+        .select('*')
+        .in('id', partyIds);
+      const members = (membersData || []).map((m: any) => ({
+        ...m,
+        current_hp: m.current_hp ?? m.hp,
+        hp: m.hp ?? m.max_hp
+      }));
+      setParty(members);
     }
 
     const { data: stageData, error: stageErr } = await supabase
@@ -51,22 +99,11 @@ export default function PartyStagePage() {
 
     if (stageErr || !stageData) {
       alert('ステージが見つかりません');
-      router.push('/party/stages');
+      router.push(inviteId ? '/party/stages?invite_id=' + inviteId : '/party/stages');
       setLoading(false);
       return;
     }
 
-    const { data: membersData } = await supabase
-      .from('user_members')
-      .select('*')
-      .in('id', partyIds);
-
-    const members = (membersData || []).map((m: any) => ({
-      ...m,
-      current_hp: m.current_hp ?? m.hp,
-      hp: m.hp ?? m.max_hp
-    }));
-    setParty(members);
     setStage({
       ...stageData,
       enemies: (stageData.enemies || []) as Enemy[]
@@ -75,8 +112,15 @@ export default function PartyStagePage() {
   }
 
   function startBattle() {
-    const ids = party.map(m => m.id).join(',');
-    router.push(`/adventure/battle?party_stage_id=${stageId}&party=${ids}`);
+    if (inviteId) {
+      const mine = hostPartyIds.length > 0 ? hostPartyIds.join(',') : '';
+      const q = new URLSearchParams({ party_stage_id: stageId, invite_id: inviteId });
+      if (mine) q.set('mine', mine);
+      router.push(`/adventure/battle?${q.toString()}`);
+    } else {
+      const ids = party.map(m => m.id).join(',');
+      router.push(`/adventure/battle?party_stage_id=${stageId}&party=${ids}`);
+    }
   }
 
   if (loading || !stage) {
@@ -137,7 +181,7 @@ export default function PartyStagePage() {
             戦闘開始
           </button>
           <button
-            onClick={() => router.push(`/party/stages?party=${partyIds.join(',')}`)}
+            onClick={() => router.push(inviteId ? `/party/stages?invite_id=${inviteId}` : `/party/stages?party=${partyIds.join(',')}`)}
             className="px-6 py-4 bg-gray-500 text-white rounded-xl font-bold hover:bg-gray-600"
           >
             戻る

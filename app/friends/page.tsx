@@ -112,6 +112,13 @@ export default function FriendsPage() {
             <div className="font-bold text-lg">冒険の招待</div>
           </button>
           <button
+            onClick={() => router.push('/party/invites')}
+            className="bg-gray-900 border border-cyan-500/30 p-6 rounded-xl shadow-lg shadow-cyan-500/10 hover:border-cyan-500 hover:shadow-cyan-500/20 transition text-white"
+          >
+            <div className="text-4xl mb-2">🎭</div>
+            <div className="font-bold text-lg">パーティの招待</div>
+          </button>
+          <button
             onClick={() => router.push('/friends/search')}
             className="bg-gray-900 border border-orange-500/30 p-6 rounded-xl shadow-lg shadow-orange-500/10 hover:border-orange-500 hover:shadow-orange-500/20 transition text-white"
           >

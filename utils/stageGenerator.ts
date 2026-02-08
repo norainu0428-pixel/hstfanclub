@@ -114,9 +114,9 @@ export function generateStageInfo(stage: number): StageInfo {
     const isBoss = isBossStage && i === enemyCount - 1;
     const multiplier = isBoss ? bossMultiplier : 1;
     
-    // 推奨レベルに基づいてステータスを計算（敵はプレイヤーより少し弱めに設定）
-    // 通常敵は推奨レベルの80%、ボスはmultiplierを適用
-    const enemyPowerRatio = isBoss ? 0.9 * multiplier : 0.8;
+    // 推奨レベルに基づいてステータスを計算（敵はプレイヤーと同等〜やや強めに設定）
+    // 通常敵は推奨レベルの105%、ボスはさらに強く（1.2倍×multiplier）
+    const enemyPowerRatio = isBoss ? 1.2 * multiplier : 1.05;
     
     const hp = Math.floor(baseStats.hp * enemyPowerRatio);
     const attack = Math.floor(baseStats.attack * enemyPowerRatio);

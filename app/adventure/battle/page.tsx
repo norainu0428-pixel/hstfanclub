@@ -103,13 +103,13 @@ export default function BattlePage() {
         .single();
       if (invErr || !invite) {
         alert('招待の取得に失敗しました');
-        router.push('/adventure');
+        router.push(partyStageId ? '/party' : '/adventure');
         return;
       }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || user.id !== invite.host_id) {
         alert('ホストのみ協力バトルを開始できます');
-        router.push('/adventure');
+        router.push(partyStageId ? '/party' : '/adventure');
         return;
       }
       const hostIds = (invite.host_party_ids || []).filter(Boolean);
