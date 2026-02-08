@@ -5,6 +5,93 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
 
+interface Announcement {
+  id: string;
+  title: string;
+  body: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+function AnnouncementsEditor() {
+  const [list, setList] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newTitle, setNewTitle] = useState('');
+  const [newBody, setNewBody] = useState('');
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    const { data } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
+    setList(data || []);
+    setLoading(false);
+  }
+
+  async function add() {
+    if (!newTitle.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('announcements').insert({
+      title: newTitle.trim(),
+      body: newBody.trim() || null,
+      is_active: true,
+      created_by: user?.id
+    });
+    setNewTitle('');
+    setNewBody('');
+    load();
+  }
+
+  async function toggleActive(id: string, isActive: boolean) {
+    await supabase.from('announcements').update({ is_active: isActive, updated_at: new Date().toISOString() }).eq('id', id);
+    load();
+  }
+
+  async function remove(id: string) {
+    if (!confirm('削除しますか？')) return;
+    await supabase.from('announcements').delete().eq('id', id);
+    load();
+  }
+
+  if (loading) return <p className="text-gray-500">読込中...</p>;
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 flex-wrap">
+        <input
+          value={newTitle}
+          onChange={e => setNewTitle(e.target.value)}
+          placeholder="タイトル"
+          className="border-2 border-gray-300 rounded-lg px-3 py-2 flex-1 min-w-[200px]"
+        />
+        <input
+          value={newBody}
+          onChange={e => setNewBody(e.target.value)}
+          placeholder="本文（任意）"
+          className="border-2 border-gray-300 rounded-lg px-3 py-2 flex-1 min-w-[200px]"
+        />
+        <button onClick={add} className="px-4 py-2 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600">追加</button>
+      </div>
+      <div className="space-y-2">
+        {list.length === 0 ? (
+          <p className="text-gray-500">お知らせはありません</p>
+        ) : (
+          list.map(a => (
+            <div key={a.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+              <span className="flex-1 font-bold">{a.title}</span>
+              <button
+                onClick={() => toggleActive(a.id, !a.is_active)}
+                className={`px-2 py-1 rounded text-sm ${a.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
+              >
+                {a.is_active ? '表示中' : '非表示'}
+              </button>
+              <button onClick={() => remove(a.id)} className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm">削除</button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface GachaRate {
   id: string;
   rarity: string;
@@ -18,6 +105,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<GachaRate[]>([]);
   const [basicRates, setBasicRates] = useState<GachaRate[]>([]);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -45,7 +134,39 @@ export default function SettingsPage() {
 
     setIsAdmin(true);
     await loadRates();
+    await loadMaintenanceMode();
     setLoading(false);
+  }
+
+  async function loadMaintenanceMode() {
+    setMaintenanceLoading(true);
+    const { data } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'maintenance_mode')
+      .maybeSingle();
+    const enabled = data?.value && typeof data.value === 'object' && 'enabled' in data.value
+      ? Boolean((data.value as { enabled?: boolean }).enabled)
+      : false;
+    setMaintenanceMode(enabled);
+    setMaintenanceLoading(false);
+  }
+
+  async function setMaintenanceEnabled(enabled: boolean) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from('system_settings')
+      .upsert({
+        key: 'maintenance_mode',
+        value: { enabled },
+        updated_at: new Date().toISOString(),
+        updated_by: user?.id ?? null
+      }, { onConflict: 'key' });
+    if (error) {
+      alert('メンテナンスモードの更新に失敗しました: ' + error.message);
+      return;
+    }
+    setMaintenanceMode(enabled);
   }
 
   async function loadRates() {
@@ -162,26 +283,30 @@ export default function SettingsPage() {
           {/* お知らせ管理 */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h2 className="text-xl font-bold mb-4">📢 お知らせ管理</h2>
-            <p className="text-gray-600 mb-4">
-              お知らせの投稿・編集機能は今後実装予定です。
-            </p>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-500">
-                announcementsテーブルを作成すると、お知らせ機能が利用可能になります。
-              </p>
-            </div>
+            <AnnouncementsEditor />
           </div>
 
           {/* メンテナンスモード */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h2 className="text-xl font-bold mb-4">🔧 メンテナンスモード</h2>
             <p className="text-gray-600 mb-4">
-              メンテナンスモードの設定機能は今後実装予定です。
+              メンテナンスモードを有効にすると、一般ユーザーはサイトにアクセスできなくなります。オーナー・スタッフは継続してアクセス可能です。
             </p>
-            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800">
-                メンテナンスモードを有効にすると、一般ユーザーはサイトにアクセスできなくなります。
-              </p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setMaintenanceEnabled(!maintenanceMode)}
+                disabled={maintenanceLoading}
+                className={`px-6 py-3 rounded-lg font-bold transition ${
+                  maintenanceMode
+                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {maintenanceLoading ? '読込中...' : maintenanceMode ? 'メンテナンス中' : '通常稼働'}
+              </button>
+              <span className={`font-bold ${maintenanceMode ? 'text-orange-600' : 'text-green-600'}`}>
+                {maintenanceMode ? '🔴 メンテナンスモード ON' : '🟢 通常'}
+              </span>
             </div>
           </div>
 

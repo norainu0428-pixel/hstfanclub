@@ -8,88 +8,6 @@ import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
 import { canEvolve, getEvolvedStats } from '@/utils/evolution';
 
-function BorrowMemberModal({
-  friends,
-  loadFriendMembers,
-  onSelect,
-  onClose
-}: {
-  friends: { friend_id: string; display_name: string }[];
-  loadFriendMembers: (friendId: string) => Promise<Member[]>;
-  onSelect: (member: Member, friendId: string) => void;
-  onClose: () => void;
-}) {
-  const [step, setStep] = useState<'friend' | 'member'>('friend');
-  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
-  const [friendName, setFriendName] = useState('');
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  async function pickFriend(friendId: string, name: string) {
-    setSelectedFriendId(friendId);
-    setFriendName(name);
-    setLoading(true);
-    const list = await loadFriendMembers(friendId);
-    setMembers(list);
-    setLoading(false);
-    setStep('member');
-  }
-
-  if (friends.length === 0) {
-    return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-900 border border-orange-500/50 rounded-2xl p-6 max-w-md w-full">
-          <p className="text-gray-400 mb-4">フレンドがいません。</p>
-          <button onClick={onClose} className="w-full py-2 bg-gray-600 text-white rounded-lg">閉じる</button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-orange-500/50 rounded-2xl p-6 max-w-lg w-full max-h-[85vh] overflow-auto">
-        <h3 className="text-xl font-bold text-white mb-4">
-          {step === 'friend' ? 'フレンドを選択' : `${friendName}のメンバーから借りる`}
-        </h3>
-        {step === 'friend' && (
-          <ul className="space-y-2">
-            {friends.map(f => (
-              <li key={f.friend_id}>
-                <button
-                  onClick={() => pickFriend(f.friend_id, f.display_name)}
-                  className="w-full text-left p-3 rounded-lg bg-gray-800 border border-orange-500/30 text-white hover:bg-gray-700"
-                >
-                  {f.display_name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {step === 'member' && (
-          <>
-            {loading ? (
-              <p className="text-gray-400">読み込み中...</p>
-            ) : members.length === 0 ? (
-              <p className="text-gray-400">このフレンドはメンバーを所持していません。</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {members.map(m => (
-                  <div key={m.id} onClick={() => onSelect(m, selectedFriendId!)} className="cursor-pointer">
-                    <MemberCard member={m} selected={false} showStats={true} />
-                  </div>
-                ))}
-              </div>
-            )}
-            <button onClick={() => { setStep('friend'); setSelectedFriendId(null); }} className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg">戻る</button>
-          </>
-        )}
-        <button onClick={onClose} className="mt-2 w-full py-2 bg-gray-700 text-white rounded-lg">閉じる</button>
-      </div>
-    </div>
-  );
-}
-
 export default function AdventurePage() {
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<Member[]>([]);
@@ -101,11 +19,6 @@ export default function AdventurePage() {
   const [baseMember, setBaseMember] = useState<Member | null>(null);
   const [materialMembers, setMaterialMembers] = useState<Member[]>([]);
   const [evolutionMember, setEvolutionMember] = useState<Member | null>(null);
-  const [friends, setFriends] = useState<{ friend_id: string; display_name: string }[]>([]);
-  const [inviteFriendMode, setInviteFriendMode] = useState(false);
-  const [borrowMode, setBorrowMode] = useState(false);
-  const [borrowedFrom, setBorrowedFrom] = useState<Record<string, string>>({}); // member_id -> friend_id
-  const [acceptedInvites, setAcceptedInvites] = useState<{ id: string; friend_id: string; friend_name: string }[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -172,43 +85,6 @@ export default function AdventurePage() {
       })();
     }
 
-    // フレンド一覧
-    const { data: friendships } = await supabase
-      .from('friendships')
-      .select('friend_id')
-      .eq('user_id', user.id)
-      .eq('status', 'accepted');
-    if (friendships && friendships.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', friendships.map((f: { friend_id: string }) => f.friend_id));
-      const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name]));
-      setFriends(friendships.map((f: { friend_id: string }) => ({
-        friend_id: f.friend_id,
-        display_name: nameMap.get(f.friend_id) || '不明'
-      })));
-    }
-
-    // 参加済みの招待（自分がホストで、フレンドが参加済み）
-    const { data: invites } = await supabase
-      .from('adventure_invites')
-      .select('id, friend_id')
-      .eq('host_id', user.id)
-      .eq('status', 'accepted');
-    if (invites && invites.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', invites.map(i => i.friend_id));
-      const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name]));
-      setAcceptedInvites(invites.map(inv => ({
-        id: inv.id,
-        friend_id: inv.friend_id,
-        friend_name: nameMap.get(inv.friend_id) || 'フレンド'
-      })));
-    }
-
     setLoading(false);
 
     // HP回復は非同期で実行（ロードをブロックしない）
@@ -252,7 +128,7 @@ export default function AdventurePage() {
     }
   }
 
-  function startAdventure(inviteId?: string) {
+  function startAdventure() {
     const filledParty = party.filter(m => m !== null);
     if (filledParty.length === 0) {
       alert('パーティにメンバーを追加してください！');
@@ -264,70 +140,7 @@ export default function AdventurePage() {
       alert('パーティにメンバーを追加してください！');
       return;
     }
-    const myIds = filledParty.filter(m => m && !borrowedFrom[m.id]).map(m => m!.id).join(',');
-    const params = new URLSearchParams({ party: partyIds, current: String(currentStage) });
-    if (myIds && myIds !== partyIds) params.set('mine', myIds);
-    if (inviteId) params.set('invite_id', inviteId);
-    router.push(`/adventure/stages?${params.toString()}`);
-  }
-
-  async function sendInvite(friendId: string) {
-    const filled = party.filter(m => m !== null);
-    if (filled.length < 3) {
-      alert('協力バトルにはパーティ3体を組んでから招待してください');
-      return;
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const hostPartyIds = filled.map(m => m!.id);
-    const { error } = await supabase
-      .from('adventure_invites')
-      .upsert({
-        host_id: user.id,
-        friend_id: friendId,
-        status: 'pending',
-        host_party_ids: hostPartyIds,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'host_id,friend_id' });
-    if (error) {
-      alert('招待の送信に失敗しました: ' + error.message);
-      return;
-    }
-    alert('招待を送りました！フレンドが参加すると「一緒に冒険開始」で出発できます。');
-    setInviteFriendMode(false);
-    loadData();
-  }
-
-  async function loadFriendMembers(friendId: string): Promise<Member[]> {
-    const { data } = await supabase
-      .from('user_members')
-      .select('*')
-      .eq('user_id', friendId)
-      .order('level', { ascending: false })
-      .limit(20);
-    return (data || []) as Member[];
-  }
-
-  function addBorrowedMember(member: Member, friendId: string) {
-    const emptyIndex = party.findIndex(m => m === null);
-    if (emptyIndex === -1) {
-      alert('パーティが満員です');
-      return;
-    }
-    const newParty = [...party];
-    newParty[emptyIndex] = member;
-    setParty(newParty);
-    setBorrowedFrom(prev => ({ ...prev, [member.id]: friendId }));
-    setBorrowMode(false);
-  }
-
-  function removeBorrowed(memberId: string) {
-    setBorrowedFrom(prev => {
-      const next = { ...prev };
-      delete next[memberId];
-      return next;
-    });
-    setParty(party.map(m => m?.id === memberId ? null : m));
+    router.push(`/adventure/stages?party=${partyIds}&current=${currentStage}`);
   }
 
   // 合成実行
@@ -650,28 +463,12 @@ export default function AdventurePage() {
                     className="border-4 border-dashed border-orange-500/30 rounded-xl p-4 min-h-[300px] flex flex-col items-center justify-center bg-gray-800/50"
                   >
                     {member ? (
-                      <>
-                        {borrowedFrom[member.id] && (
-                          <span className="text-xs text-cyan-400 mb-1">👥 フレンドから借りたメンバー</span>
-                        )}
-                        <div className="relative">
-                          <MemberCard
-                            member={member}
-                            onClick={() => borrowedFrom[member.id] ? removeBorrowed(member.id) : addToParty(member)}
-                            selected={true}
-                            showStats={false}
-                          />
-                          {borrowedFrom[member.id] && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); removeBorrowed(member.id); }}
-                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-6 h-6 text-sm"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      </>
+                      <MemberCard
+                        member={member}
+                        onClick={() => addToParty(member)}
+                        selected={true}
+                        showStats={false}
+                      />
                     ) : (
                       <div className="text-gray-400 text-center">
                         <div className="text-4xl mb-2">➕</div>
@@ -682,57 +479,7 @@ export default function AdventurePage() {
                 ))}
               </div>
 
-              {/* 招待モーダル */}
-              {inviteFriendMode && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                  <div className="bg-gray-900 border border-orange-500/50 rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-auto">
-                    <h3 className="text-xl font-bold text-white mb-4">フレンドを選んで招待</h3>
-                    {friends.length === 0 ? (
-                      <p className="text-gray-400 mb-4">フレンドがいません。フレンド申請で追加しましょう。</p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {friends.map(f => (
-                          <li key={f.friend_id}>
-                            <button
-                              onClick={() => sendInvite(f.friend_id)}
-                              className="w-full text-left p-3 rounded-lg bg-gray-800 border border-orange-500/30 text-white hover:bg-gray-700"
-                            >
-                              {f.display_name}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <button onClick={() => setInviteFriendMode(false)} className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg">閉じる</button>
-                  </div>
-                </div>
-              )}
-
-              {/* 借りるモーダル（フレンド選択 → メンバー選択） */}
-              {borrowMode && (
-                <BorrowMemberModal
-                  friends={friends}
-                  loadFriendMembers={loadFriendMembers}
-                  onSelect={(member, friendId) => addBorrowedMember(member, friendId)}
-                  onClose={() => setBorrowMode(false)}
-                />
-              )}
-
-              {/* 参加済み招待：一緒に冒険開始 */}
-                {acceptedInvites.length > 0 && (
-                  <div className="w-full flex flex-wrap gap-2 justify-center mb-2">
-                    {acceptedInvites.map(inv => (
-                      <button
-                        key={inv.id}
-                        onClick={() => router.push(`/adventure/stages?invite_id=${inv.id}&current=${currentStage}`)}
-                        className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:scale-105"
-                      >
-                        👥 {inv.friend_name}と冒険開始
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-4 justify-center flex-wrap">
+              <div className="flex gap-4 justify-center flex-wrap">
                 <button
                   onClick={() => startAdventure()}
                   disabled={party.filter(m => m !== null).length === 0}
@@ -743,26 +490,6 @@ export default function AdventurePage() {
                   }`}
                 >
                   冒険に出発！
-                </button>
-                <button
-                  onClick={() => setInviteFriendMode(true)}
-                  disabled={party.filter(m => m !== null).length < 3}
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-4 rounded-lg text-xl font-bold hover:from-blue-600 hover:to-cyan-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  👥 フレンドを誘う
-                </button>
-                <button
-                  onClick={() => setBorrowMode(true)}
-                  disabled={party.every(m => m !== null)}
-                  className="bg-gray-600 text-white px-6 py-4 rounded-lg text-xl font-bold hover:bg-gray-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  フレンドのメンバーを借りる
-                </button>
-                <button
-                  onClick={() => router.push('/adventure/invites')}
-                  className="bg-gray-700 text-gray-200 px-6 py-4 rounded-lg text-xl font-bold hover:bg-gray-600 transition border border-gray-600"
-                >
-                  招待を確認
                 </button>
                 <button
                   onClick={() => {

@@ -19,6 +19,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string | null }[]>([]);
   const router = useRouter();
   
   console.log('State - loading:', loading);
@@ -284,6 +285,11 @@ export default function Home() {
     };
   }, []); // 依存配列は空
 
+  useEffect(() => {
+    supabase.from('announcements').select('id, title, body').eq('is_active', true).order('created_at', { ascending: false })
+      .then(({ data }) => setAnnouncements(data || []));
+  }, []);
+
   console.log('=== レンダリング: loading =', loading);
 
   if (loading) {
@@ -319,6 +325,17 @@ export default function Home() {
   return (
     <div className="min-h-screen p-8 bg-black text-white">
       <h1 className="text-4xl font-bold mb-6 text-orange-500">HSTファンクラブ</h1>
+      
+      {announcements.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {announcements.map(a => (
+            <div key={a.id} className="border border-orange-500/30 bg-orange-950/30 p-4 rounded-lg">
+              <p className="font-bold text-orange-400">{a.title}</p>
+              {a.body && <p className="text-gray-300 text-sm mt-1">{a.body}</p>}
+            </div>
+          ))}
+        </div>
+      )}
       
       {profile ? (
         <div className="border border-orange-500/30 bg-gray-900 p-4 rounded-lg mb-6 shadow-lg shadow-orange-500/10">

@@ -50,6 +50,7 @@ export default function BattlePage() {
   const [originalHp, setOriginalHp] = useState<{ [key: string]: number }>({}); // バトル開始時のHP（復元用）
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
+  const [isAutoMode, setIsAutoMode] = useState(false); // オートバトル
   const barrierRef = useRef<{ [key: string]: number }>({});
 
   useEffect(() => {
@@ -57,6 +58,18 @@ export default function BattlePage() {
   }, [barrier]);
 
   useEffect(() => { initBattle(); }, []);
+
+  // オートバトル: プレイヤーターン時に自動で通常攻撃
+  useEffect(() => {
+    if (!isPlayerTurn || !isAutoMode || battleResult || loading || party.length === 0) return;
+    const memberIdx = party.findIndex(m => m.hp > 0);
+    const enemyIdx = enemies.findIndex(e => e.hp > 0);
+    if (memberIdx < 0 || enemyIdx < 0) return;
+    const t = setTimeout(() => {
+      playerAttack(memberIdx, enemyIdx);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [isPlayerTurn, isAutoMode, battleResult, loading, party, enemies]);
 
   // パーティ全滅チェック（useEffectで監視）
   useEffect(() => {
@@ -1480,7 +1493,21 @@ export default function BattlePage() {
       <div className="max-w-6xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-6">
-          <h1 className="text-3xl font-bold">⚔️ バトル - ステージ{stageId} - ターン {turn}</h1>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <h1 className="text-3xl font-bold">⚔️ バトル - ステージ{stageId} - ターン {turn}</h1>
+            {!battleResult && (
+              <button
+                onClick={() => setIsAutoMode(prev => !prev)}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${
+                  isAutoMode 
+                    ? 'bg-green-500 text-white shadow-lg shadow-green-500/50' 
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                {isAutoMode ? '🔄 オート ON' : 'オート OFF'}
+              </button>
+            )}
+          </div>
           {(() => {
             const stageInfo = getStageInfo(stageId);
             const avgPartyLevel = party.length > 0 

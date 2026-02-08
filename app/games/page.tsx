@@ -83,6 +83,34 @@ export default function GamesPage() {
             </div>
           ))}
 
+          {/* PvP対戦 */}
+          <div
+            className="bg-gradient-to-br from-purple-500 to-pink-600 border border-purple-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-purple-500/30 transition-all text-white"
+            onClick={() => router.push('/pvp/matchmaking')}
+          >
+            <div className="text-5xl mb-4">⚔️</div>
+            <h2 className="text-xl font-bold mb-2">PvP対戦</h2>
+            <p className="text-white/90 mb-3">フレンドや他プレイヤーと対戦しよう！</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-white/80">マッチング</span>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
+            </div>
+          </div>
+
+          {/* ランキング */}
+          <div
+            className="bg-gradient-to-br from-yellow-500 to-orange-600 border border-yellow-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-yellow-500/30 transition-all text-white"
+            onClick={() => router.push('/ranking')}
+          >
+            <div className="text-5xl mb-4">🏆</div>
+            <h2 className="text-xl font-bold mb-2">ランキング</h2>
+            <p className="text-white/90 mb-3">PvPレーティング Top 100</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-white/80">順位を確認</span>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
+            </div>
+          </div>
+
           {/* 通常ガチャカード */}
           {(profile?.membership_tier === 'basic' || profile?.membership_tier === 'premium') && (
             <div
