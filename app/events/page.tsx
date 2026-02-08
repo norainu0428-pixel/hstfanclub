@@ -468,7 +468,7 @@ export default function EventsPage() {
         {/* ヘッダー */}
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">🎪 イベントガチャ</h1>
-          <p className="text-xl opacity-90 mb-4">HST Smileが出るかも！</p>
+          <p className="text-xl opacity-90 mb-4">😊 HST Smileが出るかも！</p>
           <div className="text-3xl font-bold">
             ポイント: {points.toLocaleString()}pt
           </div>

@@ -14,11 +14,21 @@ type Profile = {
   membership_tier?: string | null;
 };
 
+type Announcement = {
+  id: string;
+  title: string;
+  body: string;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function Home() {
   console.log('=== Home コンポーネント レンダリング開始 ===');
   
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
@@ -266,6 +276,15 @@ export default function Home() {
           await checkOwnerBonuses(user.id);
         }
 
+        // お知らせ取得（最新5件、固定優先）
+        const { data: annData } = await supabase
+          .from('announcements')
+          .select('*')
+          .order('is_pinned', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(5);
+        setAnnouncements((annData as Announcement[]) ?? []);
+
         clearTimeout(timeout);
         setLoading(false);
         console.log('  fetchProfile: 完了');
@@ -367,6 +386,34 @@ export default function Home() {
           <p className="text-gray-300">ポイント: <span className="text-orange-500 font-bold">{profile.points}pt</span></p>
         </div>
       ) : (
+        <></>
+      )}
+      {profile && announcements.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold text-orange-500">📢 お知らせ</h2>
+            <button
+              onClick={() => router.push('/announcements')}
+              className="text-sm text-orange-400 hover:text-orange-300 underline"
+            >
+              一覧を見る
+            </button>
+          </div>
+          <ul className="space-y-3">
+            {announcements.map((a) => (
+              <li key={a.id} className="border border-orange-500/30 bg-gray-900 p-4 rounded-lg shadow-lg shadow-orange-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-orange-500">{a.title}</span>
+                  {a.is_pinned && <span className="text-xs bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded">固定</span>}
+                </div>
+                <p className="text-gray-300 text-sm mt-1 line-clamp-2">{a.body}</p>
+                <p className="text-xs text-gray-500 mt-1">{new Date(a.created_at).toLocaleString('ja-JP')}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {!profile ? (
         <div className="mb-4">
           <p className="text-orange-500 mb-3">プロフィールが見つかりません</p>
           <p className="text-gray-300 text-sm mb-3">
@@ -412,6 +459,12 @@ export default function Home() {
             className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
           >
             📋 デイリーミッション
+          </button>
+          <button 
+            onClick={() => router.push('/announcements')}
+            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+          >
+            📢 お知らせ
           </button>
           
           {(profile.role === 'owner' || profile.role === 'staff') && (

@@ -136,7 +136,7 @@ export default function DistributeHSTPage() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">👑 オーナー専用配布</h1>
-          <p className="text-yellow-100">レベルMAX HST Smile配布</p>
+          <p className="text-yellow-100">😊 レベルMAX HST Smile配布</p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-yellow-500/30">
@@ -165,7 +165,7 @@ export default function DistributeHSTPage() {
           <div className="bg-orange-900/30 rounded-lg p-6 mb-6 border border-yellow-500/50">
             <h3 className="text-xl font-bold text-yellow-200 mb-4 flex items-center gap-2">
               <span className="text-4xl">😊</span>
-              HST Smile（レベルMAX）
+              😊 HST Smile（レベルMAX）
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm text-yellow-100">
               <div>
@@ -200,7 +200,7 @@ export default function DistributeHSTPage() {
             disabled={loading || !selectedUser}
             className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90 disabled:opacity-50 transition shadow-lg"
           >
-            {loading ? '配布中...' : '👑 レベルMAX HST Smileを配布'}
+            {loading ? '配布中...' : '👑😊 レベルMAX HST Smileを配布'}
           </button>
 
           <div className="mt-6 text-center">

@@ -163,13 +163,14 @@ export default function SettingsPage() {
           <div className="bg-white rounded-xl p-6 shadow-lg text-gray-900">
             <h2 className="text-xl font-bold mb-4 text-gray-900">📢 お知らせ管理</h2>
             <p className="text-gray-700 mb-4">
-              お知らせの投稿・編集機能は今後実装予定です。
+              運営からのお知らせを投稿・編集できます。
             </p>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-800">
-                announcementsテーブルを作成すると、お知らせ機能が利用可能になります。
-              </p>
-            </div>
+            <button
+              onClick={() => router.push('/admin/announcements')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700"
+            >
+              お知らせ管理ページへ
+            </button>
           </div>
 
           {/* メンテナンスモード */}
