@@ -41,6 +41,7 @@ export default function PartyLobbyPage() {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [disbanding, setDisbanding] = useState(false);
   const isHost = currentUserId && invite && currentUserId === invite.host_id;
 
   const loadInvite = useCallback(async () => {
@@ -61,6 +62,11 @@ export default function PartyLobbyPage() {
     if (error || !inviteData || inviteData.invite_mode !== 'party') {
       alert('ロビー情報の取得に失敗しました');
       router.push('/party');
+      return;
+    }
+    if (inviteData.status === 'cancelled') {
+      setLoading(false);
+      router.push('/party?lobby_disbanded=1');
       return;
     }
 
@@ -133,6 +139,10 @@ export default function PartyLobbyPage() {
         },
         (payload) => {
           const newRow = payload.new as any;
+          if (newRow.status === 'cancelled') {
+            router.push('/party?lobby_disbanded=1');
+            return;
+          }
           if (newRow.friend_party_snapshot && Array.isArray(newRow.friend_party_snapshot)) {
             setFriendParty(newRow.friend_party_snapshot.map((m: Partial<Member>) => ({ ...m, current_hp: m.hp ?? m.max_hp } as Member)));
           }
@@ -156,6 +166,22 @@ export default function PartyLobbyPage() {
       return;
     }
     router.push(`/party/stage/${selectedStageId}?invite_id=${inviteId}`);
+  }
+
+  async function disbandLobby() {
+    if (!isHost || !inviteId || disbanding) return;
+    if (!confirm('ロビーを解散しますか？フレンドにも通知されます。')) return;
+    setDisbanding(true);
+    const { error } = await supabase
+      .from('adventure_invites')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', inviteId);
+    setDisbanding(false);
+    if (error) {
+      alert('解散に失敗しました: ' + error.message);
+      return;
+    }
+    router.push('/party');
   }
 
   if (!inviteId) {
@@ -278,6 +304,15 @@ export default function PartyLobbyPage() {
             <div className="rounded-xl border border-slate-600 bg-slate-800 p-4 text-center">
               <p className="text-slate-300 text-sm">ホストがステージを選んで「戦闘開始」を押すと始まります</p>
             </div>
+          )}
+          {isHost && (
+            <button
+              onClick={disbandLobby}
+              disabled={disbanding}
+              className="w-full py-2.5 rounded-xl border border-red-500/50 bg-red-500/20 text-red-400 text-sm font-medium disabled:opacity-50"
+            >
+              {disbanding ? '解散中...' : 'ロビーを解散する'}
+            </button>
           )}
           <button
             onClick={() => router.push('/party')}

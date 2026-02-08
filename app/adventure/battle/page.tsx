@@ -1856,15 +1856,15 @@ export default function BattlePage() {
                       );
                     })()}
                     <div className="flex-1">
-                      <div className="font-bold text-lg text-gray-900">{enemy.name}</div>
+                      <div className="font-bold text-lg text-black">{enemy.name}</div>
                     </div>
-                    <div className="text-right text-sm">
-                      <div className="text-gray-700 font-semibold">ATK: {enemy.attack}</div>
-                      <div className="text-gray-700 font-semibold">DEF: {enemy.defense}</div>
+                    <div className="text-right text-sm text-black">
+                      <div className="font-semibold">ATK: {enemy.attack}</div>
+                      <div className="font-semibold">DEF: {enemy.defense}</div>
                     </div>
                   </div>
                   <div className="mb-1">
-                    <div className="flex justify-between text-xs mb-1">
+                    <div className="flex justify-between text-xs mb-1 text-black">
                       <span>HP</span>
                       <span>{enemy.hp}/{enemy.max_hp}</span>
                     </div>

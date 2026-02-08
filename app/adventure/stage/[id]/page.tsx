@@ -134,38 +134,38 @@ export default function StagePage() {
 
         {/* 敵情報 */}
         <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-center">出現する敵</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center text-black">出現する敵</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {stageInfo.enemies.map((enemy, index) => (
               <div key={index} className="bg-gradient-to-br from-red-50 to-orange-50 border-4 border-red-400 rounded-xl p-6 shadow-lg">
                 <div className="text-center mb-4">
                   <div className="text-6xl mb-2">{enemy.emoji}</div>
-                  <div className="text-2xl font-bold">{enemy.name}</div>
+                  <div className="text-2xl font-bold text-black">{enemy.name}</div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 text-black">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">HP:</span>
-                    <span className="font-bold text-red-600">{enemy.hp}</span>
+                    <span>HP:</span>
+                    <span className="font-bold">{enemy.hp}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">攻撃力:</span>
+                    <span>攻撃力:</span>
                     <span className="font-bold">{enemy.attack}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">防御力:</span>
+                    <span>防御力:</span>
                     <span className="font-bold">{enemy.defense}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">素早さ:</span>
+                    <span>素早さ:</span>
                     <span className="font-bold">{enemy.speed}</span>
                   </div>
                   <div className="border-t-2 border-gray-300 my-2"></div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-blue-600">経験値:</span>
+                    <span>経験値:</span>
                     <span className="font-bold">{enemy.experience_reward}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-green-600">ポイント:</span>
+                    <span>ポイント:</span>
                     <span className="font-bold">{enemy.points_reward}</span>
                   </div>
                 </div>

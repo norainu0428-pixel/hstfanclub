@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
 import PartySlotCard from '@/components/party/PartySlotCard';
 
@@ -32,6 +32,8 @@ export default function PartyPage() {
   const [invitingFriendId, setInvitingFriendId] = useState<string | null>(null);
   const [partyInvites, setPartyInvites] = useState<PartyInviteSummary[]>([]);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const showDisbandedMessage = searchParams.get('lobby_disbanded') === '1';
 
   const pendingCount = partyInvites.filter(i => i.status === 'pending').length;
   const acceptedInvites = partyInvites.filter(i => i.status === 'accepted');
@@ -187,6 +189,12 @@ export default function PartyPage() {
           <h1 className="text-xl font-bold text-white">パーティーモード</h1>
           <p className="text-sm text-slate-400 mt-0.5">専用ステージに挑戦。フレンドを誘って協力バトル</p>
         </header>
+
+        {showDisbandedMessage && (
+          <div className="mb-4 rounded-xl bg-slate-700/80 border border-slate-500 p-3 text-slate-300 text-sm">
+            ロビーが解散されました
+          </div>
+        )}
 
         {/* 招待が届いているときのバナー */}
         {pendingCount > 0 && (
