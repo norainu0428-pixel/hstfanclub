@@ -31,6 +31,7 @@ interface InviteData {
   friend_id: string | null;
   friend_party_snapshot: Partial<Member>[] | null;
   status: string;
+  battle_party_stage_id: string | null;
   host_name?: string;
   friend_name?: string;
 }
@@ -64,7 +65,7 @@ export default function PartyLobbyPage() {
 
     const { data: inviteData, error } = await supabase
       .from('adventure_invites')
-      .select('id, host_id, host_party_ids, friend_id, friend_party_snapshot, status, invite_mode')
+      .select('id, host_id, host_party_ids, friend_id, friend_party_snapshot, status, invite_mode, battle_party_stage_id')
       .eq('id', inviteId)
       .single();
 
@@ -93,11 +94,18 @@ export default function PartyLobbyPage() {
       .in('user_id', userIds);
     const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name]));
 
-    setInvite({
+    const inviteObj = {
       ...inviteData,
+      battle_party_stage_id: inviteData.battle_party_stage_id ?? null,
       host_name: nameMap.get(inviteData.host_id) || 'ホスト',
       friend_name: inviteData.friend_id ? (nameMap.get(inviteData.friend_id) || 'フレンド') : undefined
-    });
+    };
+    setInvite(inviteObj);
+    // フレンドの場合、ホストがバトル開始済みなら一緒にバトルへ迁移
+    if (inviteData.battle_party_stage_id && user.id === inviteData.friend_id) {
+      router.push(`/adventure/battle?party_stage_id=${inviteData.battle_party_stage_id}&invite_id=${inviteId}`);
+      return;
+    }
 
     const hostIds = (inviteData.host_party_ids || []).filter(Boolean);
     if (hostIds.length > 0) {
@@ -205,6 +213,10 @@ export default function PartyLobbyPage() {
             router.push('/party?lobby_disbanded=1');
             return;
           }
+          if (newRow.battle_party_stage_id && currentUserId && newRow.friend_id === currentUserId) {
+            router.push(`/adventure/battle?party_stage_id=${newRow.battle_party_stage_id}&invite_id=${inviteId}`);
+            return;
+          }
           if (newRow.friend_party_snapshot && Array.isArray(newRow.friend_party_snapshot)) {
             setFriendParty(newRow.friend_party_snapshot.map((m: Partial<Member>) => ({ ...m, current_hp: m.hp ?? m.max_hp } as Member)));
           }
@@ -213,6 +225,7 @@ export default function PartyLobbyPage() {
             status: newRow.status,
             friend_id: newRow.friend_id ?? prev.friend_id,
             friend_party_snapshot: newRow.friend_party_snapshot,
+            battle_party_stage_id: newRow.battle_party_stage_id ?? prev.battle_party_stage_id,
             friend_name: prev.friend_name
           } : null);
         }
@@ -222,7 +235,7 @@ export default function PartyLobbyPage() {
     return () => {
       channel.unsubscribe();
     };
-  }, [inviteId]);
+  }, [inviteId, currentUserId, router]);
 
   function startBattle() {
     if (!selectedStageId || !inviteId) {

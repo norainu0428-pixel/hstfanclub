@@ -111,8 +111,13 @@ export default function PartyStagePage() {
     setLoading(false);
   }
 
-  function startBattle() {
+  async function startBattle() {
     if (inviteId) {
+      // フレンドのロビーをバトルへリダイレクトするため、招待レコードを更新
+      await supabase
+        .from('adventure_invites')
+        .update({ battle_party_stage_id: stageId, updated_at: new Date().toISOString() })
+        .eq('id', inviteId);
       const mine = hostPartyIds.length > 0 ? hostPartyIds.join(',') : '';
       const q = new URLSearchParams({ party_stage_id: stageId, invite_id: inviteId });
       if (mine) q.set('mine', mine);

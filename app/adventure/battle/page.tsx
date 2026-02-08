@@ -98,7 +98,7 @@ export default function BattlePage() {
     if (inviteId) {
       const { data: invite, error: invErr } = await supabase
         .from('adventure_invites')
-        .select('host_id, host_party_ids, friend_party_snapshot')
+        .select('host_id, friend_id, host_party_ids, friend_party_snapshot')
         .eq('id', inviteId)
         .single();
       if (invErr || !invite) {
@@ -107,8 +107,10 @@ export default function BattlePage() {
         return;
       }
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || user.id !== invite.host_id) {
-        alert('ホストのみ協力バトルを開始できます');
+      const isHost = user?.id === invite.host_id;
+      const isFriend = user?.id === invite.friend_id;
+      if (!user || (!isHost && !isFriend)) {
+        alert('このバトルに参加する権限がありません');
         router.push(partyStageId ? '/party' : '/adventure');
         return;
       }
