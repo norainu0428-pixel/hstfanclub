@@ -54,71 +54,22 @@ const HST_MEMBERS = {
     }
   ],
   ultraRare: [
-    { 
-      name: 'smile', 
-      emoji: '😊', 
-      description: 'チームリーダー',
-      skill_type: 'attack_boost',
-      skill_power: 18
-    },
-    { 
-      name: 'zerom', 
-      emoji: '⚡', 
-      description: 'エースプレイヤー',
-      skill_type: 'heal',
-      skill_power: 45
-    },
-    { 
-      name: 'shunkoro', 
-      emoji: '🔥', 
-      description: 'ストラテジスト',
-      skill_type: 'defense_boost',
-      skill_power: 12
-    }
+    { name: 'smile', emoji: '😊', description: 'チームリーダー', skill_type: 'attack_boost', skill_power: 18 },
+    { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', skill_type: 'heal', skill_power: 45 },
+    { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: 'defense_boost', skill_power: 12 },
+    { name: 'riemu', emoji: '🌟', description: '癒しの力', skill_type: 'all_heal', skill_power: 30 }
   ],
   superRare: [
-    { 
-      name: 'smile', 
-      emoji: '😊', 
-      description: 'チームリーダー',
-      skill_type: 'attack_boost',
-      skill_power: 15
-    },
-    { 
-      name: 'zerom', 
-      emoji: '⚡', 
-      description: 'エースプレイヤー',
-      skill_type: 'heal',
-      skill_power: 40
-    },
-    { 
-      name: 'shunkoro', 
-      emoji: '🔥', 
-      description: 'ストラテジスト',
-      skill_type: null
-    }
+    { name: 'smile', emoji: '😊', description: 'チームリーダー', skill_type: 'attack_boost', skill_power: 15 },
+    { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', skill_type: 'heal', skill_power: 40 },
+    { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: null },
+    { name: 'tetsuya', emoji: '⚔️', description: '一撃必殺', skill_type: 'power_strike', skill_power: 60 }
   ],
   rare: [
-    { 
-      name: 'smile', 
-      emoji: '😊', 
-      description: 'チームリーダー',
-      skill_type: 'attack_boost',
-      skill_power: 12
-    },
-    { 
-      name: 'zerom', 
-      emoji: '⚡', 
-      description: 'エースプレイヤー',
-      skill_type: 'heal',
-      skill_power: 35
-    },
-    { 
-      name: 'shunkoro', 
-      emoji: '🔥', 
-      description: 'ストラテジスト',
-      skill_type: null
-    }
+    { name: 'smile', emoji: '😊', description: 'チームリーダー', skill_type: 'attack_boost', skill_power: 12 },
+    { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', skill_type: 'heal', skill_power: 35 },
+    { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: null },
+    { name: 'meah', emoji: '😊', description: 'スピードスター', skill_type: 'speed_boost', skill_power: 12 }
   ],
   common: [
     { 
@@ -153,11 +104,11 @@ const DEFAULT_RATES = {
     common: 59.95
   },
   ten: {
-    stary: 0.1,
-    legendary: 5.0,
+    stary: 2.0,
+    legendary: 8.0,
     'ultra-rare': 15.0,
-    'super-rare': 30.0,
-    rare: 49.9,
+    'super-rare': 25.0,
+    rare: 50.0,
     common: 0
   }
 };
@@ -382,7 +333,7 @@ export default function PremiumGachaPage() {
 
     // メンバー保存
     for (const result of results) {
-      const stats = baseStats[result.rarity];
+      const stats = baseStats[result.rarity] ?? baseStats['common'];
       
       await supabase
         .from('user_members')
