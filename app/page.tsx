@@ -413,7 +413,7 @@ export default function Home() {
           </ul>
         </div>
       )}
-      {!profile ? (
+      {!profile && (
         <div className="mb-4">
           <p className="text-orange-500 mb-3">プロフィールが見つかりません</p>
           <p className="text-gray-300 text-sm mb-3">
