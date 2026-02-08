@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 interface FriendWithProfile {
   friend_id: string;
   display_name: string;
+  avatar_url: string | null;
   membership_tier: string;
   is_online: boolean;
   last_seen_at: string;
@@ -46,16 +47,17 @@ export default function FriendsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, display_name, membership_tier, last_seen_at')
+      .select('user_id, display_name, avatar_url, membership_tier, last_seen_at')
       .in('user_id', friendIds);
 
-    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name?: string; membership_tier?: string; last_seen_at?: string }) => [p.user_id, p]));
+    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name?: string; avatar_url?: string | null; membership_tier?: string; last_seen_at?: string }) => [p.user_id, p]));
 
     const formatted: FriendWithProfile[] = friendIds.map(fid => {
       const p = profileMap.get(fid);
       return {
         friend_id: fid,
         display_name: p?.display_name || '不明',
+        avatar_url: p?.avatar_url ?? null,
         membership_tier: p?.membership_tier || 'free',
         is_online: isOnline(p?.last_seen_at ?? ''),
         last_seen_at: p?.last_seen_at || ''
@@ -165,9 +167,13 @@ export default function FriendsPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                        {friend.display_name.charAt(0)}
-                      </div>
+                      {friend.avatar_url ? (
+                        <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                          {friend.display_name.charAt(0)}
+                        </div>
+                      )}
                       {friend.is_online && (
                         <div className="absolute bottom-0 right-0 w-4 h-4 bg-orange-500 border-2 border-gray-900 rounded-full"></div>
                       )}

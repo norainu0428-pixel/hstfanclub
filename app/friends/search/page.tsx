@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 interface SearchProfileRow {
   user_id: string;
   display_name: string | null;
+  avatar_url?: string | null;
   membership_tier?: string | null;
 }
 
@@ -104,6 +105,7 @@ export default function PlayerSearchPage() {
     const resultsWithStatus: PlayerSearchResult[] = players.map(player => ({
       user_id: player.user_id,
       display_name: player.display_name ?? '不明',
+      avatar_url: player.avatar_url ?? undefined,
       membership_tier: player.membership_tier ?? 'free',
       is_friend: friendIds.has(player.user_id),
       has_pending_request: pendingIds.has(player.user_id)
@@ -191,8 +193,12 @@ export default function PlayerSearchPage() {
                   className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-400 transition"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                      {player.display_name?.charAt(0) || '?'}
+                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xl font-bold">
+                      {player.avatar_url ? (
+                        <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{player.display_name?.charAt(0) || '?'}</span>
+                      )}
                     </div>
                     <div>
                       <div className="font-bold text-lg text-gray-900">{player.display_name}</div>

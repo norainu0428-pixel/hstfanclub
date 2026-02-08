@@ -9,6 +9,7 @@ import { generateMemberStatsWithIV } from '@/utils/memberStats';
 type Profile = {
   user_id: string;
   display_name: string | null;
+  avatar_url?: string | null;
   role: "owner" | "staff" | "premium" | "member";
   points: number;
   membership_tier?: string | null;
@@ -381,9 +382,26 @@ export default function Home() {
       )}
       {profile ? (
         <div className="border border-orange-500/30 bg-gray-900 p-4 rounded-lg mb-6 shadow-lg shadow-orange-500/10">
-          <p className="text-white">ようこそ、<span className="text-orange-500 font-bold">{profile.display_name}</span>さん</p>
-          <p className="text-gray-300">あなたのrole: <span className="text-orange-400">{profile.role}</span></p>
-          <p className="text-gray-300">ポイント: <span className="text-orange-500 font-bold">{profile.points}pt</span></p>
+          <div className="flex items-center gap-3">
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-orange-500/30 flex items-center justify-center text-orange-500 font-bold">
+                {(profile.display_name || '?').charAt(0)}
+              </div>
+            )}
+            <div>
+              <p className="text-white">ようこそ、<span className="text-orange-500 font-bold">{profile.display_name}</span>さん</p>
+              <p className="text-gray-300">あなたのrole: <span className="text-orange-400">{profile.role}</span></p>
+              <p className="text-gray-300">ポイント: <span className="text-orange-500 font-bold">{profile.points}pt</span></p>
+              <button
+                onClick={() => router.push('/profile/edit')}
+                className="text-sm text-orange-400 hover:text-orange-300 underline mt-1"
+              >
+                プロフィール編集
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
         <></>
