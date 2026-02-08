@@ -179,10 +179,10 @@ export default function FriendsPage() {
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       {friend.avatar_url ? (
-                        <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                        <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
                         <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                          {friend.display_name.charAt(0)}
+                          {(friend.display_name || '?').charAt(0)}
                         </div>
                       )}
                       {friend.is_online && (

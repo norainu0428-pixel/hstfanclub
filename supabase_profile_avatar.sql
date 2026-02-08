@@ -70,8 +70,12 @@ BEGIN
     RETURN;
   END IF;
   RETURN QUERY
-  SELECT p.user_id, COALESCE(p.display_name, ''), p.avatar_url
+  SELECT
+    p.user_id,
+    COALESCE(NULLIF(TRIM(p.display_name), ''), au.raw_user_meta_data->>'full_name', au.raw_user_meta_data->>'name', ''),
+    COALESCE(NULLIF(TRIM(p.avatar_url), ''), au.raw_user_meta_data->>'avatar_url', au.raw_user_meta_data->>'picture')
   FROM profiles p
+  LEFT JOIN auth.users au ON au.id = p.user_id
   WHERE p.user_id != p_exclude_user_id
     AND (
       COALESCE(p.display_name, '') ILIKE '%' || p_search_term || '%'
