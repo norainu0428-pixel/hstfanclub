@@ -32,14 +32,22 @@ export default function PlayerSearchPage() {
     }
 
     setLoading(true);
+    setResults([]);
 
     // プレイヤー検索
-    const { data: players } = await supabase
+    const { data: players, error: searchError } = await supabase
       .from('profiles')
       .select('user_id, display_name, membership_tier, avatar_url')
       .ilike('display_name', `%${searchTerm}%`)
       .neq('user_id', user.id)
       .limit(20);
+
+    if (searchError) {
+      console.warn('プレイヤー検索エラー:', searchError);
+      alert('検索に失敗しました。SupabaseダッシュボードのSQL Editorで supabase_fix_friend_display_names.sql を実行してください。\n\n（他ユーザーのプロフィール読取権限が必要です）');
+      setLoading(false);
+      return;
+    }
 
     if (!players) {
       setLoading(false);
