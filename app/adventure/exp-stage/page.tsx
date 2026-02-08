@@ -13,9 +13,9 @@ import {
 } from '@/utils/stageGenerator';
 
 const DIFFICULTY_LABELS: Record<ExpStageDifficulty, { label: string; emoji: string; desc: string }> = {
-  easy: { label: 'イージー', emoji: '🟢', desc: '初級者向け・経験値150×敵数' },
-  normal: { label: 'ノーマル', emoji: '🟡', desc: '中級者向け・経験値400×敵数' },
-  hard: { label: 'ハード', emoji: '🔴', desc: '上級者向け・経験値800×敵数' }
+  easy: { label: 'イージー', emoji: '🟢', desc: '初級者向け・経験値600' },
+  normal: { label: 'ノーマル', emoji: '🟡', desc: '中級者向け・経験値1800' },
+  hard: { label: 'ハード', emoji: '🔴', desc: '上級者向け・経験値4000' }
 };
 
 export default function ExpStagePage() {

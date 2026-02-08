@@ -296,9 +296,9 @@ export function getExpStageId(difficulty: ExpStageDifficulty): number {
 // 経験値アップステージ情報を生成（難易度に応じて敵強さ・報酬が変化）
 function generateExpStageInfo(difficulty: ExpStageDifficulty): StageInfo {
   const config = {
-    easy: { recommendedLevel: 5, enemyLevel: 10, expBase: 150, pointsBase: 10, enemyCount: 2, enemyTypeIndex: 0, statMultiplier: 0.7 },
-    normal: { recommendedLevel: 20, enemyLevel: 30, expBase: 400, pointsBase: 25, enemyCount: 3, enemyTypeIndex: 2, statMultiplier: 1.0 },
-    hard: { recommendedLevel: 40, enemyLevel: 55, expBase: 800, pointsBase: 50, enemyCount: 4, enemyTypeIndex: 5, statMultiplier: 1.3 }
+    easy: { recommendedLevel: 5, enemyLevel: 10, expBase: 600, pointsBase: 15, enemyCount: 2, enemyTypeIndex: 0, statMultiplier: 0.7 },
+    normal: { recommendedLevel: 20, enemyLevel: 30, expBase: 1800, pointsBase: 40, enemyCount: 3, enemyTypeIndex: 2, statMultiplier: 1.0 },
+    hard: { recommendedLevel: 40, enemyLevel: 55, expBase: 4000, pointsBase: 80, enemyCount: 4, enemyTypeIndex: 5, statMultiplier: 1.3 }
   };
   const c = config[difficulty];
   const stage = getExpStageId(difficulty);
