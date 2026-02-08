@@ -81,14 +81,24 @@ export default function ProfileEditPage() {
       return;
     }
     setUploading(true);
-    const path = `${user.id}/avatar.${ext}`;
+    // 毎回ユニークなパスでアップロード（キャッシュで古いアイコンが残るのを防ぐ）
+    const path = `${user.id}/avatar_${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true });
+      .upload(path, file, { upsert: false });
     if (uploadError) {
       alert('アップロードに失敗しました: ' + uploadError.message + '\n\nSupabase Dashboard → Storage で avatars バケットを作成（public=true）してください。');
       setUploading(false);
       return;
+    }
+    // 古いアバターを削除（ストレージ整理、アップロード成功時のみ）
+    const newFileName = path.split('/')[1];
+    const { data: oldFiles } = await supabase.storage.from('avatars').list(user.id);
+    if (oldFiles?.length) {
+      const toRemove = oldFiles
+        .filter((f) => f.name && f.name !== newFileName)
+        .map((f) => `${user.id}/${f.name}`);
+      if (toRemove.length) await supabase.storage.from('avatars').remove(toRemove);
     }
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
     const url = urlData.publicUrl;
