@@ -100,7 +100,7 @@ export default function MembersManagement() {
         <h1 className="text-3xl font-bold mb-8">メンバー管理</h1>
 
         <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
-          <p className="text-gray-600">
+          <p className="text-gray-900">
             ユーザーが所持しているメンバーの一覧です。
             <br />
             メンバーの編集・削除機能は今後実装予定です。
@@ -126,7 +126,7 @@ export default function MembersManagement() {
               <tbody className="divide-y divide-gray-200">
                 {members.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-900">
                       メンバーが登録されていません
                     </td>
                   </tr>
@@ -139,7 +139,7 @@ export default function MembersManagement() {
                           <span className="font-bold">{member.member_name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{member.user_name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{member.user_name}</td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">
                           {getRarityLabel(member.rarity)}

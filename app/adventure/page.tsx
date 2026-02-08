@@ -412,7 +412,7 @@ export default function AdventurePage() {
                               </button>
                             </>
                           ) : (
-                            <div className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center text-gray-500 min-h-[100px] flex items-center justify-center bg-gray-800/30">
+                            <div className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center text-slate-300 min-h-[100px] flex items-center justify-center bg-gray-800/30">
                               <div className="text-2xl">➕</div>
                             </div>
                           )}

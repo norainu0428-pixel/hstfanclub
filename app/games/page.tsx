@@ -73,7 +73,7 @@ export default function GamesPage() {
               <h2 className="font-bold text-white text-sm">{game.title}</h2>
               <p className="text-gray-400 text-xs mt-1 line-clamp-2">{game.description}</p>
               {!game.available && (
-                <span className="text-xs text-gray-500 mt-2 block">準備中</span>
+                <span className="text-xs text-gray-900 mt-2 block">準備中</span>
               )}
             </div>
           ))}

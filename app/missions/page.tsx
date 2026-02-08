@@ -321,7 +321,7 @@ export default function MissionsPage() {
                           ✓
                         </div>
                       ) : (
-                        <div className="text-gray-500 text-sm">未達成</div>
+                        <div className="text-gray-900 text-sm">未達成</div>
                       )}
                     </div>
                   </div>

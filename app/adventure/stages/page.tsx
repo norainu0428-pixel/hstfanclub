@@ -101,7 +101,7 @@ export default function StagesPage() {
               <div className="text-lg font-bold text-gray-700">
                 ページ {currentPage} / {Math.ceil(400 / stagesPerPage)}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-900">
                 ステージ {(currentPage - 1) * stagesPerPage + 1} - {Math.min(currentPage * stagesPerPage, 400)}
               </div>
             </div>
@@ -155,7 +155,7 @@ export default function StagesPage() {
                         : isBoss
                         ? 'bg-gradient-to-br from-red-500 to-pink-500 text-white hover:scale-105'
                         : 'bg-gradient-to-br from-blue-400 to-purple-500 text-white hover:scale-105'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                      : 'bg-gray-300 text-gray-900 cursor-not-allowed opacity-50'
                     }
                   `}
                 >
@@ -206,7 +206,7 @@ export default function StagesPage() {
                   <div className="text-sm space-y-1">
                     <div>推奨レベル: <span className="font-bold">{stageInfo.recommendedLevel}</span></div>
                     <div>敵の数: <span className="font-bold">{stageInfo.enemies.length}体</span></div>
-                    <div className="text-xs text-gray-600 mt-2">
+                    <div className="text-xs text-gray-900 mt-2">
                       {stageInfo.enemies.slice(0, 2).map(e => e.emoji).join(' ')}
                       {stageInfo.enemies.length > 2 && ' ...'}
                     </div>

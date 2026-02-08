@@ -517,7 +517,7 @@ export default function PvPBattlePage() {
           <div className="bg-white rounded-2xl p-12 shadow-2xl text-center">
             <div className="text-6xl mb-6 animate-bounce">⏳</div>
             <h1 className="text-3xl font-bold mb-4">対戦相手を待っています...</h1>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-900 mb-8">
               {player2 ? `${player2.name}が参加するのを待っています` : '相手が参加するのを待っています'}
             </p>
             <button
@@ -560,7 +560,7 @@ export default function PvPBattlePage() {
           }`}>
             <div className="text-center mb-4">
               <h2 className="text-2xl font-bold">{player1.name}</h2>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-900">
                 {currentUser === player1.id ? '(あなた)' : '(相手)'}
               </div>
             </div>
@@ -600,7 +600,7 @@ export default function PvPBattlePage() {
                         <span className="text-3xl">{member.member_emoji}</span>
                         <div>
                           <div className="font-bold">{member.member_name}</div>
-                          <div className="text-xs text-gray-500">Lv.{member.level}</div>
+                          <div className="text-xs text-gray-900">Lv.{member.level}</div>
                         </div>
                       </div>
                       <div className="text-right">
@@ -630,7 +630,7 @@ export default function PvPBattlePage() {
             }`}>
               <div className="text-center mb-4">
                 <h2 className="text-2xl font-bold">{player2.name}</h2>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-900">
                   {currentUser === player2.id ? '(あなた)' : '(相手)'}
                 </div>
               </div>
@@ -668,7 +668,7 @@ export default function PvPBattlePage() {
                           <span className="text-3xl">{member.member_emoji}</span>
                           <div>
                             <div className="font-bold">{member.member_name}</div>
-                            <div className="text-xs text-gray-500">Lv.{member.level}</div>
+                            <div className="text-xs text-gray-900">Lv.{member.level}</div>
                           </div>
                         </div>
                         <div className="text-right">
@@ -770,7 +770,7 @@ export default function PvPBattlePage() {
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-900">
               相手のターンです...
             </div>
           )}
@@ -781,7 +781,7 @@ export default function PvPBattlePage() {
           <h3 className="text-xl font-bold mb-4">📜 バトルログ</h3>
           <div className="h-48 overflow-y-auto bg-gray-50 rounded-lg p-4 space-y-2">
             {battleLog.length === 0 ? (
-              <div className="text-sm text-gray-500 text-center">バトルログがありません</div>
+              <div className="text-sm text-gray-900 text-center">バトルログがありません</div>
             ) : (
               battleLog.map((log, index) => (
                 <div key={index} className="text-sm text-gray-700">
@@ -819,7 +819,7 @@ export default function PvPBattlePage() {
                     <div className="text-lg font-semibold text-green-700">
                       レーティング +25
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
                       {battleResult.winnerName}の勝利！
                     </div>
                   </div>
@@ -837,14 +837,14 @@ export default function PvPBattlePage() {
                   <div className="text-8xl mb-6 animate-pulse">💀</div>
                   <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
                   <p className="text-2xl text-gray-700 mb-2 font-semibold">敗北してしまいました...</p>
-                  <p className="text-lg text-gray-500">{battleResult.winnerName}に敗れました</p>
+                  <p className="text-lg text-gray-900">{battleResult.winnerName}に敗れました</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">
                   <div className="text-center space-y-2">
                     <div className="text-lg font-semibold text-red-700">
                       レーティング -15
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
                       次回は頑張りましょう！
                     </div>
                   </div>

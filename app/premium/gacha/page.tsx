@@ -444,7 +444,7 @@ export default function PremiumGachaPage() {
         <div className="bg-white rounded-2xl p-8 max-w-md text-center">
           <div className="text-6xl mb-4">🔒</div>
           <h1 className="text-2xl font-bold mb-4">プレミアム会員限定</h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-900 mb-6">
             このガチャゲームはプレミアム会員専用です。
             <br />
             プレミアム会員になってお楽しみください！
@@ -475,9 +475,9 @@ export default function PremiumGachaPage() {
         {/* ポイント表示 */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
           <div className="text-center">
-            <div className="text-gray-600 mb-2">現在のポイント</div>
+            <div className="text-gray-900 mb-2">現在のポイント</div>
             <div className="text-5xl font-bold text-purple-600">{currentPoints}</div>
-            <div className="text-sm text-gray-500 mt-2">pt</div>
+            <div className="text-sm text-gray-900 mt-2">pt</div>
             {currentPoints < 50 && (
               <div className="mt-3 text-red-500 font-bold">
                 ⚠️ ガチャにはあと{50 - currentPoints}pt必要です
@@ -537,7 +537,7 @@ export default function PremiumGachaPage() {
                   <div className="mb-6 animate-fade-in">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-4 mx-auto max-w-sm"
                          style={{ borderColor: getRarityBorderColor(result.rarity) }}>
-                      <div className="text-center text-sm font-bold text-gray-500 mb-3">🎉 当たり！</div>
+                      <div className="text-center text-sm font-bold text-gray-900 mb-3">🎉 当たり！</div>
                       <div className={`inline-block px-6 py-3 rounded-full text-white font-bold text-xl mb-4 w-full text-center ${getRarityColor(result.rarity)}`}>
                         {getRarityLabel(result.rarity)}
                       </div>
@@ -558,7 +558,7 @@ export default function PremiumGachaPage() {
                         );
                       })()}
                       <div className="text-2xl font-bold mb-2 text-center text-gray-900">{result.member.name}</div>
-                      <div className="text-gray-600 mb-3 text-center text-sm">{result.member.description}</div>
+                      <div className="text-gray-900 mb-3 text-center text-sm">{result.member.description}</div>
                       {result.member.skill_type && (
                         <div className="text-center">
                           <span className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold">
@@ -579,7 +579,7 @@ export default function PremiumGachaPage() {
                 >
                   {isSpinning ? '抽選中...' : currentPoints < 50 ? 'ポイント不足' : 'ガチャを回す！（50pt）'}
                 </button>
-                <div className="text-sm text-gray-500 mt-4">
+                <div className="text-sm text-gray-900 mt-4">
                   ガチャ1回: 50pt消費
                 </div>
               </>
@@ -589,7 +589,7 @@ export default function PremiumGachaPage() {
                 <div className="mb-6">
                   <div className="text-4xl mb-4">🎰✨</div>
                   <div className="text-2xl font-bold mb-2">10連ガチャ</div>
-                  <div className="text-gray-600 mb-4">10回目はレア以上確定！</div>
+                  <div className="text-gray-900 mb-4">10回目はレア以上確定！</div>
                   
                   {isPulling && (
                     <div className="text-lg text-purple-600 font-bold animate-pulse mb-4">
@@ -656,7 +656,7 @@ export default function PremiumGachaPage() {
           <h3 className="font-bold text-xl mb-2 text-center">
             {pullType === 'single' ? '通常確率' : '10連確率（10回目はレア以上確定）'}
           </h3>
-          <p className="text-sm text-gray-500 mb-4 text-center">★7が最上位、★1が最下位</p>
+          <p className="text-sm text-gray-900 mb-4 text-center">★7が最上位、★1が最下位</p>
           <div className="space-y-2">
             {/* HSTはオーナーのみ表示（確率0%） */}
             {isOwner && (

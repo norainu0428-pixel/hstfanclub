@@ -112,7 +112,7 @@ export default function PartyStagesPage() {
                     ステージ{stage.stage_order}: {stage.name}
                   </h2>
                   {stage.description && (
-                    <p className="text-gray-600 text-sm mt-1">{stage.description}</p>
+                    <p className="text-gray-900 text-sm mt-1">{stage.description}</p>
                   )}
                   <div className="flex gap-4 mt-2 text-sm">
                     <span className="text-orange-600 font-bold">推奨Lv.{stage.recommended_level}</span>
@@ -129,7 +129,7 @@ export default function PartyStagesPage() {
         </div>
 
         {stages.length === 0 && (
-          <div className="bg-white rounded-2xl p-8 text-center text-gray-500">
+          <div className="bg-white rounded-2xl p-8 text-center text-gray-900">
             ステージがありません。supabase_party_stages.sql を実行してください。
           </div>
         )}

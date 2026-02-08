@@ -186,7 +186,7 @@ export default function MatchmakingPage() {
           </div>
           <div className="bg-white rounded-2xl p-8 shadow-2xl text-center">
             <div className="text-6xl mb-6">👥</div>
-            <p className="text-gray-600 mb-6">対戦するにはフレンドが必要です。フレンド一覧から対戦したい相手を選んでください。</p>
+            <p className="text-gray-900 mb-6">対戦するにはフレンドが必要です。フレンド一覧から対戦したい相手を選んでください。</p>
             <button
               onClick={() => router.push('/friends')}
               className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white px-8 py-4 rounded-full text-xl font-bold shadow-lg hover:opacity-90"
@@ -222,7 +222,7 @@ export default function MatchmakingPage() {
                 >
                   <div>
                     <div className="font-bold text-lg">{inv.challenger_name} が対戦を申し込みました</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-900">
                       {new Date(inv.created_at).toLocaleString('ja-JP')}
                     </div>
                   </div>
@@ -280,7 +280,7 @@ export default function MatchmakingPage() {
                   <div className="text-center">
                     <div className="text-4xl mb-2">{selectedMembers[index].member_emoji}</div>
                     <div className="font-bold">{selectedMembers[index].member_name}</div>
-                    <div className="text-sm text-gray-500">Lv.{selectedMembers[index].level}</div>
+                    <div className="text-sm text-gray-900">Lv.{selectedMembers[index].level}</div>
                   </div>
                 ) : (
                   <div className="text-gray-400 text-center">
@@ -322,7 +322,7 @@ export default function MatchmakingPage() {
                 <div className="text-center">
                   <div className="text-4xl mb-2">{member.member_emoji}</div>
                   <div className="font-bold text-sm">{member.member_name}</div>
-                  <div className="text-xs text-gray-500">Lv.{member.level}</div>
+                  <div className="text-xs text-gray-900">Lv.{member.level}</div>
                 </div>
               </div>
             ))}

@@ -125,7 +125,7 @@ export default function BattlesLog() {
         {/* 統計 */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <div className="text-gray-600 mb-1">総バトル数</div>
+            <div className="text-gray-900 mb-1">総バトル数</div>
             <div className="text-3xl font-bold">{stats.totalBattles}</div>
           </div>
           <div className="bg-green-50 rounded-xl p-6 shadow-lg">
@@ -191,14 +191,14 @@ export default function BattlesLog() {
               <tbody className="divide-y divide-gray-200">
                 {filteredBattles.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-900">
                       バトルログがありません
                     </td>
                   </tr>
                 ) : (
                   filteredBattles.map(battle => (
                     <tr key={battle.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-900">
                         {new Date(battle.created_at).toLocaleString('ja-JP')}
                       </td>
                       <td className="px-6 py-4 font-medium">{battle.user_name}</td>
@@ -216,7 +216,7 @@ export default function BattlesLog() {
                           {battle.result === 'victory' ? '勝利' : '敗北'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">{battle.turns_taken}</td>
+                      <td className="px-6 py-4 text-gray-900">{battle.turns_taken}</td>
                       <td className="px-6 py-4 text-blue-600 font-bold">+{battle.experience_gained}</td>
                       <td className="px-6 py-4 text-green-600 font-bold">+{battle.points_earned}</td>
                     </tr>

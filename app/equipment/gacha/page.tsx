@@ -140,7 +140,7 @@ export default function EquipmentGachaPage() {
                 <div className="text-sm text-gray-400">
                   {SLOT_LABELS[result.def?.slot]} | {result.def?.rarity ? getRarityLabel(result.def.rarity) : '-'} | Lv.{result.level}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-gray-900 mt-1">
                   HP+{result.def?.hp_bonus} ATK+{result.def?.attack_bonus} DEF+{result.def?.defense_bonus} SPD+{result.def?.speed_bonus}
                 </div>
               </div>

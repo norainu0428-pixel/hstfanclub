@@ -119,23 +119,23 @@ export default function UserDetailPage() {
           <h2 className="text-xl font-bold mb-4">基本情報</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-gray-600 mb-1">ユーザー名</label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">ユーザー名</label>
               <div className="text-lg font-bold">{user.display_name || '名前なし'}</div>
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-600 mb-1">ユーザーID</label>
-              <div className="text-sm font-mono text-gray-500">{user.user_id}</div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">ユーザーID</label>
+              <div className="text-sm font-mono text-gray-900">{user.user_id}</div>
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-600 mb-1">ロール</label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">ロール</label>
               <div className="text-lg">{user.role}</div>
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-600 mb-1">ポイント</label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">ポイント</label>
               <div className="text-lg font-bold text-green-600">{user.points || 0} pt</div>
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-600 mb-1">登録日</label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">登録日</label>
               <div className="text-sm">{new Date(user.created_at).toLocaleString('ja-JP')}</div>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function UserDetailPage() {
         <div className="bg-white rounded-xl p-6 shadow-lg">
           <h2 className="text-xl font-bold mb-4">所持メンバー ({members.length}体)</h2>
           {members.length === 0 ? (
-            <p className="text-gray-500">メンバーを所持していません</p>
+            <p className="text-gray-900">メンバーを所持していません</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {members.map(member => (
@@ -178,10 +178,10 @@ export default function UserDetailPage() {
                     <span className="text-2xl">{member.member_emoji}</span>
                     <div>
                       <div className="font-bold">{member.member_name}</div>
-                      <div className="text-xs text-gray-500">Lv.{member.level}</div>
+                      <div className="text-xs text-gray-900">Lv.{member.level}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-gray-900">
                     HP: {member.hp}/{member.max_hp} | ATK: {member.attack} | DEF: {member.defense}
                   </div>
                 </div>

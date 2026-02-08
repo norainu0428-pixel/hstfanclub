@@ -183,23 +183,23 @@ export default function StagePage() {
                 <div className="text-center mb-3">
                   <div className="text-4xl mb-2">{member.member_emoji}</div>
                   <div className="font-bold">{member.member_name}</div>
-                  <div className="text-sm text-gray-500">Lv.{member.level}</div>
+                  <div className="text-sm text-gray-900">Lv.{member.level}</div>
                 </div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">HP:</span>
+                    <span className="text-gray-900">HP:</span>
                     <span className="font-bold text-red-600">{member.hp}/{member.max_hp}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">ATK:</span>
+                    <span className="text-gray-900">ATK:</span>
                     <span className="font-bold">{member.attack}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">DEF:</span>
+                    <span className="text-gray-900">DEF:</span>
                     <span className="font-bold">{member.defense}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">SPD:</span>
+                    <span className="text-gray-900">SPD:</span>
                     <span className="font-bold">{member.speed}</span>
                   </div>
                 </div>
@@ -218,7 +218,7 @@ export default function StagePage() {
           </button>
           <button
             onClick={() => router.push(inviteId ? `/adventure/stages?invite_id=${inviteId}&current=1` : '/adventure')}
-            className="bg-white text-gray-600 px-8 py-5 rounded-full text-xl font-bold border-2 border-gray-300 hover:bg-gray-50 transition"
+            className="bg-white text-gray-900 px-8 py-5 rounded-full text-xl font-bold border-2 border-gray-300 hover:bg-gray-50 transition"
           >
             戻る
           </button>

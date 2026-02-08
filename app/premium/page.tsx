@@ -87,7 +87,7 @@ export default function PremiumPage() {
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">プレミアム限定ページ</h1>
-        <p className="text-gray-600 mb-8">プレミアム会員の特典ページです</p>
+        <p className="text-gray-900 mb-8">プレミアム会員の特典ページです</p>
         
         <div className="grid gap-4">
           <section className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg p-6">
@@ -107,17 +107,17 @@ export default function PremiumPage() {
           
           <section className="bg-white border rounded-lg p-6">
             <h2 className="text-xl font-bold mb-2">限定壁紙ダウンロード</h2>
-            <p className="text-gray-600">※後で実装予定</p>
+            <p className="text-gray-900">※後で実装予定</p>
           </section>
           
           <section className="bg-white border rounded-lg p-6">
             <h2 className="text-xl font-bold mb-2">限定ヘッダー</h2>
-            <p className="text-gray-600">※後で実装予定</p>
+            <p className="text-gray-900">※後で実装予定</p>
           </section>
           
           <section className="bg-white border rounded-lg p-6">
             <h2 className="text-xl font-bold mb-2">アイコンリング</h2>
-            <p className="text-gray-600">※後で実装予定</p>
+            <p className="text-gray-900">※後で実装予定</p>
           </section>
         </div>
         

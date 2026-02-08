@@ -320,7 +320,7 @@ export default function CollectionPage() {
         {/* 統計 */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
           <h2 className="text-xl font-bold mb-2">レアリティ別所持数</h2>
-          <p className="text-sm text-gray-500 mb-4">★7が最上位、★1が最下位です</p>
+          <p className="text-sm text-gray-900 mb-4">★7が最上位、★1が最下位です</p>
           <div className={`grid grid-cols-2 md:grid-cols-${isOwner ? '7' : '6'} gap-3`}>
             {isOwner && (
               <div className={`${getRarityColorClass('HST')} text-white rounded-lg p-3 text-center`}>
@@ -439,7 +439,7 @@ export default function CollectionPage() {
         {fusionMode && (
           <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
             <h2 className="text-2xl font-bold mb-4 text-center">🔮 メンバー合成</h2>
-            <p className="text-center text-gray-600 mb-6">
+            <p className="text-center text-gray-900 mb-6">
               ベースメンバー1体に素材メンバー5体を合成して強化できます
             </p>
             
@@ -528,7 +528,7 @@ export default function CollectionPage() {
                 className={`px-8 py-4 rounded-lg text-xl font-bold transition ${
                   baseMember && materialMembers.length > 0
                     ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-lg'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-300 text-gray-900 cursor-not-allowed'
                 }`}
               >
                 🔮 合成実行！
@@ -610,7 +610,7 @@ export default function CollectionPage() {
                 })}
               </div>
               {displayedMembers.length === 0 && (
-                <div className="text-center text-gray-500 py-12">
+                <div className="text-center text-gray-900 py-12">
                   {searchQuery.trim() ? '検索に一致するメンバーがいません' : 'メンバーがいません'}
                 </div>
               )}

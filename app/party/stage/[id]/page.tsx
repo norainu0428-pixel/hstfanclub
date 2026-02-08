@@ -189,14 +189,14 @@ export default function PartyStagePage() {
                   <div className="text-2xl font-bold">{enemy.name}</div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between"><span className="text-gray-600">HP:</span><span className="font-bold text-red-600">{enemy.hp}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-600">攻撃:</span><span className="font-bold">{enemy.attack}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-600">防御:</span><span className="font-bold">{enemy.defense}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-900">HP:</span><span className="font-bold text-red-600">{enemy.hp}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-900">攻撃:</span><span className="font-bold">{enemy.attack}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-900">防御:</span><span className="font-bold">{enemy.defense}</span></div>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-6 text-center text-gray-600">
+          <div className="mt-6 text-center text-gray-900">
             報酬: EXP {stage.exp_reward} / ポイント {stage.points_reward}
           </div>
         </div>

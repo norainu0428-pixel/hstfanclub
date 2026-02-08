@@ -133,7 +133,7 @@ export default function RankingPage() {
         {/* ランキングリスト */}
         <div className="bg-white rounded-2xl p-6 shadow-2xl">
           {rankings.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-900">
               ランキングデータがありません
             </div>
           ) : (
@@ -157,12 +157,12 @@ export default function RankingPage() {
                     </div>
                     <div>
                       <div className="font-bold text-lg">{entry.display_name}</div>
-                      <div className="text-sm text-gray-500">ステージ {entry.current_stage} 到達</div>
+                      <div className="text-sm text-gray-900">ステージ {entry.current_stage} 到達</div>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-purple-600">ステージ {entry.current_stage}</div>
-                    <div className="text-xs text-gray-500">最高到達</div>
+                    <div className="text-xs text-gray-900">最高到達</div>
                   </div>
                 </div>
               ))}

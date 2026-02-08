@@ -60,7 +60,7 @@ function AnnouncementsEditor() {
     load();
   }
 
-  if (loading) return <p className="text-gray-500">読込中...</p>;
+  if (loading) return <p className="text-gray-900">読込中...</p>;
   return (
     <div className="space-y-4">
       <div className="flex gap-2 flex-wrap">
@@ -80,14 +80,14 @@ function AnnouncementsEditor() {
       </div>
       <div className="space-y-2">
         {list.length === 0 ? (
-          <p className="text-gray-500">お知らせはありません</p>
+          <p className="text-gray-900">お知らせはありません</p>
         ) : (
           list.map(a => (
             <div key={a.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
               <span className="flex-1 font-bold">{a.title}</span>
               <button
                 onClick={() => toggleActive(a.id, !a.is_active)}
-                className={`px-2 py-1 rounded text-sm ${a.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
+                className={`px-2 py-1 rounded text-sm ${a.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-900'}`}
               >
                 {a.is_active ? '表示中' : '非表示'}
               </button>
@@ -326,7 +326,7 @@ export default function SettingsPage() {
           {/* メンテナンスモード */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h2 className="text-xl font-bold mb-4">🔧 メンテナンスモード</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-900 mb-4">
               メンテナンスモードを有効にすると、一般ユーザーはサイトにアクセスできなくなります。オーナー・スタッフは継続してアクセス可能です。
             </p>
             <div className="flex items-center gap-4">
@@ -633,11 +633,11 @@ export default function SettingsPage() {
             <h2 className="text-xl font-bold mb-4">💾 データベース情報</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Supabase URL:</span>
+                <span className="text-gray-900">Supabase URL:</span>
                 <span className="font-mono text-xs">{process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30)}...</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">環境:</span>
+                <span className="text-gray-900">環境:</span>
                 <span className="font-bold">{process.env.NODE_ENV || 'development'}</span>
               </div>
             </div>

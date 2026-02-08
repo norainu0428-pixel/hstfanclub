@@ -165,7 +165,7 @@ export default function UsersManagement() {
               </select>
             </div>
           </div>
-          <div className="mt-4 text-sm text-gray-600">
+          <div className="mt-4 text-sm text-gray-900">
             {filteredUsers.length}人 / 全{users.length}人
           </div>
         </div>
@@ -187,7 +187,7 @@ export default function UsersManagement() {
                   <tr key={user.user_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="font-bold">{user.display_name || '名前なし'}</div>
-                      <div className="text-xs text-gray-500">{user.user_id.slice(0, 8)}...</div>
+                      <div className="text-xs text-gray-900">{user.user_id.slice(0, 8)}...</div>
                     </td>
                     <td className="px-6 py-4">
                       {getRoleBadge(user.role)}

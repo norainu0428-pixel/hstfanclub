@@ -1674,7 +1674,7 @@ export default function BattlePage() {
                     })()}
                     <div className="flex-1">
                       <div className="font-bold text-lg text-gray-900">{member.member_name}</div>
-                      <div className="text-sm text-gray-600 font-semibold">Lv.{member.level}</div>
+                      <div className="text-sm text-gray-900 font-semibold">Lv.{member.level}</div>
                     </div>
                     <div className="text-right text-sm">
                       <div className="text-gray-700 font-semibold">ATK: {member.attack}</div>
@@ -1710,7 +1710,7 @@ export default function BattlePage() {
                                 disabled={skillCooldown[member.id] > 0}
                                 className={`w-full px-2 py-1 rounded text-xs font-bold transition ${
                                   skillCooldown[member.id] > 0
-                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                    ? 'bg-gray-300 text-gray-900 cursor-not-allowed'
                                     : 'bg-green-500 text-white hover:bg-green-600'
                                 }`}
                               >
@@ -1730,7 +1730,7 @@ export default function BattlePage() {
                               disabled={skillCooldown[member.id] > 0}
                               className={`w-full px-3 py-2 rounded text-sm font-bold transition ${
                                 skillCooldown[member.id] > 0
-                                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                  ? 'bg-gray-300 text-gray-900 cursor-not-allowed'
                                   : 'bg-green-500 text-white hover:bg-green-600'
                               }`}
                             >
@@ -1750,7 +1750,7 @@ export default function BattlePage() {
                           disabled={skillCooldown[member.id] > 0 || memberReviveStatus[member.id]}
                           className={`w-full px-3 py-2 rounded text-sm font-bold transition ${
                             skillCooldown[member.id] > 0 || memberReviveStatus[member.id]
-                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                              ? 'bg-gray-300 text-gray-900 cursor-not-allowed'
                               : member.hp <= 0
                               ? 'bg-purple-500 text-white hover:bg-purple-600'
                               : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -1774,7 +1774,7 @@ export default function BattlePage() {
                           disabled={skillCooldown[member.id] > 0}
                           className={`w-full px-3 py-2 rounded text-sm font-bold transition ${
                             skillCooldown[member.id] > 0
-                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                              ? 'bg-gray-300 text-gray-900 cursor-not-allowed'
                               : 'bg-orange-500 text-white hover:bg-orange-600'
                           }`}
                         >
@@ -1796,7 +1796,7 @@ export default function BattlePage() {
                                 disabled={skillCooldown[member.id] > 0}
                                 className={`w-full px-2 py-1 rounded text-xs font-bold transition ${
                                   skillCooldown[member.id] > 0
-                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                    ? 'bg-gray-300 text-gray-900 cursor-not-allowed'
                                     : 'bg-green-500 text-white hover:bg-green-600'
                                 }`}
                               >
@@ -1817,7 +1817,7 @@ export default function BattlePage() {
                           disabled={skillCooldown[member.id] > 0}
                           className={`w-full px-3 py-2 rounded text-sm font-bold transition ${
                             skillCooldown[member.id] > 0
-                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                              ? 'bg-gray-300 text-gray-900 cursor-not-allowed'
                               : 'bg-blue-500 text-white hover:bg-blue-600'
                           }`}
                         >
@@ -1832,7 +1832,7 @@ export default function BattlePage() {
                   
                   {/* 蘇生使用済み表示 */}
                   {member.skill_type === 'revive' && memberReviveStatus[member.id] && (
-                    <div className="mt-1 text-xs text-gray-500 text-center">
+                    <div className="mt-1 text-xs text-gray-900 text-center">
                       蘇生使用済み
                     </div>
                   )}
@@ -1911,7 +1911,7 @@ export default function BattlePage() {
           <h2 className="text-xl font-bold mb-4">バトルログ</h2>
           <div className="bg-gray-900 text-green-400 p-4 rounded-lg h-48 overflow-y-auto font-mono text-sm">
             {battleLog.length === 0 ? (
-              <div className="text-gray-500">戦闘ログがここに表示されます...</div>
+              <div className="text-gray-900">戦闘ログがここに表示されます...</div>
             ) : (
               battleLog.map((log, index) => (
                 <div key={index} className="mb-1">&gt; {log}</div>
@@ -1929,7 +1929,7 @@ export default function BattlePage() {
                   <div className="text-center mb-6">
                     <div className="text-6xl mb-4">🎉</div>
                     <h2 className="text-3xl font-bold text-green-600 mb-2">勝利！</h2>
-                    <p className="text-gray-600">ステージ{stageId}をクリアしました！</p>
+                    <p className="text-gray-900">ステージ{stageId}をクリアしました！</p>
                   </div>
                   
                   {/* ★ レベルアップ演出 ★ */}
@@ -1969,19 +1969,19 @@ export default function BattlePage() {
                               </div>
                               <div className="grid grid-cols-4 gap-2 text-xs">
                                 <div className="text-center bg-red-50 rounded p-1">
-                                  <div className="text-gray-500">HP</div>
+                                  <div className="text-gray-900">HP</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.hp}</div>
                                 </div>
                                 <div className="text-center bg-orange-50 rounded p-1">
-                                  <div className="text-gray-500">ATK</div>
+                                  <div className="text-gray-900">ATK</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.attack}</div>
                                 </div>
                                 <div className="text-center bg-blue-50 rounded p-1">
-                                  <div className="text-gray-500">DEF</div>
+                                  <div className="text-gray-900">DEF</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.defense}</div>
                                 </div>
                                 <div className="text-center bg-yellow-50 rounded p-1">
-                                  <div className="text-gray-500">SPD</div>
+                                  <div className="text-gray-900">SPD</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.speed}</div>
                                 </div>
                               </div>
@@ -2026,7 +2026,7 @@ export default function BattlePage() {
                     <div className="text-8xl mb-6 animate-pulse">💀</div>
                     <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
                     <p className="text-2xl text-gray-700 mb-2 font-semibold">全滅してしまいました...</p>
-                    <p className="text-lg text-gray-500">{partyStageId ? `パーティステージ${partyStageInfo?.order ?? ''}で敗北しました` : `ステージ${stageId}で敗北しました`}</p>
+                    <p className="text-lg text-gray-900">{partyStageId ? `パーティステージ${partyStageInfo?.order ?? ''}で敗北しました` : `ステージ${stageId}で敗北しました`}</p>
                   </div>
                   
                   <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">

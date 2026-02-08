@@ -375,9 +375,9 @@ export default function EventsPage() {
         {/* ポイント表示 */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
           <div className="text-center">
-            <div className="text-gray-600 mb-2">現在のポイント</div>
+            <div className="text-gray-900 mb-2">現在のポイント</div>
             <div className="text-5xl font-bold text-pink-600">{points}</div>
-            <div className="text-sm text-gray-500 mt-2">pt</div>
+            <div className="text-sm text-gray-900 mt-2">pt</div>
             {points < 100 && (
               <div className="mt-3 text-red-500 font-bold">
                 ガチャにはあと{100 - points}pt必要です
@@ -436,7 +436,7 @@ export default function EventsPage() {
                 {singleResult && !pulling && (
                   <div className="mb-6 animate-fade-in">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl border-4 mx-auto max-w-sm" style={{ borderColor: getRarityBorderColor(singleResult.rarity) }}>
-                      <div className="text-center text-sm font-bold text-gray-500 mb-3">🎉 当たり！</div>
+                      <div className="text-center text-sm font-bold text-gray-900 mb-3">🎉 当たり！</div>
                       <div className={`inline-block px-6 py-3 rounded-full text-white font-bold text-xl mb-4 w-full text-center ${getRarityColor(singleResult.rarity)}`}>
                         {getRarityLabel(singleResult.rarity)}
                       </div>
@@ -451,7 +451,7 @@ export default function EventsPage() {
                         );
                       })()}
                       <div className="text-2xl font-bold mb-2 text-center text-gray-900">{singleResult.member.name}</div>
-                      <div className="text-gray-600 mb-3 text-center text-sm">{singleResult.member.description}</div>
+                      <div className="text-gray-900 mb-3 text-center text-sm">{singleResult.member.description}</div>
                     </div>
                   </div>
                 )}
@@ -465,7 +465,7 @@ export default function EventsPage() {
                 >
                   {pulling ? '抽選中...' : points < 100 ? 'ポイント不足' : 'ガチャを回す！（100pt）'}
                 </button>
-                <div className="text-sm text-gray-500 mt-4">ガチャ1回: 100pt消費</div>
+                <div className="text-sm text-gray-900 mt-4">ガチャ1回: 100pt消費</div>
               </>
             ) : (
               <>
@@ -473,7 +473,7 @@ export default function EventsPage() {
                 <div className="mb-6">
                   <div className="text-4xl mb-4">🎰✨</div>
                   <div className="text-2xl font-bold mb-2">10連ガチャ</div>
-                  <div className="text-gray-600 mb-4">10回目はスーパーレア以上確定！</div>
+                  <div className="text-gray-900 mb-4">10回目はスーパーレア以上確定！</div>
 
                   {pulling && (
                     <div className="text-lg text-pink-600 font-bold animate-pulse mb-4">
@@ -536,7 +536,7 @@ export default function EventsPage() {
           <h3 className="font-bold text-xl mb-2 text-center text-gray-800">
             📊 排出確率
           </h3>
-          <p className="text-gray-500 text-sm mb-4 text-center">★7が最上位、★1が最下位</p>
+          <p className="text-gray-900 text-sm mb-4 text-center">★7が最上位、★1が最下位</p>
           <div className="space-y-2">
             {rates.map(rate => (
               <div

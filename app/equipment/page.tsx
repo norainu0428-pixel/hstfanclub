@@ -181,7 +181,7 @@ export default function EquipmentPage() {
             <h2 className="text-xl font-bold mb-3">所持装備 ({userEquipList.length})</h2>
             <div className="flex flex-wrap gap-2">
               {userEquipList.length === 0 ? (
-                <p className="text-gray-500">装備がありません。装備ガチャで増やしましょう。</p>
+                <p className="text-gray-900">装備がありません。装備ガチャで増やしましょう。</p>
               ) : (
                 userEquipList.map((ue) => (
                   <div
@@ -237,7 +237,7 @@ export default function EquipmentPage() {
                           ) : (
                             <button
                               onClick={() => setSelectingSlot(isSelecting ? null : { memberId: m.id, slot })}
-                              className="text-sm text-gray-500 hover:text-orange-400 w-full text-left"
+                              className="text-sm text-gray-900 hover:text-orange-400 w-full text-left"
                             >
                               {isSelecting ? '装備を選ぶ ▼' : '+ 装備する'}
                             </button>
@@ -256,7 +256,7 @@ export default function EquipmentPage() {
                                   </button>
                                 ))}
                               {userEquipList.filter((ue) => ue.def.slot === slot).length === 0 && (
-                                <p className="text-xs text-gray-500">該当スロットの装備がありません</p>
+                                <p className="text-xs text-gray-900">該当スロットの装備がありません</p>
                               )}
                             </div>
                           )}
@@ -267,7 +267,7 @@ export default function EquipmentPage() {
                 </div>
               ))}
             </div>
-            {members.length === 0 && <p className="text-gray-500">メンバーがいません。冒険やガチャでメンバーを増やしましょう。</p>}
+            {members.length === 0 && <p className="text-gray-900">メンバーがいません。冒険やガチャでメンバーを増やしましょう。</p>}
           </div>
         </div>
 

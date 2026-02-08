@@ -161,7 +161,7 @@ export default function EquipmentSynthesisPage() {
           })}
         </div>
         {userEquipList.length < SYNTHESIS_COUNT && (
-          <p className="text-gray-500 mb-4">装備が{SYNTHESIS_COUNT}つ以上必要です。装備ガチャで増やしましょう。</p>
+          <p className="text-gray-900 mb-4">装備が{SYNTHESIS_COUNT}つ以上必要です。装備ガチャで増やしましょう。</p>
         )}
 
         <button

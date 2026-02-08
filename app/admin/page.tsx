@@ -148,8 +148,8 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-bold mb-4">会員ランク別人数</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-100 rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-gray-600">{stats.freeUsers}</div>
-              <div className="text-gray-500 mt-1">メンバー</div>
+              <div className="text-3xl font-bold text-gray-900">{stats.freeUsers}</div>
+              <div className="text-gray-900 mt-1">メンバー</div>
             </div>
             <div className="bg-purple-100 rounded-lg p-4 text-center">
               <div className="text-3xl font-bold text-purple-600">{stats.premiumUsers}</div>
@@ -163,11 +163,11 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-bold mb-4">ゲーム統計</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-red-50 rounded-lg p-4">
-              <div className="text-gray-600 mb-1">総バトル数</div>
+              <div className="text-gray-900 mb-1">総バトル数</div>
               <div className="text-3xl font-bold text-red-600">{stats.totalBattles}</div>
             </div>
             <div className="bg-green-50 rounded-lg p-4">
-              <div className="text-gray-600 mb-1">平均バトル数/人</div>
+              <div className="text-gray-900 mb-1">平均バトル数/人</div>
               <div className="text-3xl font-bold text-green-600">
                 {stats.totalUsers > 0 ? Math.round(stats.totalBattles / stats.totalUsers) : 0}
               </div>
