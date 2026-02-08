@@ -65,12 +65,23 @@ export default function PartyLobbyPage() {
 
     const { data: inviteData, error } = await supabase
       .from('adventure_invites')
-      .select('id, host_id, host_party_ids, friend_id, friend_party_snapshot, status, invite_mode, battle_party_stage_id')
+      .select('id, host_id, host_party_ids, friend_id, friend_party_snapshot, status, invite_mode')
       .eq('id', inviteId)
       .single();
 
-    if (error || !inviteData || inviteData.invite_mode !== 'party') {
-      alert('ロビー情報の取得に失敗しました');
+    if (error) {
+      console.error('Lobby load error:', error);
+      alert('ロビー情報の取得に失敗しました: ' + (error.message || ''));
+      router.push('/party');
+      return;
+    }
+    if (!inviteData) {
+      alert('ロビーが見つかりません');
+      router.push('/party');
+      return;
+    }
+    if (inviteData.invite_mode != null && inviteData.invite_mode !== 'party') {
+      alert('このロビーはパーティモードではありません');
       router.push('/party');
       return;
     }
@@ -101,8 +112,8 @@ export default function PartyLobbyPage() {
       friend_name: inviteData.friend_id ? (nameMap.get(inviteData.friend_id) || 'フレンド') : undefined
     };
     setInvite(inviteObj);
-    // フレンドの場合、ホストがバトル開始済みなら一緒にバトルへ迁移
-    if (inviteData.battle_party_stage_id && user.id === inviteData.friend_id) {
+    // フレンドの場合、ホストがバトル開始済みなら一緒にバトルへ迁移（battle_party_stage_idカラムがある場合）
+    if (inviteData.battle_party_stage_id && inviteData.friend_id && user.id === inviteData.friend_id) {
       router.push(`/adventure/battle?party_stage_id=${inviteData.battle_party_stage_id}&invite_id=${inviteId}`);
       return;
     }
