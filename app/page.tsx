@@ -311,7 +311,7 @@ export default function Home() {
   if (loading) {
     console.log('=== 描画: 読み込み中 ===');
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center bg-black safe-area-inset">
         <p className="text-orange-500 text-lg">読み込み中...</p>
       </div>
     );
@@ -321,9 +321,10 @@ export default function Home() {
     const authError = searchParams.get('auth_error');
     console.log('=== 描画: ログインボタン ===');
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-8">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-8 safe-area-inset">
+        <h1 className="text-3xl font-bold text-orange-500 mb-8">HSTファンクラブ</h1>
         {authError && (
-          <div className="mb-6 p-4 bg-red-900/50 border border-red-500 rounded-lg max-w-md text-center">
+          <div className="mb-6 p-4 rounded-2xl bg-red-900/30 border border-red-500/50 max-w-md text-center">
             <p className="text-red-300 font-bold">ログインに失敗しました</p>
             <p className="text-red-200 text-sm mt-2">{decodeURIComponent(authError)}</p>
             <p className="text-gray-400 text-xs mt-2">Discordの権限を確認するか、別のブラウザでお試しください</p>
@@ -338,7 +339,7 @@ export default function Home() {
               options: { redirectTo: `${baseUrl || 'http://localhost:3000'}/auth/callback` },
             });
           }}
-          className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-bold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/50"
+          className="w-full max-w-xs py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold active:scale-[0.98] transition shadow-lg"
         >
           Discordでログイン
         </button>
@@ -372,9 +373,9 @@ export default function Home() {
 
   if (user && !profile) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-8">
-        <h1 className="text-4xl font-bold mb-6 text-orange-500">HSTファンクラブ</h1>
-        <div className="bg-gray-900 border border-orange-500/30 rounded-lg p-6 max-w-md">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-8 safe-area-inset">
+        <h1 className="text-3xl font-bold mb-6 text-orange-500">HSTファンクラブ</h1>
+        <div className="rounded-2xl border border-orange-500/30 bg-white/5 p-6 max-w-md w-full backdrop-blur-sm">
           <p className="text-orange-400 font-bold mb-2">プロフィールの設定が必要です</p>
           <p className="text-gray-300 text-sm mb-4">
             一部のメンバーでログインできない場合、プロフィールの自動作成に失敗している可能性があります。下のボタンで再試行してください。
@@ -384,13 +385,13 @@ export default function Home() {
           )}
           <button
             onClick={retryCreateProfile}
-            className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600"
+            className="w-full py-3 rounded-2xl bg-orange-500 text-white font-bold active:scale-[0.98] transition"
           >
             プロフィールを作成
           </button>
           <button
             onClick={async () => { await supabase.auth.signOut(); router.refresh(); }}
-            className="w-full mt-3 px-4 py-2 text-gray-400 hover:text-white"
+            className="w-full mt-3 py-2 text-gray-400 hover:text-white"
           >
             ログアウト
           </button>
@@ -401,13 +402,15 @@ export default function Home() {
 
   console.log('=== 描画: メイン画面 ===');
   return (
-    <div className="min-h-screen p-8 bg-black text-white">
-      <h1 className="text-4xl font-bold mb-6 text-orange-500">HSTファンクラブ</h1>
+    <div className="min-h-screen px-4 py-6 max-w-lg mx-auto">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold text-orange-500">HSTファンクラブ</h1>
+      </header>
       
       {announcements.length > 0 && (
-        <div className="mb-6 space-y-2">
+        <div className="mb-4 space-y-2">
           {announcements.map(a => (
-            <div key={a.id} className="border border-orange-500/30 bg-orange-950/30 p-4 rounded-lg">
+            <div key={a.id} className="rounded-2xl border border-orange-500/30 bg-orange-950/30 p-4">
               <p className="font-bold text-orange-400">{a.title}</p>
               {a.body && <p className="text-gray-300 text-sm mt-1">{a.body}</p>}
             </div>
@@ -416,119 +419,106 @@ export default function Home() {
       )}
       
       {profile ? (
-        <div className="border border-orange-500/30 bg-gray-900 p-4 rounded-lg mb-6 shadow-lg shadow-orange-500/10">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-5 backdrop-blur-sm">
           <p className="text-white">ようこそ、<span className="text-orange-500 font-bold">{profile.display_name}</span>さん</p>
-          <p className="text-gray-300">あなたのrole: <span className="text-orange-400">{profile.role}</span></p>
-          <p className="text-gray-300">ポイント: <span className="text-orange-500 font-bold">{profile.points}pt</span></p>
+          <div className="flex items-center gap-4 mt-2">
+            <span className="text-orange-500 font-bold text-lg">{profile.points}pt</span>
+            <span className="text-gray-400 text-sm">{profile.role}</span>
+          </div>
         </div>
       ) : (
         <p className="text-orange-500 mb-4">プロフィールが見つかりません</p>
       )}
       
       {profile && (
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <button 
             onClick={() => router.push('/adventure')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
-            🗺️ 冒険に出る
+            <span className="text-3xl block mb-1">🗺️</span>
+            <span className="text-sm">冒険</span>
           </button>
           <button 
             onClick={() => router.push('/party')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            className="rounded-2xl p-4 bg-gradient-to-br from-cyan-500 to-blue-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
-            🎪 パーティーモード
+            <span className="text-3xl block mb-1">🎪</span>
+            <span className="text-sm">パーティー</span>
           </button>
           <button 
             onClick={() => router.push('/games')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            className="rounded-2xl p-4 bg-gradient-to-br from-purple-500 to-pink-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
-            ゲームで遊ぶ
+            <span className="text-3xl block mb-1">🎮</span>
+            <span className="text-sm">ゲーム</span>
           </button>
           <button 
             onClick={() => router.push('/friends')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
-            👥 フレンド
+            <span className="text-3xl block mb-1">👥</span>
+            <span className="text-sm">フレンド</span>
           </button>
           <button 
             onClick={() => router.push('/ranking')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            className="rounded-2xl p-4 bg-gradient-to-br from-yellow-500 to-amber-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
-            ランキングを見る
+            <span className="text-3xl block mb-1">🏆</span>
+            <span className="text-sm">ランキング</span>
           </button>
           <button 
             onClick={() => router.push('/missions')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
-            📋 デイリーミッション
+            <span className="text-3xl block mb-1">📋</span>
+            <span className="text-sm">ミッション</span>
           </button>
           <button 
             onClick={() => router.push('/equipment')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
+            className="rounded-2xl p-4 bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
-            🛡️ 装備
+            <span className="text-3xl block mb-1">🛡️</span>
+            <span className="text-sm">装備</span>
           </button>
           
-          {(profile.role === 'owner' || profile.role === 'staff') && (
-            <button 
-              onClick={() => router.push('/admin')}
-              className="w-full px-4 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg font-semibold hover:from-orange-700 hover:to-red-700 transition-all shadow-lg shadow-orange-500/30"
-            >
-              管理画面へ
+          {(profile.membership_tier === 'basic' || profile.membership_tier === 'premium' || profile.role === 'member' || profile.role === 'owner' || profile.role === 'staff' || !profile.membership_tier) && (
+            <button onClick={() => router.push('/basic/gacha')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-yellow-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target col-span-2">
+              <span className="text-2xl mr-2">🎲</span> 通常ガチャ
             </button>
           )}
-          
-          {/* ガチャボタン */}
-          {profile.membership_tier === 'premium' && (
-            <button
-              onClick={() => router.push('/premium/gacha')}
-              className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/30"
-            >
-              🎰 プレミアムガチャ
-            </button>
+          {(profile.membership_tier === 'premium' || profile.role === 'premium' || profile.role === 'owner') && (
+            <>
+              {profile.membership_tier === 'premium' && (
+                <button onClick={() => router.push('/premium/gacha')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
+                  <span className="text-2xl block mb-1">🎰</span>
+                  <span className="text-sm">プレミアムガチャ</span>
+                </button>
+              )}
+              <button onClick={() => router.push('/premium')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-600 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
+                <span className="text-2xl block mb-1">👑</span>
+                <span className="text-sm">プレミアム</span>
+              </button>
+            </>
           )}
-
-          {/* 通常会員ガチャ（basic/premium会員、通常の会員、オーナー、スタッフもアクセス可能） */}
-          {(profile.membership_tier === 'basic' || 
-            profile.membership_tier === 'premium' || 
-            profile.role === 'member' || 
-            profile.role === 'owner' ||
-            profile.role === 'staff' ||
-            !profile.membership_tier) && (
-            <button
-              onClick={() => router.push('/basic/gacha')}
-              className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
-            >
-              🎲 通常ガチャ
-            </button>
-          )}
-
-          {(profile.role === 'premium' || profile.role === 'owner') && (
-            <button 
-              onClick={() => router.push('/premium')}
-              className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/30"
-            >
-              プレミアムページへ
-            </button>
-          )}
-          
-          {/* イベントガチャ（オーナー専用） */}
           {profile.role === 'owner' && (
-            <button 
-              onClick={() => router.push('/events')}
-              className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
-            >
-              🎪 イベントガチャ
-            </button>
+            <>
+              <button onClick={() => router.push('/events')} className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-red-500 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
+                <span className="text-2xl block mb-1">🎪</span>
+                <span className="text-sm">イベントガチャ</span>
+              </button>
+              <button onClick={() => router.push('/admin')} className="rounded-2xl p-4 bg-gradient-to-br from-red-600 to-red-700 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
+                <span className="text-2xl block mb-1">⚙️</span>
+                <span className="text-sm">管理</span>
+              </button>
+              <button onClick={() => router.push('/admin/distribute-hst')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-600 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target col-span-2">
+                <span className="text-2xl mr-2">😊</span> HST配布
+              </button>
+            </>
           )}
-          
-          {profile.role === 'owner' && (
-            <button 
-              onClick={() => router.push('/admin/distribute-hst')}
-              className="w-full px-4 py-3 bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-lg font-semibold hover:from-orange-700 hover:to-amber-700 transition-all shadow-lg shadow-orange-500/30"
-            >
-              😊 HST配布（オーナー専用）
+          {profile.role === 'staff' && (
+            <button onClick={() => router.push('/admin')} className="rounded-2xl p-4 bg-gradient-to-br from-red-600 to-red-700 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target col-span-2">
+              <span className="text-2xl mr-2">⚙️</span> 管理画面
             </button>
           )}
         </div>
@@ -540,7 +530,7 @@ export default function Home() {
           await supabase.auth.signOut();
           window.location.reload();
         }}
-        className="mt-6 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors border border-gray-700"
+        className="mt-6 w-full py-3 rounded-2xl bg-white/10 text-gray-400 border border-white/10 font-bold"
       >
         ログアウト
       </button>

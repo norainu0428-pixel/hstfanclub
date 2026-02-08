@@ -47,20 +47,20 @@ export default function GamesPage() {
   ];
 
   return (
-    <div className="min-h-screen p-8 bg-black text-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-orange-500">ゲームで遊ぶ</h1>
-          <p className="text-gray-300">好きなゲームを選んでください</p>
-        </div>
+    <div className="min-h-screen px-4 py-6 bg-black text-white">
+      <div className="max-w-lg mx-auto">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-orange-500">ゲームで遊ぶ</h1>
+          <p className="text-gray-400 text-sm mt-1">好きなゲームを選んでください</p>
+        </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 gap-3">
           {games.map((game) => (
             <div
               key={game.id}
-              className={`bg-gray-900 border border-orange-500/30 rounded-lg p-6 ${
+              className={`rounded-2xl p-4 border border-white/10 bg-white/5 backdrop-blur-sm ${
                 game.available 
-                  ? 'cursor-pointer hover:border-orange-500 hover:shadow-lg hover:shadow-orange-500/20 transition-all' 
+                  ? 'cursor-pointer active:scale-[0.98] transition' 
                   : 'opacity-50 cursor-not-allowed'
               }`}
               onClick={() => {
@@ -69,97 +69,60 @@ export default function GamesPage() {
                 }
               }}
             >
-              <div className="text-5xl mb-4">{game.icon}</div>
-              <h2 className="text-xl font-bold mb-2 text-white">{game.title}</h2>
-              <p className="text-gray-300 mb-3">{game.description}</p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">難易度: {game.difficulty}</span>
-                {!game.available && (
-                  <span className="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded border border-gray-700">
-                    準備中
-                  </span>
-                )}
-              </div>
+              <div className="text-3xl mb-2">{game.icon}</div>
+              <h2 className="font-bold text-white text-sm">{game.title}</h2>
+              <p className="text-gray-400 text-xs mt-1 line-clamp-2">{game.description}</p>
+              {!game.available && (
+                <span className="text-xs text-gray-500 mt-2 block">準備中</span>
+              )}
             </div>
           ))}
 
           {/* パーティーモード */}
           <div
-            className="bg-gradient-to-br from-amber-500 to-orange-600 border border-amber-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-amber-500/30 transition-all text-white"
+            className="rounded-2xl p-4 bg-gradient-to-br from-cyan-500 to-blue-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition cursor-pointer"
             onClick={() => router.push('/party')}
           >
-            <div className="text-5xl mb-4">🎪</div>
-            <h2 className="text-xl font-bold mb-2">パーティーモード</h2>
-            <p className="text-white/90 mb-3">冒険とは別の専用ステージでパーティー編成を試そう！</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/80">10ステージ</span>
-              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
-            </div>
+            <span className="text-3xl block mb-1">🎪</span>
+            <span className="text-sm">パーティー</span>
           </div>
 
           {/* PvP対戦 */}
           <div
-            className="bg-gradient-to-br from-purple-500 to-pink-600 border border-purple-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-purple-500/30 transition-all text-white"
+            className="rounded-2xl p-4 bg-gradient-to-br from-purple-500 to-pink-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition cursor-pointer"
             onClick={() => router.push('/pvp/matchmaking')}
           >
-            <div className="text-5xl mb-4">⚔️</div>
-            <h2 className="text-xl font-bold mb-2">PvP対戦</h2>
-            <p className="text-white/90 mb-3">フレンドや他プレイヤーと対戦しよう！</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/80">マッチング</span>
-              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
-            </div>
+            <span className="text-3xl block mb-1">⚔️</span>
+            <span className="text-sm">PvP</span>
           </div>
 
           {/* 装備 */}
           <div
-            className="bg-gradient-to-br from-indigo-500 to-purple-600 border border-indigo-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-indigo-500/30 transition-all text-white"
+            className="rounded-2xl p-4 bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition cursor-pointer"
             onClick={() => router.push('/equipment')}
           >
-            <div className="text-5xl mb-4">🛡️</div>
-            <h2 className="text-xl font-bold mb-2">装備</h2>
-            <p className="text-white/90 mb-3">装備・ガチャ・合成でメンバーを強化</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/80">装備ガチャ 1000pt</span>
-              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
-            </div>
+            <span className="text-3xl block mb-1">🛡️</span>
+            <span className="text-sm">装備</span>
           </div>
 
           {/* ランキング */}
           <div
-            className="bg-gradient-to-br from-yellow-500 to-orange-600 border border-yellow-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-yellow-500/30 transition-all text-white"
+            className="rounded-2xl p-4 bg-gradient-to-br from-yellow-500 to-amber-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition cursor-pointer"
             onClick={() => router.push('/ranking')}
           >
-            <div className="text-5xl mb-4">🏆</div>
-            <h2 className="text-xl font-bold mb-2">ランキング</h2>
-            <p className="text-white/90 mb-3">PvPレーティング Top 100</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/80">順位を確認</span>
-              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
-            </div>
+            <span className="text-3xl block mb-1">🏆</span>
+            <span className="text-sm">ランキング</span>
           </div>
 
-          {/* 通常ガチャカード（全ユーザー利用可能） */}
+          {/* 通常ガチャ */}
           <div
-            className="bg-gradient-to-br from-orange-500 to-orange-600 border border-orange-400 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:shadow-orange-500/30 transition-all text-white"
+            className="rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition cursor-pointer"
             onClick={() => router.push('/basic/gacha')}
           >
-            <div className="text-5xl mb-4">🎲</div>
-            <h2 className="text-xl font-bold mb-2">通常ガチャ</h2>
-            <p className="text-white/90 mb-3">メンバーを引いてコレクションを増やそう！</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/80">単発: 30pt / 10連: 270pt</span>
-              <span className="text-xs bg-white/20 px-2 py-1 rounded">利用可能</span>
-            </div>
+            <span className="text-3xl block mb-1">🎲</span>
+            <span className="text-sm">ガチャ</span>
           </div>
         </div>
-
-        <button
-          onClick={() => router.push('/')}
-          className="mt-8 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors border border-gray-700"
-        >
-          トップに戻る
-        </button>
       </div>
     </div>
   );
