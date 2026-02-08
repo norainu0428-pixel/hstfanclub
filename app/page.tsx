@@ -483,9 +483,16 @@ export default function Home() {
           </button>
           
           {(profile.membership_tier === 'basic' || profile.membership_tier === 'premium' || profile.role === 'member' || profile.role === 'owner' || profile.role === 'staff' || !profile.membership_tier) && (
-            <button onClick={() => router.push('/basic/gacha')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-yellow-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target col-span-2">
-              <span className="text-2xl mr-2">🎲</span> 通常ガチャ
-            </button>
+            <>
+              <button onClick={() => router.push('/basic/gacha')} className="rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-yellow-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
+                <span className="text-2xl block mb-1">🎲</span>
+                <span className="text-sm">通常ガチャ</span>
+              </button>
+              <button onClick={() => router.push('/events')} className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-red-500 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
+                <span className="text-2xl block mb-1">🎪</span>
+                <span className="text-sm">HST Smileガチャ</span>
+              </button>
+            </>
           )}
           {(profile.membership_tier === 'premium' || profile.role === 'premium' || profile.role === 'owner') && (
             <>
@@ -503,10 +510,6 @@ export default function Home() {
           )}
           {profile.role === 'owner' && (
             <>
-              <button onClick={() => router.push('/events')} className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-red-500 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
-                <span className="text-2xl block mb-1">🎪</span>
-                <span className="text-sm">イベントガチャ</span>
-              </button>
               <button onClick={() => router.push('/admin')} className="rounded-2xl p-4 bg-gradient-to-br from-red-600 to-red-700 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target">
                 <span className="text-2xl block mb-1">⚙️</span>
                 <span className="text-sm">管理</span>

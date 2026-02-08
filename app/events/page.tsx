@@ -179,30 +179,35 @@ export default function EventsPage() {
       return;
     }
 
-    // オーナー権限チェック
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, points')
       .eq('user_id', user.id)
       .single();
 
-    if (profile?.role !== 'owner') {
-      router.push('/');
-      return;
-    }
-
     if (profile) {
       setPoints(profile.points || 0);
     }
 
-    // イベントガチャ確率取得
+    // イベントガチャ確率取得（運営が管理画面で変更可能）
     const { data: ratesData } = await supabase
       .from('event_gacha_rates')
       .select('*')
       .order('rate', { ascending: false });
 
-    if (ratesData) {
+    if (ratesData && ratesData.length > 0) {
       setRates(ratesData);
+    } else {
+      // テーブルが空の場合はデフォルト確率を使用
+      setRates([
+        { rarity: 'HST', rate: 0.1, ten_pull_rate: 1.0 },
+        { rarity: 'stary', rate: 0.5, ten_pull_rate: 5.0 },
+        { rarity: 'legendary', rate: 3.0, ten_pull_rate: 10.0 },
+        { rarity: 'ultra-rare', rate: 10.0, ten_pull_rate: 20.0 },
+        { rarity: 'super-rare', rate: 20.0, ten_pull_rate: 64.0 },
+        { rarity: 'rare', rate: 30.0, ten_pull_rate: 0.0 },
+        { rarity: 'common', rate: 36.4, ten_pull_rate: 0.0 }
+      ]);
     }
 
     setLoading(false);
@@ -300,8 +305,8 @@ export default function EventsPage() {
         }
       }
       
-      // フォールバック（確率の合計が100%未満の場合）
-      return highRarities[0]?.rarity || 'super-rare';
+      // フォールバック（確率の合計が100%未満の場合や端数）
+      return highRarities[highRarities.length - 1]?.rarity || 'super-rare';
     } else {
       // 通常の単発ガチャ
       const rateType = 'rate';
@@ -372,8 +377,8 @@ export default function EventsPage() {
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">🎪 イベントガチャ</h1>
-          <p className="text-xl opacity-90 mb-4">HST Smileが出るかも！</p>
+          <h1 className="text-4xl font-bold mb-2">🎪 HST Smileガチャ</h1>
+          <p className="text-xl opacity-90 mb-4">HST Smileが出る限定イベントガチャ！</p>
           <div className="text-3xl font-bold">
             ポイント: {points.toLocaleString()}pt
           </div>

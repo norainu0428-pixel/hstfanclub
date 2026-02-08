@@ -59,10 +59,10 @@ INSERT INTO event_gacha_rates (rarity, rate, ten_pull_rate) VALUES
   ('stary', 0.5, 5.0),
   ('legendary', 3.0, 10.0),
   ('ultra-rare', 10.0, 20.0),
-  ('super-rare', 20.0, 30.0),
-  ('rare', 30.0, 34.0),
+  ('super-rare', 20.0, 64.0),
+  ('rare', 30.0, 0.0),
   ('common', 36.4, 0.0)
-ON CONFLICT (rarity) DO NOTHING;
+ON CONFLICT (rarity) DO UPDATE SET rate = EXCLUDED.rate, ten_pull_rate = EXCLUDED.ten_pull_rate, updated_at = NOW();
 
 -- ========================================
 -- 確認用クエリ

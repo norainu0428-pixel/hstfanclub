@@ -112,6 +112,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<GachaRate[]>([]);
   const [basicRates, setBasicRates] = useState<GachaRate[]>([]);
+  const [eventRates, setEventRates] = useState<GachaRate[]>([]);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
   const router = useRouter();
@@ -197,6 +198,16 @@ export default function SettingsPage() {
       if (basicData) {
         setBasicRates(basicData);
       }
+
+      // イベントガチャ（HST Smile）用
+      const { data: eventData } = await supabase
+        .from('event_gacha_rates')
+        .select('*')
+        .order('rate', { ascending: false });
+
+      if (eventData) {
+        setEventRates(eventData);
+      }
     } catch (error) {
       console.log('ガチャ確率テーブルが見つかりません');
     }
@@ -244,6 +255,30 @@ export default function SettingsPage() {
       .update({ 
         [field]: numValue,
         updated_by: user?.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('rarity', rarity);
+
+    if (error) {
+      alert('更新に失敗しました: ' + error.message);
+      return;
+    }
+
+    loadRates();
+  }
+
+  async function updateEventRate(rarity: string, field: 'rate' | 'ten_pull_rate', value: string) {
+    const numValue = parseFloat(value);
+
+    if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+      alert('0〜100の数値を入力してください');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('event_gacha_rates')
+      .update({
+        [field]: numValue,
         updated_at: new Date().toISOString()
       })
       .eq('rarity', rarity);
@@ -547,6 +582,105 @@ export default function SettingsPage() {
                 </div>
                   );
                 })()}
+              </>
+            )}
+          </div>
+
+          {/* イベントガチャ（HST Smile）確率設定 */}
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h2 className="text-2xl font-bold mb-6">🎪 イベントガチャ（HST Smile）確率設定</h2>
+
+            {eventRates.length === 0 ? (
+              <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                <div className="font-bold text-yellow-800 mb-2">⚠️ イベントガチャ確率テーブルが見つかりません</div>
+                <div className="text-sm text-yellow-700">
+                  Supabase SQL Editorで supabase_event_gacha_setup.sql を実行してください。
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 p-4 bg-purple-50 border-2 border-purple-400 rounded-lg">
+                  <div className="font-bold text-purple-800 mb-2">💡 HST Smile イベントガチャ</div>
+                  <div className="text-sm text-purple-700">
+                    単発: 100pt / 10連: 900pt。10連目はHST以上確定。運営側で確率を調整できます。
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700">レアリティ</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700">単発確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700">10連目確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700 text-xs">最終更新</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {eventRates.map(rate => (
+                        <tr key={rate.rarity} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 font-bold text-lg">
+                            {getRarityLabel(rate.rarity)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              value={rate.rate}
+                              onChange={(e) => updateEventRate(rate.rarity, 'rate', e.target.value)}
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
+                            />
+                            <span className="ml-2 text-gray-600">%</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              value={rate.ten_pull_rate}
+                              onChange={(e) => updateEventRate(rate.rarity, 'ten_pull_rate', e.target.value)}
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
+                            />
+                            <span className="ml-2 text-gray-600">%</span>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-gray-500">
+                            {rate.updated_at ? new Date(rate.updated_at).toLocaleString('ja-JP') : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-4">
+                  <div className={`p-4 rounded-lg ${
+                    Math.abs(eventRates.reduce((sum, r) => sum + parseFloat(String(r.rate)), 0) - 100) < 0.01
+                      ? 'bg-green-50 border-2 border-green-400'
+                      : 'bg-red-50 border-2 border-red-400'
+                  }`}>
+                    <div className="font-bold mb-2">単発確率 合計</div>
+                    <div className={`text-3xl font-bold ${
+                      Math.abs(eventRates.reduce((sum, r) => sum + parseFloat(String(r.rate)), 0) - 100) < 0.01 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {eventRates.reduce((sum, r) => sum + parseFloat(String(r.rate)), 0).toFixed(2)}%
+                    </div>
+                  </div>
+                  <div className={`p-4 rounded-lg ${
+                    Math.abs(eventRates.reduce((sum, r) => sum + parseFloat(String(r.ten_pull_rate)), 0) - 100) < 0.01
+                      ? 'bg-green-50 border-2 border-green-400'
+                      : 'bg-red-50 border-2 border-red-400'
+                  }`}>
+                    <div className="font-bold mb-2">10連目確率 合計</div>
+                    <div className={`text-3xl font-bold ${
+                      Math.abs(eventRates.reduce((sum, r) => sum + parseFloat(String(r.ten_pull_rate)), 0) - 100) < 0.01 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {eventRates.reduce((sum, r) => sum + parseFloat(String(r.ten_pull_rate)), 0).toFixed(2)}%
+                    </div>
+                  </div>
+                </div>
               </>
             )}
           </div>

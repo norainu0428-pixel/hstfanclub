@@ -105,16 +105,17 @@ export default function PartyLobbyPage() {
       .in('user_id', userIds);
     const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name]));
 
+    const data = inviteData as { battle_party_stage_id?: string | null };
     const inviteObj = {
       ...inviteData,
-      battle_party_stage_id: inviteData.battle_party_stage_id ?? null,
+      battle_party_stage_id: data.battle_party_stage_id ?? null,
       host_name: nameMap.get(inviteData.host_id) || 'ホスト',
       friend_name: inviteData.friend_id ? (nameMap.get(inviteData.friend_id) || 'フレンド') : undefined
     };
     setInvite(inviteObj);
     // フレンドの場合、ホストがバトル開始済みなら一緒にバトルへ迁移（battle_party_stage_idカラムがある場合）
-    if (inviteData.battle_party_stage_id && inviteData.friend_id && user.id === inviteData.friend_id) {
-      router.push(`/adventure/battle?party_stage_id=${inviteData.battle_party_stage_id}&invite_id=${inviteId}`);
+    if (data.battle_party_stage_id && inviteData.friend_id && user.id === inviteData.friend_id) {
+      router.push(`/adventure/battle?party_stage_id=${data.battle_party_stage_id}&invite_id=${inviteId}`);
       return;
     }
 
