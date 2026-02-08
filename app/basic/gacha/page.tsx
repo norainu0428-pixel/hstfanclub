@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
-import { getRarityLabel, getRarityShortLabel, getRarityLabelWithEmoji, getRarityColorClass, getRarityBorderColor } from '@/utils/rarity';
+import { getRarityLabel, getRarityShortLabel, getRarityLabelWithEmoji, getRarityColorClass, getRarityBorderColor, normalizeRarity } from '@/utils/rarity';
 import { getSkillName } from '@/utils/skills';
 import Image from 'next/image';
 
@@ -184,10 +184,11 @@ export default function BasicGachaPage() {
 
       if (data && data.length > 0) {
         const ratesMap: any = {};
-        data.forEach(rate => {
+        data.forEach((rate: { rarity?: string; rate?: unknown; ten_pull_rate?: unknown }) => {
+          const canonical = normalizeRarity((rate.rarity || '').trim()) || 'common';
           const single = Number(rate.rate);
           const ten = Number(rate.ten_pull_rate);
-          ratesMap[rate.rarity] = {
+          ratesMap[canonical] = {
             single: Number.isFinite(single) ? single : 0,
             ten: Number.isFinite(ten) ? ten : 0
           };
