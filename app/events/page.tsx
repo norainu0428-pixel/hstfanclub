@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { Rarity } from '@/types/adventure';
 import { generateMemberStatsWithIV } from '@/utils/memberStats';
+import { getPlateImageUrl } from '@/utils/plateImage';
 
 // HSTメンバーデータ
 const HST_MEMBERS = {
@@ -420,13 +421,23 @@ export default function EventsPage() {
               
               {/* HST Smile ガチャ 開催予定 */}
               <div className="mt-8 p-6 bg-yellow-500/20 rounded-xl border border-yellow-400/50 text-gray-900">
-                <h3 className="text-xl font-bold mb-2 text-gray-900">😊 HST Smile ガチャ</h3>
+                <h3 className="text-xl font-bold mb-2 text-gray-900 flex items-center gap-2">
+                  {getPlateImageUrl('smile', 'HST') && (
+                    <img src={getPlateImageUrl('smile', 'HST')!} alt="HST Smile" className="w-10 h-10 object-cover rounded-full" />
+                  )}
+                  HST Smile ガチャ
+                </h3>
                 <p className="text-lg font-semibold text-gray-900">開催予定: {EVENT_SCHEDULE_TEXT}</p>
               </div>
 
               {/* HST Smile Lv1 ステータス */}
               <div className="mt-6 p-6 bg-white/20 rounded-xl border border-white/30 text-gray-900">
-                <h3 className="text-lg font-bold mb-4 text-gray-900">😊 HST Smile ステータス（Lv.1）</h3>
+                <h3 className="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
+                  {getPlateImageUrl('smile', 'HST') && (
+                    <img src={getPlateImageUrl('smile', 'HST')!} alt="HST Smile" className="w-10 h-10 object-cover rounded-full" />
+                  )}
+                  HST Smile ステータス（Lv.1）
+                </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                   <div>
                     <div className="text-sm text-gray-700">HP</div>
