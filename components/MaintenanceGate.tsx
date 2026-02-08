@@ -7,7 +7,6 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
   const [isMaintenance, setIsMaintenance] = useState<boolean | null>(null);
   const [canBypass, setCanBypass] = useState(false);
   const [checking, setChecking] = useState(true);
-  const pathname = usePathname();
 
   useEffect(() => {
     async function check() {

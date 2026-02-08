@@ -6,6 +6,16 @@ import type { NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const error = requestUrl.searchParams.get('error');
+  const errorDescription = requestUrl.searchParams.get('error_description');
+
+  // OAuthエラー（Discord拒否等）
+  if (error) {
+    const message = errorDescription || error;
+    return NextResponse.redirect(
+      new URL(`/?auth_error=${encodeURIComponent(message)}`, request.url)
+    );
+  }
 
   if (code) {
     const cookieStore = await cookies();
@@ -26,7 +36,12 @@ export async function GET(request: NextRequest) {
         },
       }
     );
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    if (exchangeError) {
+      return NextResponse.redirect(
+        new URL(`/?auth_error=${encodeURIComponent(exchangeError.message)}`, request.url)
+      );
+    }
   }
 
   return NextResponse.redirect(new URL('/', request.url));

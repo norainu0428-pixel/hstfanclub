@@ -15,6 +15,7 @@ Supabase SQL Editorで以下のSQLファイルを順番に実行してくださ�
 #### 基本セットアップ（必須）
 - ✅ `supabase_setup.sql` - 基本テーブル（user_members, user_progress, battle_logs, daily_missions等）
 - ✅ `supabase_additional_setup.sql` - 追加機能（ガチャ確率、フレンド機能、プロフィール等）
+- ✅ `supabase_profile_trigger.sql` - ログイン不具合対策（プロフィール自動作成トリガー）
 
 #### 機能別セットアップ（必要に応じて）
 - ✅ `supabase_daily_missions_setup.sql` - デイリーミッション（supabase_setup.sqlに含まれている場合は不要）
@@ -63,9 +64,10 @@ Supabase Dashboard → Authentication → Providers で以下を設定：
 
 ## 🔧 トラブルシューティング
 
-### プロフィールが作成されない場合
-- Supabaseの`profiles`テーブルが正しく作成されているか確認
-- RLS（Row Level Security）ポリシーが正しく設定されているか確認
+### プロフィールが作成されない / 一部のメンバーがログインできない場合
+- `supabase_profile_trigger.sql` を実行（新規ユーザー用プロフィール自動作成トリガー）
+- 既存の auth.users にプロフィールがないユーザーも上記SQLで一括作成される
+- ログイン後に「プロフィールの設定が必要です」と表示された場合は「プロフィールを作成」ボタンで再試行
 
 ### 初期キャラクターが付与されない場合
 - `user_members`テーブルが正しく作成されているか確認

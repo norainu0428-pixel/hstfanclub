@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { initializeDailyMissions } from '@/utils/missionTracker';
 
 type Profile = {
@@ -20,7 +20,9 @@ export default function Home() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<{ id: string; title: string; body: string | null }[]>([]);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   console.log('State - loading:', loading);
   console.log('State - user:', user?.id);
@@ -232,7 +234,7 @@ export default function Home() {
             .from('profiles')
             .insert({
               user_id: user.id,
-              display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'ユーザー',
+              display_name: user.user_metadata?.full_name || user.user_metadata?.global_name || user.user_metadata?.name || user.email?.split('@')[0] || 'ユーザー',
               role: 'member',
               points: 0,
               membership_tier: null
@@ -242,12 +244,17 @@ export default function Home() {
 
           if (createError) {
             console.error('  fetchProfile: プロフィール作成エラー', createError);
+            setProfileError(createError.message);
           } else {
             profile = newProfile;
+            setProfileError(null);
             console.log('  fetchProfile: プロフィール作成完了', profile);
           }
         } else if (profileError && profileError.code !== 'PGRST116') {
           console.error('  fetchProfile: profilesエラー', profileError);
+          setProfileError(profileError.message);
+        } else {
+          setProfileError(null);
         }
 
         console.log('  fetchProfile: State更新');
@@ -302,21 +309,83 @@ export default function Home() {
   }
 
   if (!user) {
+    const authError = searchParams.get('auth_error');
     console.log('=== 描画: ログインボタン ===');
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-8">
+        {authError && (
+          <div className="mb-6 p-4 bg-red-900/50 border border-red-500 rounded-lg max-w-md text-center">
+            <p className="text-red-300 font-bold">ログインに失敗しました</p>
+            <p className="text-red-200 text-sm mt-2">{decodeURIComponent(authError)}</p>
+            <p className="text-gray-400 text-xs mt-2">Discordの権限を確認するか、別のブラウザでお試しください</p>
+          </div>
+        )}
         <button
           onClick={async () => {
             console.log('Discordログイン開始');
+            const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
             await supabase.auth.signInWithOAuth({
               provider: 'discord',
-              options: { redirectTo: 'http://localhost:3000/auth/callback' },
+              options: { redirectTo: `${baseUrl || 'http://localhost:3000'}/auth/callback` },
             });
           }}
           className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-bold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/50"
         >
           Discordでログイン
         </button>
+      </div>
+    );
+  }
+
+  // ログイン済みだがプロフィール取得/作成に失敗（一部メンバーがログインできない原因）
+  async function retryCreateProfile() {
+    setProfileError(null);
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (!u) return;
+    const { data: newProfile, error } = await supabase
+      .from('profiles')
+      .insert({
+        user_id: u.id,
+        display_name: u.user_metadata?.full_name || u.user_metadata?.global_name || u.user_metadata?.name || u.email?.split('@')[0] || 'ユーザー',
+        role: 'member',
+        points: 0,
+        membership_tier: null
+      })
+      .select()
+      .single();
+    if (error) {
+      setProfileError(error.message);
+      return;
+    }
+    setProfile(newProfile);
+    setProfileError(null);
+  }
+
+  if (user && !profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-8">
+        <h1 className="text-4xl font-bold mb-6 text-orange-500">HSTファンクラブ</h1>
+        <div className="bg-gray-900 border border-orange-500/30 rounded-lg p-6 max-w-md">
+          <p className="text-orange-400 font-bold mb-2">プロフィールの設定が必要です</p>
+          <p className="text-gray-300 text-sm mb-4">
+            一部のメンバーでログインできない場合、プロフィールの自動作成に失敗している可能性があります。下のボタンで再試行してください。
+          </p>
+          {profileError && (
+            <p className="text-red-400 text-sm mb-4">エラー: {profileError}</p>
+          )}
+          <button
+            onClick={retryCreateProfile}
+            className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600"
+          >
+            プロフィールを作成
+          </button>
+          <button
+            onClick={async () => { await supabase.auth.signOut(); router.refresh(); }}
+            className="w-full mt-3 px-4 py-2 text-gray-400 hover:text-white"
+          >
+            ログアウト
+          </button>
+        </div>
       </div>
     );
   }
