@@ -34,22 +34,18 @@ export default function PlayerSearchPage() {
     setLoading(true);
     setResults([]);
 
-    // プレイヤー検索
+    // プレイヤー検索（RPC 使用：RLS をバイパス）
     const { data: players, error: searchError } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, membership_tier, avatar_url')
-      .ilike('display_name', `%${searchTerm}%`)
-      .neq('user_id', user.id)
-      .limit(20);
+      .rpc('search_players', { search_term: searchTerm.trim() });
 
     if (searchError) {
       console.warn('プレイヤー検索エラー:', searchError);
-      alert('検索に失敗しました。SupabaseダッシュボードのSQL Editorで supabase_fix_friend_display_names.sql を実行してください。\n\n（他ユーザーのプロフィール読取権限が必要です）');
+      alert('検索に失敗しました。SupabaseダッシュボードのSQL Editorで supabase_search_players_rpc.sql を実行してください。');
       setLoading(false);
       return;
     }
 
-    if (!players) {
+    if (!players || !Array.isArray(players)) {
       setLoading(false);
       return;
     }
@@ -62,12 +58,15 @@ export default function PlayerSearchPage() {
       .eq('status', 'accepted');
 
     // フレンド申請チェック
-    const { data: requests } = await supabase
-      .from('friend_requests')
-      .select('receiver_id')
-      .eq('sender_id', user.id)
-      .eq('status', 'pending')
-      .in('receiver_id', players.map(p => p.user_id));
+    const playerIds = players.map((p: { user_id: string }) => p.user_id);
+    const { data: requests } = playerIds.length > 0
+      ? await supabase
+          .from('friend_requests')
+          .select('receiver_id')
+          .eq('sender_id', user.id)
+          .eq('status', 'pending')
+          .in('receiver_id', playerIds)
+      : { data: [] as { receiver_id: string }[] };
 
     const friendIds = new Set((friendships || []).map((f: { user_id: string; friend_id: string }) =>
       f.user_id === user.id ? f.friend_id : f.user_id
