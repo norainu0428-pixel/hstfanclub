@@ -151,11 +151,11 @@ export default function DistributeHSTPage() {
             <select
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-yellow-500/30 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full px-4 py-3 rounded-lg bg-white border border-yellow-500/30 text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
             >
-              <option value="" className="bg-gray-800">選択してください</option>
+              <option value="" className="bg-white text-gray-900">選択してください</option>
               {users.map(user => (
-                <option key={user.user_id} value={user.user_id} className="bg-gray-800">
+                <option key={user.user_id} value={user.user_id} className="bg-white text-gray-900">
                   {user.display_name || '未設定'} ({user.email || 'メールなし'}){user.role === 'owner' && ' 👑 オーナー'}
                 </option>
               ))}
