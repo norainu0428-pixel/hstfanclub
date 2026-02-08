@@ -195,24 +195,47 @@ export default function EventsPage() {
     }
 
     // イベントガチャ確率取得（運営が管理画面で変更可能）
+    const DEFAULT_EVENT_RATES = [
+      { rarity: 'HST', rate: 0.1, ten_pull_rate: 1.0 },
+      { rarity: 'stary', rate: 0.5, ten_pull_rate: 5.0 },
+      { rarity: 'legendary', rate: 3.0, ten_pull_rate: 10.0 },
+      { rarity: 'ultra-rare', rate: 10.0, ten_pull_rate: 20.0 },
+      { rarity: 'super-rare', rate: 20.0, ten_pull_rate: 64.0 },
+      { rarity: 'rare', rate: 30.0, ten_pull_rate: 0.0 },
+      { rarity: 'common', rate: 36.4, ten_pull_rate: 0.0 }
+    ];
+
     const { data: ratesData } = await supabase
       .from('event_gacha_rates')
       .select('*')
       .order('rate', { ascending: false });
 
     if (ratesData && ratesData.length > 0) {
-      setRates(ratesData);
+      // DBの値をベースに、stary・HSTが欠けている or rate=0 の場合はデフォルトで補完
+      const merged = [...ratesData];
+      for (const def of DEFAULT_EVENT_RATES) {
+        const existing = merged.find((r: any) => (r.rarity || '').toLowerCase() === def.rarity.toLowerCase());
+        if (!existing || parseFloat(existing.rate || '0') === 0) {
+          if (existing) {
+            const idx = merged.indexOf(existing);
+            merged[idx] = { ...merged[idx], rate: def.rate, ten_pull_rate: def.ten_pull_rate };
+          } else {
+            merged.push(def);
+          }
+        }
+      }
+      // レアリティで重複を除去（DBに重複がある場合の対策）
+      const seen = new Set<string>();
+      const deduped = merged.filter((r: any) => {
+        const key = (r.rarity || '').toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      deduped.sort((a: any, b: any) => (parseFloat(b.rate || '0') - parseFloat(a.rate || '0')));
+      setRates(deduped);
     } else {
-      // テーブルが空の場合はデフォルト確率を使用
-      setRates([
-        { rarity: 'HST', rate: 0.1, ten_pull_rate: 1.0 },
-        { rarity: 'stary', rate: 0.5, ten_pull_rate: 5.0 },
-        { rarity: 'legendary', rate: 3.0, ten_pull_rate: 10.0 },
-        { rarity: 'ultra-rare', rate: 10.0, ten_pull_rate: 20.0 },
-        { rarity: 'super-rare', rate: 20.0, ten_pull_rate: 64.0 },
-        { rarity: 'rare', rate: 30.0, ten_pull_rate: 0.0 },
-        { rarity: 'common', rate: 36.4, ten_pull_rate: 0.0 }
-      ]);
+      setRates(DEFAULT_EVENT_RATES);
     }
 
     setLoading(false);

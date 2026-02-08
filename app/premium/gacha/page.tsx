@@ -65,14 +65,12 @@ const HST_MEMBERS = {
   superRare: [
     { name: 'smile', emoji: '😊', description: 'チームリーダー', skill_type: 'attack_boost', skill_power: 15 },
     { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', skill_type: 'heal', skill_power: 40 },
-    { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: null },
-    { name: 'tetsuya', emoji: '⚔️', description: '一撃必殺', skill_type: 'power_strike', skill_power: 60 }
+    { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: null }
   ],
   rare: [
     { name: 'smile', emoji: '😊', description: 'チームリーダー', skill_type: 'attack_boost', skill_power: 12 },
     { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', skill_type: 'heal', skill_power: 35 },
-    { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: null },
-    { name: 'meah', emoji: '😊', description: 'スピードスター', skill_type: 'speed_boost', skill_power: 12 }
+    { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: null }
   ],
   common: [
     { 

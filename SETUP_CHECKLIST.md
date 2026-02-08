@@ -89,6 +89,13 @@ Supabase Dashboard → Authentication → Providers で以下を設定：
 - `supabase_set_owner.sql`を実行してオーナー権限を設定したか確認
 - ブラウザをリロードしてセッションを更新
 
+### 装備の付与に失敗する場合（「definition_id カラムが見つからない」エラー）
+- `supabase_equipment_fix.sql`を実行（definition_id カラムを追加し、スキーマキャッシュを再読み込み）
+- 初回セットアップの場合は `supabase_equipment.sql` を実行しても可
+
+### フレンド一覧が「不明」と表示される場合
+- `supabase_friends_profiles_fix.sql`を実行（フレンドのプロフィールを参照できる RLS ポリシーを追加）
+
 ## 📝 注意事項
 
 - 本番環境にデプロイする際は、環境変数を本番用の値に変更してください

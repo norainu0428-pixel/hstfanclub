@@ -85,13 +85,19 @@ export default function EquipmentPage() {
       .eq('user_id', user.id)
       .order('level', { ascending: false });
 
-    const { data: memberEquipData } = await supabase
-      .from('member_equipment')
-      .select(`
-        user_member_id,
-        slot,
-        user_equipment(id, definition_id, level, equipment_definitions(*))
-      `);
+    const memberIds = (membersData || []).map((m: { id: string }) => m.id);
+    let memberEquipData: any[] | null = null;
+    if (memberIds.length > 0) {
+      const res = await supabase
+        .from('member_equipment')
+        .select(`
+          user_member_id,
+          slot,
+          user_equipment(id, definition_id, level, equipment_definitions(*))
+        `)
+        .in('user_member_id', memberIds);
+      memberEquipData = res.data;
+    }
 
     const byMember: Record<string, { weapon?: any; armor?: any; accessory?: any }> = {};
     (memberEquipData || []).forEach((row: any) => {

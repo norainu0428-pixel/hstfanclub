@@ -10,9 +10,7 @@ const NAME_TO_ROOT_FILE: Record<string, string> = {
   'hst smile': 'Smile',
   stary: 'STARY',
   maiku: 'Maiku',
-  meah: 'Meah',
   riemu: 'riemu', // 小文字のファイル名
-  tetsuya: 'Tetsuya',
   karu: 'Karu',
   rura: 'Rura',
   shunkoro: 'Shunkoro',
@@ -26,9 +24,7 @@ const NAME_TO_HST_FILE: Record<string, string> = {
   'hst smile': 'Smileさん.jpg',
   stary: 'STARYさん.jpg',
   maiku: 'Maikuさん.jpg',
-  meah: 'Meahさん.jpg',
   riemu: 'Riemuさん.jpg',
-  tetsuya: 'Tetsuyaさん.jpg',
   shunkoro: 'Shunkoroさん.jpg',
 };
 

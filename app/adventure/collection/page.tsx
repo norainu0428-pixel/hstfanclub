@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Member } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getRarityLabel, RARITY_FILTER_OPTIONS } from '@/utils/rarity';
+import { getRarityLabel, getRarityColorClass, RARITY_FILTER_OPTIONS } from '@/utils/rarity';
 
 export default function CollectionPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -306,32 +306,32 @@ export default function CollectionPage() {
           <p className="text-sm text-gray-500 mb-4">★7が最上位、★1が最下位です</p>
           <div className={`grid grid-cols-2 md:grid-cols-${isOwner ? '7' : '6'} gap-3`}>
             {isOwner && (
-              <div className="bg-gradient-to-br from-yellow-600 via-orange-600 to-red-600 text-white rounded-lg p-3 text-center">
+              <div className={`${getRarityColorClass('HST')} text-white rounded-lg p-3 text-center`}>
                 <div className="text-2xl font-bold">{rarityCount.HST}</div>
                 <div className="text-xs">{getRarityLabel('HST')}</div>
               </div>
             )}
-            <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 text-white rounded-lg p-3 text-center">
+            <div className={`${getRarityColorClass('stary')} text-white rounded-lg p-3 text-center`}>
               <div className="text-2xl font-bold">{rarityCount.stary}</div>
               <div className="text-xs">{getRarityLabel('stary')}</div>
             </div>
-            <div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white rounded-lg p-3 text-center">
+            <div className={`${getRarityColorClass('legendary')} text-white rounded-lg p-3 text-center`}>
               <div className="text-2xl font-bold">{rarityCount.legendary}</div>
               <div className="text-xs">{getRarityLabel('legendary')}</div>
             </div>
-            <div className="bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-lg p-3 text-center">
+            <div className={`${getRarityColorClass('ultra-rare')} text-white rounded-lg p-3 text-center`}>
               <div className="text-2xl font-bold">{rarityCount['ultra-rare']}</div>
               <div className="text-xs">{getRarityLabel('ultra-rare')}</div>
             </div>
-            <div className="bg-purple-500 text-white rounded-lg p-3 text-center">
+            <div className={`${getRarityColorClass('super-rare')} text-white rounded-lg p-3 text-center`}>
               <div className="text-2xl font-bold">{rarityCount['super-rare']}</div>
               <div className="text-xs">{getRarityLabel('super-rare')}</div>
             </div>
-            <div className="bg-blue-500 text-white rounded-lg p-3 text-center">
+            <div className={`${getRarityColorClass('rare')} text-white rounded-lg p-3 text-center`}>
               <div className="text-2xl font-bold">{rarityCount.rare}</div>
               <div className="text-xs">{getRarityLabel('rare')}</div>
             </div>
-            <div className="bg-gray-500 text-white rounded-lg p-3 text-center">
+            <div className={`${getRarityColorClass('common')} text-white rounded-lg p-3 text-center`}>
               <div className="text-2xl font-bold">{rarityCount.common}</div>
               <div className="text-xs">{getRarityLabel('common')}</div>
             </div>

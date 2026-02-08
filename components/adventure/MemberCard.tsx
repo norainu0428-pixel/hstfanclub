@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Member, MAX_LEVELS, getRequiredExp } from '@/types/adventure';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import { getSkillName } from '@/utils/skills';
+import { getRarityGradientPart, getRarityBorderColor } from '@/utils/rarity';
 
 interface MemberCardProps {
   member: Member;
@@ -13,45 +14,23 @@ interface MemberCardProps {
 }
 
 export default function MemberCard({ member, onClick, selected = false, showStats = true }: MemberCardProps) {
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'HST': return 'from-yellow-600 via-orange-600 to-red-600';
-      case 'stary': return 'from-pink-500 via-purple-500 to-blue-500';
-      case 'legendary': return 'from-yellow-400 to-orange-500';
-      case 'ultra-rare': return 'from-purple-500 to-pink-500';
-      case 'super-rare': return 'from-purple-600 to-purple-400';
-      case 'rare': return 'from-blue-500 to-blue-400';
-      case 'common': return 'from-gray-400 to-gray-300';
-      default: return 'from-gray-400 to-gray-300';
-    }
-  };
-
-  const getRarityBorder = (rarity: string) => {
-    switch (rarity) {
-      case 'HST': return 'border-yellow-400 shadow-yellow-400/50';
-      case 'stary': return 'border-pink-500 shadow-pink-500/50';
-      case 'legendary': return 'border-yellow-500 shadow-yellow-500/50';
-      case 'ultra-rare': return 'border-purple-500 shadow-purple-500/50';
-      case 'super-rare': return 'border-purple-400 shadow-purple-400/50';
-      case 'rare': return 'border-blue-400 shadow-blue-400/50';
-      case 'common': return 'border-gray-400 shadow-gray-400/50';
-      default: return 'border-gray-400 shadow-gray-400/50';
-    }
-  };
+  const gradientPart = getRarityGradientPart(member.rarity);
+  const borderColor = getRarityBorderColor(member.rarity);
 
   return (
     <div
       onClick={onClick}
-      className={`relative bg-gray-900 border-4 ${getRarityBorder(member.rarity)} shadow-xl shadow-orange-500/20 overflow-hidden transition-all ${
-        selected ? 'ring-4 ring-orange-500 scale-105' : 'hover:scale-105 hover:border-orange-500/50'
+      className={`relative bg-gray-900 border-4 shadow-xl overflow-hidden transition-all ${
+        selected ? 'ring-4 ring-orange-500 scale-105' : 'hover:scale-105'
       } ${onClick ? 'cursor-pointer' : ''}`}
+      style={{ borderColor }}
     >
       {/* レアリティバッジ */}
       {(() => {
         const maxLevel = MAX_LEVELS[member.rarity] || 40;
         const isMaxLevel = member.level >= maxLevel;
         return (
-          <div className={`absolute top-2 right-2 px-3 py-1 rounded-full text-white text-xs font-bold bg-gradient-to-r ${getRarityColor(member.rarity)} shadow-lg`}>
+          <div className={`absolute top-2 right-2 px-3 py-1 rounded-full text-white text-xs font-bold bg-gradient-to-r ${gradientPart} shadow-lg`}>
             Lv.{member.level}{isMaxLevel && ' MAX'}
           </div>
         );
@@ -59,14 +38,14 @@ export default function MemberCard({ member, onClick, selected = false, showStat
 
       {/* HST専用バッジ */}
       {member.rarity === 'HST' && (
-        <div className="absolute top-12 right-2 px-2 py-1 rounded-full bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 text-white text-xs font-bold animate-pulse">
+        <div className={`absolute top-12 right-2 px-2 py-1 rounded-full bg-gradient-to-r ${getRarityGradientPart('HST')} text-white text-xs font-bold animate-pulse`}>
           👑 最高位
         </div>
       )}
       
       {/* STARY専用バッジ */}
       {member.rarity === 'stary' && (
-        <div className="absolute top-12 right-2 px-2 py-1 rounded-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white text-xs font-bold animate-pulse">
+        <div className={`absolute top-12 right-2 px-2 py-1 rounded-full bg-gradient-to-r ${getRarityGradientPart('stary')} text-white text-xs font-bold animate-pulse`}>
           無限成長
         </div>
       )}
@@ -84,7 +63,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
       )}
 
       {/* メンバー画像（plate: HSTレア時はHSTフォルダ、それ以外は直下を使用） */}
-      <div className={`p-6 bg-gradient-to-br ${getRarityColor(member.rarity)} flex items-center justify-center min-h-[180px]`}>
+      <div className={`p-6 bg-gradient-to-br ${gradientPart} flex items-center justify-center min-h-[180px]`}>
         {getPlateImageUrl(member.member_name, member.rarity) ? (
           <Image
             src={getPlateImageUrl(member.member_name, member.rarity)!}

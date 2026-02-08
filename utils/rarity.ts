@@ -122,6 +122,23 @@ export function getRarityColorClass(rarity: string): string {
 }
 
 /**
+ * グラデーション部分のみ（bg-gradient-to-br 等と組み合わせる用）
+ */
+export function getRarityGradientPart(rarity: string): string {
+  const key = normalizeRarity(rarity);
+  switch (key) {
+    case 'HST': return 'from-yellow-600 via-orange-600 to-red-600';
+    case 'stary': return 'from-pink-500 via-purple-500 to-blue-500';
+    case 'legendary': return 'from-yellow-400 to-orange-500';
+    case 'ultra-rare': return 'from-purple-500 to-pink-500';
+    case 'super-rare': return 'from-purple-600 to-purple-400';
+    case 'rare': return 'from-blue-500 to-blue-400';
+    case 'common': return 'from-gray-400 to-gray-300';
+    default: return 'from-gray-400 to-gray-300';
+  }
+}
+
+/**
  * ボーダー色（HEX）
  */
 export function getRarityBorderColor(rarity: string): string {
