@@ -53,13 +53,26 @@ export default function FriendsPage() {
       r.user_id === user.id ? r.friend_id : r.user_id
     ))];
 
-    // フレンドのプロフィールを直接取得（avatar_url, last_seen_at は SQL 実行後に利用可能）
-    const { data: profiles } = await supabase
+    // フレンドのプロフィールを直接取得
+    let profileRows: FriendProfileRow[] = [];
+    const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('user_id, display_name, membership_tier')
+      .select('user_id, display_name')
       .in('user_id', friendIds);
 
-    const profileRows = (profiles ?? []) as FriendProfileRow[];
+    if (error) {
+      // .in() で 400 になる場合、1件ずつ取得を試行
+      for (const fid of friendIds) {
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .eq('user_id', fid)
+          .maybeSingle();
+        if (p) profileRows.push(p as FriendProfileRow);
+      }
+    } else {
+      profileRows = (profiles ?? []) as FriendProfileRow[];
+    }
     const profileMap = new Map<string, FriendProfileRow>(
       profileRows.map(p => [String(p.user_id), p])
     );
