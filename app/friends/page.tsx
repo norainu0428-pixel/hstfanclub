@@ -13,6 +13,14 @@ interface FriendWithProfile {
   last_seen_at: string;
 }
 
+interface FriendProfileRow {
+  user_id: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  membership_tier?: string | null;
+  last_seen_at?: string | null;
+}
+
 export default function FriendsPage() {
   const [friends, setFriends] = useState<FriendWithProfile[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -50,7 +58,10 @@ export default function FriendsPage() {
       p_friend_ids: friendIds
     });
 
-    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name?: string; avatar_url?: string | null; membership_tier?: string; last_seen_at?: string }) => [p.user_id, p]));
+    const profileRows = (profiles ?? []) as FriendProfileRow[];
+    const profileMap = new Map<string, FriendProfileRow>(
+      profileRows.map(p => [p.user_id, p])
+    );
 
     const formatted: FriendWithProfile[] = friendIds.map(fid => {
       const p = profileMap.get(fid);
