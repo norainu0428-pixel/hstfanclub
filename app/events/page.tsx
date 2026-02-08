@@ -164,6 +164,12 @@ interface GachaResult {
 // 開催中のイベントがあるか（管理者がイベント開始時にtrueに変更）
 const HAS_ACTIVE_EVENT = false;
 
+// HST Smile ガチャ 開催予定（2月8日 21:00）
+const EVENT_SCHEDULE_TEXT = '2月8日 21:00';
+
+// HST Smile Lv1 ステータス（HSTレアリティの基本値）
+const HST_SMILE_LV1_STATS = baseStats['HST'];
+
 export default function EventsPage() {
   const [points, setPoints] = useState(0);
   const [rates, setRates] = useState<any[]>([]);
@@ -411,6 +417,36 @@ export default function EventsPage() {
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-12 shadow-2xl border border-white/20 mt-8">
               <p className="text-2xl font-bold text-white/90">開催中のイベントはありません</p>
               <p className="text-white/70 mt-4">新しいイベントの開催をお楽しみに！</p>
+              
+              {/* HST Smile ガチャ 開催予定 */}
+              <div className="mt-8 p-6 bg-yellow-500/20 rounded-xl border border-yellow-400/50 text-gray-900">
+                <h3 className="text-xl font-bold mb-2 text-gray-900">😊 HST Smile ガチャ</h3>
+                <p className="text-lg font-semibold text-gray-900">開催予定: {EVENT_SCHEDULE_TEXT}</p>
+              </div>
+
+              {/* HST Smile Lv1 ステータス */}
+              <div className="mt-6 p-6 bg-white/20 rounded-xl border border-white/30 text-gray-900">
+                <h3 className="text-lg font-bold mb-4 text-gray-900">😊 HST Smile ステータス（Lv.1）</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div>
+                    <div className="text-sm text-gray-700">HP</div>
+                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.hp}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-700">攻撃力</div>
+                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.attack}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-700">防御力</div>
+                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.defense}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-700">素早さ</div>
+                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.speed}</div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-700 mt-3">※ 個体値・才能値により変動します</p>
+              </div>
             </div>
           </div>
           <div className="text-center mt-8">
