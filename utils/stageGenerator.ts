@@ -268,10 +268,78 @@ export function getExtraStageNum(stage: number): number {
   return stage - EXTRA_STAGE_BASE;
 }
 
+// 経験値アップステージ定数（1日5回までクリア可能）
+export const EXP_STAGE_EASY = 2001;
+export const EXP_STAGE_NORMAL = 2002;
+export const EXP_STAGE_HARD = 2003;
+export const EXP_STAGE_DAILY_LIMIT = 5;
+
+export type ExpStageDifficulty = 'easy' | 'normal' | 'hard';
+
+export function isExpStage(stage: number): boolean {
+  return stage === EXP_STAGE_EASY || stage === EXP_STAGE_NORMAL || stage === EXP_STAGE_HARD;
+}
+
+export function getExpStageDifficulty(stage: number): ExpStageDifficulty | null {
+  if (stage === EXP_STAGE_EASY) return 'easy';
+  if (stage === EXP_STAGE_NORMAL) return 'normal';
+  if (stage === EXP_STAGE_HARD) return 'hard';
+  return null;
+}
+
+export function getExpStageId(difficulty: ExpStageDifficulty): number {
+  if (difficulty === 'easy') return EXP_STAGE_EASY;
+  if (difficulty === 'normal') return EXP_STAGE_NORMAL;
+  return EXP_STAGE_HARD;
+}
+
+// 経験値アップステージ情報を生成（難易度に応じて敵強さ・報酬が変化）
+function generateExpStageInfo(difficulty: ExpStageDifficulty): StageInfo {
+  const config = {
+    easy: { recommendedLevel: 5, enemyLevel: 10, expBase: 150, pointsBase: 10, enemyCount: 2, enemyTypeIndex: 0, statMultiplier: 0.7 },
+    normal: { recommendedLevel: 20, enemyLevel: 30, expBase: 400, pointsBase: 25, enemyCount: 3, enemyTypeIndex: 2, statMultiplier: 1.0 },
+    hard: { recommendedLevel: 40, enemyLevel: 55, expBase: 800, pointsBase: 50, enemyCount: 4, enemyTypeIndex: 5, statMultiplier: 1.3 }
+  };
+  const c = config[difficulty];
+  const stage = getExpStageId(difficulty);
+  const baseStats = calculateEnemyStatsByLevel(c.enemyLevel);
+  const enemyType = ENEMY_TYPES[Math.min(c.enemyTypeIndex, ENEMY_TYPES.length - 1)];
+  const enemies: Enemy[] = [];
+  const expPerEnemy = Math.floor(c.expBase / c.enemyCount);
+  const pointsPerEnemy = Math.floor(c.pointsBase / c.enemyCount);
+
+  for (let i = 0; i < c.enemyCount; i++) {
+    const hp = Math.floor(baseStats.hp * c.statMultiplier * (i === c.enemyCount - 1 ? 1.2 : 0.9));
+    const attack = Math.floor(baseStats.attack * c.statMultiplier * (i === c.enemyCount - 1 ? 1.2 : 0.9));
+    const defense = Math.floor(baseStats.defense * c.statMultiplier * (i === c.enemyCount - 1 ? 1.1 : 0.9));
+    const speed = Math.floor(baseStats.speed * c.statMultiplier * (i === c.enemyCount - 1 ? 1.1 : 0.9));
+    const isBoss = i === c.enemyCount - 1;
+    const enemyName = isBoss ? `${enemyType.name}（ボス）` : `${enemyType.name}`;
+    enemies.push({
+      id: `enemy_exp_${difficulty}_${i}`,
+      name: enemyName,
+      emoji: enemyType.emoji,
+      hp,
+      max_hp: hp,
+      attack,
+      defense,
+      speed,
+      experience_reward: expPerEnemy,
+      points_reward: pointsPerEnemy
+    });
+  }
+
+  return { stage, recommendedLevel: c.recommendedLevel, enemies };
+}
+
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
   if (isExtraStage(stage)) {
     return generateExtraStageInfo(getExtraStageNum(stage));
+  }
+  const difficulty = getExpStageDifficulty(stage);
+  if (difficulty) {
+    return generateExpStageInfo(difficulty);
   }
   return generateStageInfo(stage);
 }

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo, isExtraStage, getExtraStageNum, EXTRA_STAGE_BASE, EXTRA_STAGE_COUNT } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, getExtraStageNum, isExpStage, getExpStageDifficulty, EXTRA_STAGE_BASE, EXTRA_STAGE_COUNT } from '@/utils/stageGenerator';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { calculateDamage } from '@/utils/damage';
 import { tryDropEquipmentFromExtraStage } from '@/utils/equipmentDrop';
@@ -22,8 +22,8 @@ function BattleContent() {
   const stageId = parseInt(stageIdParam);
   const partyIds = searchParams.get('party')?.split(',') || [];
   
-  // ステージIDが無効な場合のチェック（通常1-400、エクストラ1001-1010）
-  const isValidStage = (!isNaN(stageId) && stageId >= 1 && stageId <= 400) || isExtraStage(stageId);
+  // ステージIDが無効な場合のチェック（通常1-400、エクストラ1001-1010、経験値アップ2001-2003）
+  const isValidStage = (!isNaN(stageId) && stageId >= 1 && stageId <= 400) || isExtraStage(stageId) || isExpStage(stageId);
 
   const [party, setParty] = useState<Member[]>([]);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
@@ -93,6 +93,26 @@ function BattleContent() {
       alert('パーティメンバーが見つかりません');
       router.push('/adventure');
       return;
+    }
+
+    // 経験値アップステージ：1日5回まで
+    if (isExpStage(stageId)) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: clears } = await supabase
+          .from('exp_stage_clears')
+          .select('clear_count')
+          .eq('user_id', user.id)
+          .eq('clear_date', today)
+          .maybeSingle();
+        const count = clears?.clear_count ?? 0;
+        if (count >= 5) {
+          alert('本日の経験値アップステージは5回までです。明日また挑戦してください！');
+          router.push('/adventure/exp-stage');
+          return;
+        }
+      }
     }
 
     // current_hpを初期化（存在しない場合）
@@ -717,8 +737,8 @@ function BattleContent() {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      // エクストラステージはメイン進行に影響しない
-      const updateStage = !isExtraStage(stageId);
+      // エクストラ・経験値アップステージはメイン進行に影響しない
+      const updateStage = !isExtraStage(stageId) && !isExpStage(stageId);
       if (progress && !progressError) {
         await supabase
           .from('user_progress')
@@ -762,6 +782,34 @@ function BattleContent() {
       if (isExtraStage(stageId)) {
         const dropped = await tryDropEquipmentFromExtraStage(user.id);
         if (dropped) setDroppedEquipment(dropped);
+      }
+
+      // 経験値アップステージ勝利時：本日のクリア回数をカウント
+      if (isExpStage(stageId)) {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: existing } = await supabase
+          .from('exp_stage_clears')
+          .select('id, clear_count')
+          .eq('user_id', user.id)
+          .eq('clear_date', today)
+          .maybeSingle();
+        if (existing) {
+          await supabase
+            .from('exp_stage_clears')
+            .update({
+              clear_count: Math.min((existing.clear_count ?? 0) + 1, 5),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+        } else {
+          await supabase
+            .from('exp_stage_clears')
+            .insert({
+              user_id: user.id,
+              clear_date: today,
+              clear_count: 1
+            });
+        }
       }
 
       // ミッション進捗更新
@@ -863,7 +911,7 @@ function BattleContent() {
         <div className="text-center text-white mb-6">
           <div className="flex items-center justify-center gap-4 mb-2">
             <h1 className="text-3xl font-bold">
-              ⚔️ バトル - {isExtraStage(stageId) ? `⭐エクストラ${getExtraStageNum(stageId)}` : `ステージ${stageId}`} - ターン {turn}
+              ⚔️ バトル - {isExtraStage(stageId) ? `⭐エクストラ${getExtraStageNum(stageId)}` : isExpStage(stageId) ? `📚 経験値アップ（${getExpStageDifficulty(stageId) === 'easy' ? 'イージー' : getExpStageDifficulty(stageId) === 'normal' ? 'ノーマル' : 'ハード'}）` : `ステージ${stageId}`} - ターン {turn}
             </h1>
             <button
               onClick={() => setAutoMode(prev => !prev)}
@@ -1249,7 +1297,9 @@ function BattleContent() {
                   <div className="flex gap-3">
                     <button
                       onClick={() => {
-                        if (isExtraStage(stageId)) {
+                        if (isExpStage(stageId)) {
+                          router.push('/adventure/exp-stage');
+                        } else if (isExtraStage(stageId)) {
                           const nextExtra = stageId + 1;
                           if (nextExtra <= EXTRA_STAGE_BASE + EXTRA_STAGE_COUNT) {
                             router.push(`/adventure/stage/${nextExtra}?party=${partyIds.join(',')}`);
@@ -1262,7 +1312,7 @@ function BattleContent() {
                       }}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900 px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
-                      {isExtraStage(stageId) && getExtraStageNum(stageId) >= EXTRA_STAGE_COUNT ? 'ステージ選択に戻る' : '次のステージへ'}
+                      {isExpStage(stageId) ? '経験値アップへ戻る' : isExtraStage(stageId) && getExtraStageNum(stageId) >= EXTRA_STAGE_COUNT ? 'ステージ選択に戻る' : '次のステージへ'}
                     </button>
                     <button
                       onClick={() => router.push('/adventure')}
@@ -1279,7 +1329,7 @@ function BattleContent() {
                     <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
                     <p className="text-2xl text-gray-700 mb-2 font-semibold">全滅してしまいました...</p>
                     <p className="text-lg text-gray-700">
-                      {isExtraStage(stageId) ? `エクストラステージ${getExtraStageNum(stageId)}` : `ステージ${stageId}`}で敗北しました
+                      {isExtraStage(stageId) ? `エクストラステージ${getExtraStageNum(stageId)}` : isExpStage(stageId) ? `経験値アップ（${getExpStageDifficulty(stageId) === 'easy' ? 'イージー' : getExpStageDifficulty(stageId) === 'normal' ? 'ノーマル' : 'ハード'}）` : `ステージ${stageId}`}で敗北しました
                     </p>
                   </div>
                   
@@ -1297,10 +1347,10 @@ function BattleContent() {
                   
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(`/adventure/stage/${stageId}?party=${partyIds.join(',')}`)}
+                      onClick={() => isExpStage(stageId) ? router.push('/adventure/exp-stage') : router.push(`/adventure/stage/${stageId}?party=${partyIds.join(',')}`)}
                       className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-lg font-bold text-lg hover:opacity-90 shadow-lg transform hover:scale-105 transition-all"
                     >
-                      🔄 リトライ
+                      {isExpStage(stageId) ? '経験値アップへ戻る' : '🔄 リトライ'}
                     </button>
                     <button
                       onClick={() => router.push('/adventure')}

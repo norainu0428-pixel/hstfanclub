@@ -429,6 +429,12 @@ export default function AdventurePage() {
                   冒険に出発！
                 </button>
                 <button
+                  onClick={() => router.push('/adventure/exp-stage')}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-10 py-4 rounded-lg text-xl font-bold shadow-lg shadow-emerald-500/30 transition hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/40"
+                >
+                  📚 経験値アップ
+                </button>
+                <button
                   onClick={() => {
                     setFusionMode(true);
                     setBaseMember(null);
