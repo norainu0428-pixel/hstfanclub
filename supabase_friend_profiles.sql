@@ -30,7 +30,7 @@ BEGIN
   SELECT
     p.user_id,
     COALESCE(NULLIF(TRIM(p.display_name), ''), au.raw_user_meta_data->>'full_name', au.raw_user_meta_data->>'name', 'ユーザー'),
-    COALESCE(NULLIF(TRIM(p.avatar_url), ''), au.raw_user_meta_data->>'avatar_url', au.raw_user_meta_data->>'picture'),
+    NULLIF(TRIM(p.avatar_url), ''),
     COALESCE(p.membership_tier, 'free'),
     p.last_seen_at
   FROM profiles p

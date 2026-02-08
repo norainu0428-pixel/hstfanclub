@@ -179,12 +179,24 @@ export default function FriendsPage() {
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       {friend.avatar_url ? (
-                        <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                          {(friend.display_name || '?').charAt(0)}
-                        </div>
-                      )}
+                        <img
+                          src={friend.avatar_url}
+                          alt=""
+                          className="w-12 h-12 rounded-full object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fallback = e.currentTarget.nextElementSibling;
+                            if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold shrink-0"
+                        style={{ display: friend.avatar_url ? 'none' : 'flex' }}
+                      >
+                        {(friend.display_name || '?').charAt(0)}
+                      </div>
                       {friend.is_online && (
                         <div className="absolute bottom-0 right-0 w-4 h-4 bg-orange-500 border-2 border-gray-900 rounded-full"></div>
                       )}
