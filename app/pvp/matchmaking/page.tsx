@@ -5,10 +5,18 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
 
+interface PendingInvite {
+  id: string;
+  challenger_name: string;
+  challenger_id: string;
+  created_at: string;
+}
+
 export default function MatchmakingPage() {
   const [party, setParty] = useState<Member[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<Member[]>([]);
   const [friendName, setFriendName] = useState('');
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -17,11 +25,14 @@ export default function MatchmakingPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [friendId, battleId]);
 
   async function loadData() {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      router.push('/');
+      return;
+    }
 
     // メンバー読み込み
     const { data: members } = await supabase
@@ -38,9 +49,34 @@ export default function MatchmakingPage() {
         .from('profiles')
         .select('display_name')
         .eq('user_id', friendId)
-        .single();
-
+        .maybeSingle();
       setFriendName(friendProfile?.display_name || '不明');
+    }
+
+    // 自分への対戦招待（status=waiting かつ player2_id=自分）を取得
+    const { data: invites } = await supabase
+      .from('pvp_battles')
+      .select('id, player1_id, created_at')
+      .eq('player2_id', user.id)
+      .eq('status', 'waiting')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (invites && invites.length > 0) {
+      const challengerIds = [...new Set(invites.map(i => i.player1_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .in('user_id', challengerIds);
+      const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name || '不明']));
+      setPendingInvites(invites.map(inv => ({
+        id: inv.id,
+        challenger_name: nameMap.get(inv.player1_id) || '不明',
+        challenger_id: inv.player1_id,
+        created_at: inv.created_at
+      })));
+    } else {
+      setPendingInvites([]);
     }
 
     setLoading(false);
@@ -139,12 +175,96 @@ export default function MatchmakingPage() {
     );
   }
 
+  // フレンド未選択かつ招待もない場合
+  if (!friendId && !battleId && pendingInvites.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-600 to-orange-600 p-4">
+        <div className="max-w-lg mx-auto">
+          <div className="text-center text-white mb-8">
+            <h1 className="text-4xl font-bold mb-2">⚔️ PvP対戦</h1>
+            <p className="text-lg opacity-90">フレンドを選択して対戦を開始しましょう</p>
+          </div>
+          <div className="bg-white rounded-2xl p-8 shadow-2xl text-center">
+            <div className="text-6xl mb-6">👥</div>
+            <p className="text-gray-600 mb-6">対戦するにはフレンドが必要です。フレンド一覧から対戦したい相手を選んでください。</p>
+            <button
+              onClick={() => router.push('/friends')}
+              className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white px-8 py-4 rounded-full text-xl font-bold shadow-lg hover:opacity-90"
+            >
+              フレンド一覧へ
+            </button>
+          </div>
+          <div className="text-center mt-8">
+            <button onClick={() => router.push('/games')} className="text-white/80 hover:text-white">
+              ← ゲームに戻る
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 招待のみ（フレンド未選択だが招待がある）
+  if (!friendId && !battleId && pendingInvites.length > 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-600 to-orange-600 p-4">
+        <div className="max-w-lg mx-auto">
+          <div className="text-center text-white mb-8">
+            <h1 className="text-4xl font-bold mb-2">⚔️ 対戦招待</h1>
+            <p className="text-lg opacity-90">あなたへの対戦招待</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
+            <div className="space-y-3">
+              {pendingInvites.map(inv => (
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-orange-400 transition"
+                >
+                  <div>
+                    <div className="font-bold text-lg">{inv.challenger_name} が対戦を申し込みました</div>
+                    <div className="text-sm text-gray-500">
+                      {new Date(inv.created_at).toLocaleString('ja-JP')}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => router.push(`/pvp/matchmaking?friend=${inv.challenger_id}&battle=${inv.id}`)}
+                    className="px-4 py-2 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600"
+                  >
+                    受ける
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="text-center">
+            <button
+              onClick={() => router.push('/friends')}
+              className="text-white/80 hover:text-white"
+            >
+              フレンドを選んで挑戦する →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-600 to-orange-600 p-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">⚔️ PvP対戦</h1>
-          <p className="text-lg opacity-90">対戦相手: {friendName}</p>
+          <p className="text-lg opacity-90">対戦相手: {friendName || '招待中'}</p>
+          {pendingInvites.length > 0 && (
+            <p className="text-sm mt-2">
+              <button
+                onClick={() => router.push('/pvp/matchmaking')}
+                className="underline hover:no-underline"
+              >
+                あなたへの対戦招待が{pendingInvites.length}件あります
+              </button>
+            </p>
+          )}
         </div>
 
         {/* パーティ選択 */}

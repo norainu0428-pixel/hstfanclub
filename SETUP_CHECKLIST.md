@@ -22,6 +22,7 @@ Supabase SQL Editorで以下のSQLファイルを順番に実行してくださ�
 - ✅ `supabase_event_gacha_setup.sql` - イベントガチャ機能
 - ✅ `supabase_hst_rarity_setup.sql` - HSTレアリティ設定
 - ✅ `supabase_pvp_stats.sql` - PvPランキング表示用
+- ✅ `supabase_pvp_battles.sql` - PvPリアルタイム対戦用（pvp_battles テーブル・Realtime）
 - ✅ `supabase_equipment.sql` - 装備システム（装備ガチャ・合成・メンバー装備）
 - ✅ `supabase_party_stages.sql` - パーティーモード用ステージ（冒険とは別の10ステージ）
 - ✅ `supabase_party_invites.sql` - パーティーモードでフレンド招待（adventure_invites に invite_mode 追加）

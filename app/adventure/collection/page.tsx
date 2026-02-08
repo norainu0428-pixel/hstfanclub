@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { Member } from '@/types/adventure';
@@ -12,6 +12,7 @@ export default function CollectionPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [sortBy, setSortBy] = useState<'level' | 'rarity' | 'obtained'>('level');
   const [filterRarity, setFilterRarity] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isOwner, setIsOwner] = useState(false);
   const [fusionMode, setFusionMode] = useState(false);
   const [baseMember, setBaseMember] = useState<Member | null>(null);
@@ -260,12 +261,28 @@ export default function CollectionPage() {
     common: members.filter(m => m.rarity === 'common').length
   };
 
+  // 検索で絞り込み（名前・絵文字・説明を対象）
+  const displayedMembers = useMemo(() => {
+    if (!searchQuery.trim()) return members;
+    const q = searchQuery.trim().toLowerCase();
+    return members.filter(m => 
+      (m.member_name || '').toLowerCase().includes(q) ||
+      (m.member_emoji || '').includes(q) ||
+      (m.member_description || '').toLowerCase().includes(q)
+    );
+  }, [members, searchQuery]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">📚 メンバーコレクション</h1>
-          <p className="text-lg opacity-90">所持メンバー: {members.length}体</p>
+          <p className="text-lg opacity-90">
+            所持メンバー: {members.length}体
+            {searchQuery.trim() && (
+              <span className="ml-2 text-white/80">（検索結果: {displayedMembers.length}体）</span>
+            )}
+          </p>
           
           {/* モード切り替え */}
           <div className="flex gap-4 justify-center mt-4">
@@ -338,34 +355,82 @@ export default function CollectionPage() {
           </div>
         </div>
 
-        {/* フィルター・ソート */}
+        {/* 検索・フィルター・ソート */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-bold mb-2">並び替え</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'level' | 'rarity' | 'obtained')}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
-              >
-                <option value="level">レベル順</option>
-                <option value="rarity">レアリティ順</option>
-                <option value="obtained">獲得順</option>
-              </select>
+          <div className="space-y-4">
+            {/* 検索 */}
+            <div>
+              <label className="block text-sm font-bold mb-2">🔍 名前で検索</label>
+              <input
+                type="text"
+                placeholder="メンバー名・絵文字・説明で検索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+              />
             </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-bold mb-2">レアリティ</label>
-              <select
-                value={filterRarity}
-                onChange={(e) => setFilterRarity(e.target.value)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
-              >
-                <option value="all">すべて</option>
-                {isOwner && <option value="HST">{getRarityLabel('HST')}</option>}
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-sm font-bold mb-2">並び替え</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'level' | 'rarity' | 'obtained')}
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
+                >
+                  <option value="level">レベル順</option>
+                  <option value="rarity">レアリティ順（★7→★1）</option>
+                  <option value="obtained">獲得順</option>
+                </select>
+              </div>
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-sm font-bold mb-2">レアリティで絞り込み</label>
+                <select
+                  value={filterRarity}
+                  onChange={(e) => setFilterRarity(e.target.value)}
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
+                >
+                  <option value="all">すべて</option>
+                  {isOwner && <option value="HST">{getRarityLabel('HST')}</option>}
+                  {RARITY_FILTER_OPTIONS.filter(o => o.value !== 'HST').map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {/* レアリティクイックフィルター */}
+            <div>
+              <label className="block text-sm font-bold mb-2">レアリティをクリックで絞り込み</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setFilterRarity('all')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold transition ${
+                    filterRarity === 'all' ? 'ring-2 ring-indigo-600 bg-indigo-100' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  すべて
+                </button>
+                {isOwner && (
+                  <button
+                    onClick={() => setFilterRarity('HST')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-bold text-white transition ${getRarityColorClass('HST')} ${
+                      filterRarity === 'HST' ? 'ring-2 ring-indigo-600' : 'opacity-90 hover:opacity-100'
+                    }`}
+                  >
+                    ★7 HST
+                  </button>
+                )}
                 {RARITY_FILTER_OPTIONS.filter(o => o.value !== 'HST').map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <button
+                    key={opt.value}
+                    onClick={() => setFilterRarity(opt.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-bold text-white transition ${getRarityColorClass(opt.value)} ${
+                      filterRarity === opt.value ? 'ring-2 ring-indigo-600' : 'opacity-90 hover:opacity-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
         </div>
@@ -477,50 +542,79 @@ export default function CollectionPage() {
           <h2 className="text-xl font-bold mb-4">
             {fusionMode ? 'メンバーを選択' : '所持メンバー'}
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {members.map(member => {
-              // 合成モードの場合、クリックで選択
-              if (fusionMode) {
-                const isBase = baseMember?.id === member.id;
-                const isMaterial = materialMembers.some(m => m.id === member.id);
-                const materialIndex = materialMembers.findIndex(m => m.id === member.id);
-                
+          {/* レアリティ順の場合はセクション分け表示 */}
+          {sortBy === 'rarity' && displayedMembers.length > 0 ? (
+            <div className="space-y-6">
+              {(['HST', 'stary', 'legendary', 'ultra-rare', 'super-rare', 'rare', 'common'] as const).filter(r => isOwner || r !== 'HST').map(rarity => {
+                const inRarity = displayedMembers.filter(m => m.rarity === rarity);
+                if (inRarity.length === 0) return null;
                 return (
-                  <div
-                    key={member.id}
-                    onClick={() => {
-                      if (isBase) {
-                        setBaseMember(null);
-                      } else if (isMaterial) {
-                        setMaterialMembers(prev => prev.filter((_, i) => i !== materialIndex));
-                      } else {
-                        if (!baseMember) {
-                          setBaseMember(member);
-                        } else if (materialMembers.length < 5) {
-                          setMaterialMembers(prev => [...prev, member]);
-                        } else {
-                          alert('素材メンバーは最大5体までです');
+                  <div key={rarity}>
+                    <div className={`mb-3 flex items-center gap-2 ${getRarityColorClass(rarity)} text-white rounded-lg px-4 py-2 font-bold w-fit`}>
+                      {getRarityLabel(rarity)} <span className="text-sm opacity-90">({inRarity.length}体)</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {inRarity.map(member => {
+                        if (fusionMode) {
+                          const isBase = baseMember?.id === member.id;
+                          const isMaterial = materialMembers.some(m => m.id === member.id);
+                          const materialIndex = materialMembers.findIndex(m => m.id === member.id);
+                          return (
+                            <div
+                              key={member.id}
+                              onClick={() => {
+                                if (isBase) setBaseMember(null);
+                                else if (isMaterial) setMaterialMembers(prev => prev.filter((_, i) => i !== materialIndex));
+                                else if (!baseMember) setBaseMember(member);
+                                else if (materialMembers.length < 5) setMaterialMembers(prev => [...prev, member]);
+                                else alert('素材メンバーは最大5体までです');
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <MemberCard member={member} selected={isBase || isMaterial} showStats={!fusionMode} />
+                            </div>
+                          );
                         }
-                      }
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <MemberCard
-                      member={member}
-                      selected={isBase || isMaterial}
-                      showStats={!fusionMode}
-                    />
+                        return <MemberCard key={member.id} member={member} />;
+                      })}
+                    </div>
                   </div>
                 );
-              }
-              
-              return <MemberCard key={member.id} member={member} />;
-            })}
-          </div>
-          {members.length === 0 && (
-            <div className="text-center text-gray-500 py-12">
-              メンバーがいません
+              })}
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {displayedMembers.map(member => {
+                  if (fusionMode) {
+                    const isBase = baseMember?.id === member.id;
+                    const isMaterial = materialMembers.some(m => m.id === member.id);
+                    const materialIndex = materialMembers.findIndex(m => m.id === member.id);
+                    return (
+                      <div
+                        key={member.id}
+                        onClick={() => {
+                          if (isBase) setBaseMember(null);
+                          else if (isMaterial) setMaterialMembers(prev => prev.filter((_, i) => i !== materialIndex));
+                          else if (!baseMember) setBaseMember(member);
+                          else if (materialMembers.length < 5) setMaterialMembers(prev => [...prev, member]);
+                          else alert('素材メンバーは最大5体までです');
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <MemberCard member={member} selected={isBase || isMaterial} showStats={!fusionMode} />
+                      </div>
+                    );
+                  }
+                  return <MemberCard key={member.id} member={member} />;
+                })}
+              </div>
+              {displayedMembers.length === 0 && (
+                <div className="text-center text-gray-500 py-12">
+                  {searchQuery.trim() ? '検索に一致するメンバーがいません' : 'メンバーがいません'}
+                </div>
+              )}
+            </>
           )}
         </div>
 

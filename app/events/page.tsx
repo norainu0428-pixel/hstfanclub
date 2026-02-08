@@ -224,14 +224,24 @@ export default function EventsPage() {
           }
         }
       }
-      // レアリティで重複を除去（DBに重複がある場合の対策）
-      const seen = new Set<string>();
-      const deduped = merged.filter((r: any) => {
-        const key = (r.rarity || '').toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+      // レアリティで重複を除去（DBに重複がある場合の対策。同一レアリティは ten_pull_rate が大きい方を採用）
+      const CANONICAL_RARITY: Record<string, string> = {
+        'hst': 'HST', 'stary': 'stary', 'legendary': 'legendary',
+        'ultra-rare': 'ultra-rare', 'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common'
+      };
+      const byKey = new Map<string, { rarity: string; rate: number; ten_pull_rate: number }>();
+      for (const r of merged) {
+        const key = (r.rarity || '').trim().toLowerCase();
+        if (!key) continue;
+        const curr = byKey.get(key);
+        const rate = parseFloat(r.rate || '0');
+        const tenPull = parseFloat(r.ten_pull_rate || '0');
+        if (!curr || tenPull > curr.ten_pull_rate) {
+          const canonical = CANONICAL_RARITY[key] || r.rarity || key;
+          byKey.set(key, { rarity: canonical, rate, ten_pull_rate: tenPull });
+        }
+      }
+      const deduped = Array.from(byKey.values());
       deduped.sort((a: any, b: any) => (parseFloat(b.rate || '0') - parseFloat(a.rate || '0')));
       setRates(deduped);
     } else {

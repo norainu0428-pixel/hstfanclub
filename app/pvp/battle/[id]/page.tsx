@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
+import { getSkillName } from '@/utils/skills';
+import { SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 
 interface BattleState {
   id: string;
@@ -18,6 +20,7 @@ interface BattleState {
   current_turn_player: string;
   battle_log: string[];
   winner_id?: string;
+  battle_buffs?: { [memberId: string]: { attackBoost?: number; defenseBoost?: number } };
 }
 
 interface PlayerInfo {
@@ -41,8 +44,10 @@ export default function PvPBattlePage() {
   const [selectedAction, setSelectedAction] = useState<'attack' | 'skill' | null>(null);
   const [selectedMember, setSelectedMember] = useState<number | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
+  const [selectedAllyTarget, setSelectedAllyTarget] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [battleResult, setBattleResult] = useState<{ won: boolean; winnerName: string } | null>(null);
+  const player2LoadedRef = useRef(false);
 
   useEffect(() => {
     initBattle();
@@ -137,6 +142,7 @@ export default function PvPBattlePage() {
         party: p2Members,
         hp: battleData.player2_hp || {}
       });
+      player2LoadedRef.current = true;
     }
   }
 
@@ -184,11 +190,14 @@ export default function PvPBattlePage() {
           table: 'pvp_battles',
           filter: `id=eq.${battleId}`
         },
-        (payload) => {
+        async (payload) => {
           const newBattle = payload.new as BattleState;
           setBattle(newBattle);
           setBattleLog(newBattle.battle_log || []);
 
+          if (newBattle.status === 'in_progress' && newBattle.player2_party?.length && !player2LoadedRef.current) {
+            await loadPlayerInfo(newBattle);
+          }
           if (newBattle.status === 'completed') {
             setTimeout(() => showResult(newBattle), 2000);
           }
@@ -204,6 +213,7 @@ export default function PvPBattlePage() {
   async function executeAction() {
     if (!selectedAction || !battle || !player1 || !player2) return;
     if (selectedAction === 'attack' && (selectedMember === null || selectedTarget === null)) return;
+    if (selectedAction === 'skill' && selectedMember === null) return;
 
     const isPlayer1 = currentUser === battle.player1_id;
     const attacker = isPlayer1 ? player1 : player2;
@@ -212,22 +222,26 @@ export default function PvPBattlePage() {
     let newLog = [...battleLog];
     let newPlayer1Hp = { ...battle.player1_hp };
     let newPlayer2Hp = { ...battle.player2_hp };
+    let newBuffs = { ...(battle.battle_buffs || {}) };
 
-    if (selectedAction === 'attack' && selectedMember !== null && selectedTarget !== null) {
-      const attackerMember = attacker.party[selectedMember];
+    const attackerMember = attacker.party[selectedMember!];
+    if (!attackerMember) return;
+
+    const attackerHpKey = attackerMember.id;
+    const attackerCurrentHp = isPlayer1 
+      ? newPlayer1Hp[attackerHpKey] ?? attackerMember.max_hp
+      : newPlayer2Hp[attackerHpKey] ?? attackerMember.max_hp;
+
+    if (attackerCurrentHp <= 0 && attackerMember.skill_type !== 'revive') {
+      alert('このメンバーは戦闘不能です');
+      return;
+    }
+
+    const attackBoost = newBuffs[attackerHpKey]?.attackBoost ?? 0;
+
+    if (selectedAction === 'attack' && selectedTarget !== null) {
       const targetMember = defender.party[selectedTarget];
-
-      if (!attackerMember || !targetMember) return;
-
-      const attackerHpKey = attackerMember.id;
-      const attackerCurrentHp = isPlayer1 
-        ? newPlayer1Hp[attackerHpKey] ?? attackerMember.max_hp
-        : newPlayer2Hp[attackerHpKey] ?? attackerMember.max_hp;
-
-      if (attackerCurrentHp <= 0) {
-        alert('このメンバーは戦闘不能です');
-        return;
-      }
+      if (!targetMember) return;
 
       const targetHpKey = targetMember.id;
       const targetCurrentHp = isPlayer1 
@@ -239,8 +253,9 @@ export default function PvPBattlePage() {
         return;
       }
 
-      const baseDamage = attackerMember.attack - targetMember.defense;
-      const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+      const defBoost = newBuffs[targetHpKey]?.defenseBoost ?? 0;
+      const baseDamage = attackerMember.attack - Math.max(targetMember.defense - defBoost, 0);
+      const damage = Math.max(baseDamage + attackBoost + Math.floor(Math.random() * 10), 1);
       
       const newHp = Math.max(targetCurrentHp - damage, 0);
 
@@ -256,6 +271,96 @@ export default function PvPBattlePage() {
 
       if (newHp === 0) {
         newLog.push(`${targetMember.member_emoji} ${targetMember.member_name}は倒れた！`);
+      }
+
+      if (attackBoost > 0) {
+        delete newBuffs[attackerHpKey];
+      }
+    } else if (selectedAction === 'skill') {
+      const skillType = attackerMember.skill_type;
+      const skillPower = attackerMember.skill_power || 20;
+
+      if (skillType === 'attack_boost') {
+        newBuffs[attackerHpKey] = { ...newBuffs[attackerHpKey], attackBoost: skillPower };
+        newLog.push(`⚔️ ${attackerMember.member_emoji} ${attackerMember.member_name}の攻撃力が${skillPower}アップ！`);
+      } else if (skillType === 'defense_boost') {
+        newBuffs[attackerHpKey] = { ...newBuffs[attackerHpKey], defenseBoost: skillPower };
+        newLog.push(`🛡️ ${attackerMember.member_emoji} ${attackerMember.member_name}の防御力が${skillPower}アップ！`);
+      } else if (skillType === 'heal') {
+        const targetIdx = selectedAllyTarget ?? selectedMember;
+        const healTarget = attacker.party[targetIdx];
+        if (healTarget) {
+          const healHpKey = healTarget.id;
+          const currentHp = isPlayer1 
+            ? newPlayer1Hp[healHpKey] ?? healTarget.max_hp
+            : newPlayer2Hp[healHpKey] ?? healTarget.max_hp;
+          const newHp = Math.min(currentHp + skillPower, healTarget.max_hp);
+          if (isPlayer1) {
+            newPlayer1Hp[healHpKey] = newHp;
+          } else {
+            newPlayer2Hp[healHpKey] = newHp;
+          }
+          newLog.push(`💚 ${attackerMember.member_emoji} ${attackerMember.member_name}が ${healTarget.member_name}のHPを${skillPower}回復！`);
+        }
+      } else if (skillType === 'power_strike' && selectedTarget !== null) {
+        const targetMember = defender.party[selectedTarget];
+        if (targetMember) {
+          const targetHpKey = targetMember.id;
+          const targetCurrentHp = isPlayer1 
+            ? newPlayer2Hp[targetHpKey] ?? targetMember.max_hp
+            : newPlayer1Hp[targetHpKey] ?? targetMember.max_hp;
+
+          if (targetCurrentHp > 0) {
+            const strikePower = skillPower + attackerMember.attack + attackBoost;
+            const damage = Math.max(strikePower - targetMember.defense, Math.floor(strikePower * 0.3));
+            const newHp = Math.max(targetCurrentHp - damage, 0);
+
+            if (isPlayer1) {
+              newPlayer2Hp[targetHpKey] = newHp;
+            } else {
+              newPlayer1Hp[targetHpKey] = newHp;
+            }
+            newLog.push(`💥 ${attackerMember.member_emoji} ${attackerMember.member_name}の威力抜撃！ ${targetMember.member_name}に${damage}ダメージ！`);
+            if (newHp === 0) {
+              newLog.push(`${targetMember.member_emoji} ${targetMember.member_name}は倒れた！`);
+            }
+            if (attackBoost > 0) delete newBuffs[attackerHpKey];
+          }
+        }
+      } else if (skillType === 'revive' && attackerCurrentHp <= 0) {
+        const reviveHp = Math.floor(attackerMember.max_hp * 0.5);
+        if (isPlayer1) {
+          newPlayer1Hp[attackerHpKey] = reviveHp;
+        } else {
+          newPlayer2Hp[attackerHpKey] = reviveHp;
+        }
+        newLog.push(`✨ ${attackerMember.member_emoji} ${attackerMember.member_name}が蘇生！HP${reviveHp}で復活！`);
+      } else if (skillType === 'all_heal') {
+        attacker.party.forEach(m => {
+          const hpKey = m.id;
+          const currentHp = isPlayer1 ? newPlayer1Hp[hpKey] ?? m.max_hp : newPlayer2Hp[hpKey] ?? m.max_hp;
+          if (currentHp > 0 && currentHp < m.max_hp) {
+            const newHp = Math.min(currentHp + skillPower, m.max_hp);
+            if (isPlayer1) newPlayer1Hp[hpKey] = newHp;
+            else newPlayer2Hp[hpKey] = newHp;
+          }
+        });
+        newLog.push(`💚 ${attackerMember.member_emoji} ${attackerMember.member_name}が全体回復！`);
+      } else if (skillType === 'hst_power') {
+        const pwr = (skillPower || 40) + attackerMember.attack + attackBoost;
+        defender.party.forEach((m, idx) => {
+          const currentHp = isPlayer1 ? newPlayer2Hp[m.id] ?? m.max_hp : newPlayer1Hp[m.id] ?? m.max_hp;
+          if (currentHp > 0) {
+            const damage = Math.max(Math.floor(pwr * 0.6) - m.defense, Math.floor(pwr * 0.2));
+            const newHp = Math.max(currentHp - damage, 0);
+            if (isPlayer1) newPlayer2Hp[m.id] = newHp;
+            else newPlayer1Hp[m.id] = newHp;
+          }
+        });
+        newLog.push(`👑 ${attackerMember.member_emoji} ${attackerMember.member_name}がHSTパワーで全体攻撃！`);
+        if (attackBoost > 0) delete newBuffs[attackerHpKey];
+      } else {
+        newLog.push(`${attackerMember.member_emoji} ${attackerMember.member_name}の${getSkillName(skillType)}は未実装です`);
       }
     }
 
@@ -298,7 +403,9 @@ export default function PvPBattlePage() {
         battle_log: newLog,
         status: newStatus,
         winner_id: winnerId,
-        completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+        completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+        battle_buffs: newBuffs,
+        updated_at: new Date().toISOString()
       })
       .eq('id', battleId);
 
@@ -315,6 +422,7 @@ export default function PvPBattlePage() {
     setSelectedAction(null);
     setSelectedMember(null);
     setSelectedTarget(null);
+    setSelectedAllyTarget(null);
   }
 
   async function updateStats(winnerId: string) {
@@ -460,11 +568,17 @@ export default function PvPBattlePage() {
                       selectedMember === index && isPlayer1 && currentHp > 0 ? 'ring-4 ring-blue-400' : ''
                     }`}
                     onClick={() => {
-                      if (isMyTurn && selectedAction === 'attack') {
-                        if (isPlayer1 && currentHp > 0) {
-                          setSelectedMember(index);
-                        } else if (!isPlayer1 && currentHp > 0) {
-                          setSelectedTarget(index);
+                      if (!isMyTurn) return;
+                      if (selectedAction === 'attack') {
+                        if (isPlayer1 && currentHp > 0) setSelectedMember(index);
+                        else if (!isPlayer1 && currentHp > 0) setSelectedTarget(index);
+                      } else if (selectedAction === 'skill') {
+                        if (isPlayer1) {
+                          if (selectedMember === null && currentHp > 0) setSelectedMember(index);
+                          else if (selectedMember !== null && member.skill_type && SKILLS_NEED_ALLY_TARGET.has(member.skill_type) && currentHp > 0) setSelectedAllyTarget(index);
+                        } else {
+                          if (selectedMember === null && currentHp > 0) setSelectedMember(index);
+                          else if (selectedMember !== null && member.skill_type && SKILLS_NEED_ALLY_TARGET.has(member.skill_type) && currentHp > 0) setSelectedAllyTarget(index);
                         }
                       }
                     }}
@@ -524,11 +638,15 @@ export default function PvPBattlePage() {
                         selectedMember === index && !isPlayer1 && currentHp > 0 ? 'ring-4 ring-blue-400' : ''
                       }`}
                       onClick={() => {
-                        if (isMyTurn && selectedAction === 'attack') {
-                          if (!isPlayer1 && currentHp > 0) {
-                            setSelectedMember(index);
-                          } else if (isPlayer1 && currentHp > 0) {
-                            setSelectedTarget(index);
+                        if (!isMyTurn) return;
+                        if (isPlayer1) {
+                          if (selectedAction === 'attack' && currentHp > 0) setSelectedTarget(index);
+                          else if (selectedAction === 'skill' && selectedMember !== null && currentHp > 0) setSelectedTarget(index);
+                        } else {
+                          if (selectedAction === 'attack' && currentHp > 0) setSelectedMember(index);
+                          else if (selectedAction === 'skill') {
+                            if (selectedMember === null && currentHp > 0) setSelectedMember(index);
+                            else if (selectedMember !== null && member.skill_type && SKILLS_NEED_ALLY_TARGET.has(member.skill_type) && currentHp > 0) setSelectedAllyTarget(index);
                           }
                         }
                       }}
@@ -570,7 +688,7 @@ export default function PvPBattlePage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => setSelectedAction('attack')}
+                  onClick={() => { setSelectedAction('attack'); setSelectedMember(null); setSelectedTarget(null); setSelectedAllyTarget(null); }}
                   className={`px-6 py-4 rounded-lg font-bold text-lg ${
                     selectedAction === 'attack'
                       ? 'bg-red-500 text-white'
@@ -580,15 +698,14 @@ export default function PvPBattlePage() {
                   ⚔️ 攻撃
                 </button>
                 <button
-                  onClick={() => setSelectedAction('skill')}
+                  onClick={() => { setSelectedAction('skill'); setSelectedMember(null); setSelectedTarget(null); setSelectedAllyTarget(null); }}
                   className={`px-6 py-4 rounded-lg font-bold text-lg ${
                     selectedAction === 'skill'
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
-                  disabled
                 >
-                  ✨ スキル（未実装）
+                  ✨ スキル
                 </button>
               </div>
 
@@ -605,6 +722,38 @@ export default function PvPBattlePage() {
                       実行する
                     </button>
                   )}
+                </div>
+              )}
+
+              {selectedAction === 'skill' && (
+                <div className="space-y-2">
+                  {selectedMember === null ? (
+                    <div className="text-sm font-bold text-gray-700">スキルを使うメンバーを選択</div>
+                  ) : (() => {
+                    const member = myParty!?.party[selectedMember];
+                    const skillType = member?.skill_type;
+                    const needsEnemy = skillType && SKILLS_NEED_ENEMY_TARGET.has(skillType);
+                    const needsAlly = skillType && SKILLS_NEED_ALLY_TARGET.has(skillType);
+                    const canExecute = !needsEnemy && !needsAlly ? true : needsEnemy ? selectedTarget !== null : true;
+                    return (
+                      <>
+                        <div className="text-sm font-bold text-gray-700">
+                          {member?.member_name}の{getSkillName(skillType)}
+                          {needsEnemy && (selectedTarget === null ? ' → 攻撃する敵を選択' : ' → 準備完了')}
+                          {needsAlly && (selectedAllyTarget === null ? ' → 回復する味方を選択' : ' → 準備完了')}
+                          {!needsEnemy && !needsAlly && ' → 準備完了'}
+                        </div>
+                        {canExecute && (
+                          <button
+                            onClick={executeAction}
+                            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90"
+                          >
+                            スキル実行
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
