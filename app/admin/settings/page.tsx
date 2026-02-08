@@ -13,18 +13,11 @@ interface GachaRate {
   updated_at: string;
 }
 
-interface MaintenanceMode {
-  enabled: boolean;
-  message: string;
-}
-
 export default function SettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<GachaRate[]>([]);
   const [basicRates, setBasicRates] = useState<GachaRate[]>([]);
-  const [maintenance, setMaintenance] = useState<MaintenanceMode>({ enabled: false, message: '只今メンテナンス中です。しばらくお待ちください。' });
-  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -51,35 +44,8 @@ export default function SettingsPage() {
     }
 
     setIsAdmin(true);
-    await Promise.all([loadRates(), loadMaintenance()]);
+    await loadRates();
     setLoading(false);
-  }
-
-  async function loadMaintenance() {
-    const { data } = await supabase
-      .from('maintenance_mode')
-      .select('enabled, message')
-      .eq('id', 1)
-      .single();
-    if (data) {
-      setMaintenance({ enabled: data.enabled ?? false, message: data.message ?? '只今メンテナンス中です。しばらくお待ちください。' });
-    }
-  }
-
-  async function updateMaintenance(enabled: boolean, message?: string) {
-    setMaintenanceSaving(true);
-    const payload = {
-      enabled,
-      ...(message !== undefined && { message }),
-      updated_at: new Date().toISOString()
-    };
-    const { error } = await supabase.from('maintenance_mode').update(payload).eq('id', 1);
-    if (error) {
-      alert('更新に失敗しました: ' + error.message);
-    } else {
-      setMaintenance(prev => ({ ...prev, enabled, ...(message !== undefined && { message }) }));
-    }
-    setMaintenanceSaving(false);
   }
 
   async function loadRates() {
@@ -189,66 +155,39 @@ export default function SettingsPage() {
 
   return (
     <AdminLayout>
-      <div className="text-gray-900">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">システム設定</h1>
+      <div>
+        <h1 className="text-3xl font-bold mb-8">システム設定</h1>
 
         <div className="space-y-6">
           {/* お知らせ管理 */}
-          <div className="bg-white rounded-xl p-6 shadow-lg text-gray-900">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">📢 お知らせ管理</h2>
-            <p className="text-gray-700 mb-4">
-              運営からのお知らせを投稿・編集できます。
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h2 className="text-xl font-bold mb-4">📢 お知らせ管理</h2>
+            <p className="text-gray-600 mb-4">
+              お知らせの投稿・編集機能は今後実装予定です。
             </p>
-            <button
-              onClick={() => router.push('/admin/announcements')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700"
-            >
-              お知らせ管理ページへ
-            </button>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-500">
+                announcementsテーブルを作成すると、お知らせ機能が利用可能になります。
+              </p>
+            </div>
           </div>
 
           {/* メンテナンスモード */}
-          <div className="bg-white rounded-xl p-6 shadow-lg text-gray-900">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">🔧 メンテナンスモード</h2>
-            <p className="text-gray-700 mb-4">
-              メンテナンスモードを有効にすると、一般ユーザー（オーナー・スタッフ以外）は /maintenance にリダイレクトされます。
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h2 className="text-xl font-bold mb-4">🔧 メンテナンスモード</h2>
+            <p className="text-gray-600 mb-4">
+              メンテナンスモードの設定機能は今後実装予定です。
             </p>
-            <div className="flex items-center gap-4 mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={maintenance.enabled}
-                  onChange={(e) => updateMaintenance(e.target.checked)}
-                  disabled={maintenanceSaving}
-                  className="rounded border-gray-300"
-                />
-                <span className="font-bold text-gray-900">メンテナンスモードを有効にする</span>
-              </label>
-              {maintenance.enabled && (
-                <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded font-bold text-sm">有効</span>
-              )}
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-bold mb-2 text-gray-900">表示メッセージ</label>
-              <textarea
-                value={maintenance.message}
-                onChange={(e) => setMaintenance(prev => ({ ...prev, message: e.target.value }))}
-                onBlur={(e) => updateMaintenance(maintenance.enabled, e.target.value)}
-                rows={3}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
-                placeholder="只今メンテナンス中です。しばらくお待ちください。"
-              />
-            </div>
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                オーナーとスタッフはメンテナンス中も通常通りアクセスできます。
+                メンテナンスモードを有効にすると、一般ユーザーはサイトにアクセスできなくなります。
               </p>
             </div>
           </div>
 
           {/* プレミアム会員ガチャ確率調整 */}
           <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">🎰 プレミアム会員ガチャ確率設定</h2>
+            <h2 className="text-2xl font-bold mb-6">🎰 プレミアム会員ガチャ確率設定</h2>
             
             {rates.length === 0 ? (
               <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
@@ -269,19 +208,19 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-gray-900">
+                  <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900">レアリティ</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900">通常確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900">10連確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900">最終更新</th>
+                        <th className="px-6 py-3 text-left font-bold">レアリティ</th>
+                        <th className="px-6 py-3 text-left font-bold">通常確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold">10連確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold">最終更新</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y">
                       {rates.map(rate => (
                         <tr key={rate.rarity}>
-                          <td className="px-6 py-4 font-bold text-gray-900">
+                          <td className="px-6 py-4 font-bold">
                             {getRarityLabel(rate.rarity)}
                           </td>
                           <td className="px-6 py-4">
@@ -292,9 +231,9 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.rate}
                               onChange={(e) => updateRate(rate.rarity, 'rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
                             />
-                            <span className="ml-2 text-gray-700">%</span>
+                            <span className="ml-2 text-gray-600">%</span>
                           </td>
                           <td className="px-6 py-4">
                             <input
@@ -304,11 +243,11 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.ten_pull_rate}
                               onChange={(e) => updateRate(rate.rarity, 'ten_pull_rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
                             />
-                            <span className="ml-2 text-gray-700">%</span>
+                            <span className="ml-2 text-gray-600">%</span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-800">
+                          <td className="px-6 py-4 text-sm text-gray-600">
                             {new Date(rate.updated_at).toLocaleString('ja-JP')}
                           </td>
                         </tr>
@@ -323,7 +262,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2 text-gray-900">通常確率 合計</div>
+                    <div className="font-bold mb-2 text-gray-700">通常確率 合計</div>
                     <div className={`text-4xl font-bold ${
                       Math.abs(rates.reduce((sum, r) => sum + parseFloat(String(r.rate)), 0) - 100) < 0.01 
                         ? 'text-green-600' 
@@ -342,7 +281,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2 text-gray-900">10連確率 合計</div>
+                    <div className="font-bold mb-2 text-gray-700">10連確率 合計</div>
                     <div className={`text-4xl font-bold ${
                       Math.abs(rates.reduce((sum, r) => sum + parseFloat(String(r.ten_pull_rate)), 0) - 100) < 0.01 
                         ? 'text-green-600' 
@@ -363,7 +302,7 @@ export default function SettingsPage() {
 
           {/* 通常会員ガチャ確率調整 */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">🎲 通常会員ガチャ確率設定</h2>
+            <h2 className="text-2xl font-bold mb-6">🎲 通常会員ガチャ確率設定</h2>
             
             {basicRates.length === 0 ? (
               <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
@@ -384,19 +323,19 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-gray-900">
+                  <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900">レアリティ</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900">通常確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900">10連確率 (%)</th>
-                        <th className="px-6 py-3 text-left font-bold text-gray-900 text-xs">最終更新</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700">レアリティ</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700">通常確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700">10連確率 (%)</th>
+                        <th className="px-6 py-3 text-left font-bold text-gray-700 text-xs">最終更新</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {basicRates.map(rate => (
                         <tr key={rate.rarity} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 font-bold text-lg text-gray-900">
+                          <td className="px-6 py-4 font-bold text-lg">
                             {getRarityLabel(rate.rarity)}
                           </td>
                           <td className="px-6 py-4">
@@ -407,9 +346,9 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.rate}
                               onChange={(e) => updateBasicRate(rate.rarity, 'rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
                             />
-                            <span className="ml-2 text-gray-700">%</span>
+                            <span className="ml-2 text-gray-600">%</span>
                           </td>
                           <td className="px-6 py-4">
                             <input
@@ -419,11 +358,11 @@ export default function SettingsPage() {
                               max="100"
                               value={rate.ten_pull_rate}
                               onChange={(e) => updateBasicRate(rate.rarity, 'ten_pull_rate', e.target.value)}
-                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold text-gray-900 bg-white"
+                              className="border-2 border-gray-300 rounded-lg px-3 py-2 w-28 text-center font-bold"
                             />
-                            <span className="ml-2 text-gray-700">%</span>
+                            <span className="ml-2 text-gray-600">%</span>
                           </td>
-                          <td className="px-6 py-4 text-xs text-gray-800">
+                          <td className="px-6 py-4 text-xs text-gray-500">
                             {new Date(rate.updated_at).toLocaleString('ja-JP')}
                           </td>
                         </tr>
@@ -444,7 +383,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2 text-gray-900">通常確率 合計</div>
+                    <div className="font-bold mb-2">通常確率 合計</div>
                     <div className={`text-3xl font-bold ${
                       Math.abs(basicTotalSingle - 100) < 0.01 ? 'text-green-600' : 'text-red-600'
                     }`}>
@@ -461,7 +400,7 @@ export default function SettingsPage() {
                       ? 'bg-green-50 border-2 border-green-400' 
                       : 'bg-red-50 border-2 border-red-400'
                   }`}>
-                    <div className="font-bold mb-2 text-gray-900">10連確率 合計</div>
+                    <div className="font-bold mb-2">10連確率 合計</div>
                     <div className={`text-3xl font-bold ${
                       Math.abs(basicTotalTen - 100) < 0.01 ? 'text-green-600' : 'text-red-600'
                     }`}>

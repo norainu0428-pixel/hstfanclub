@@ -4,24 +4,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { initializeDailyMissions } from '@/utils/missionTracker';
-import { generateMemberStatsWithIV } from '@/utils/memberStats';
 
 type Profile = {
   user_id: string;
   display_name: string | null;
-  avatar_url?: string | null;
   role: "owner" | "staff" | "premium" | "member";
   points: number;
   membership_tier?: string | null;
-};
-
-type Announcement = {
-  id: string;
-  title: string;
-  body: string;
-  is_pinned: boolean;
-  created_at: string;
-  updated_at: string;
 };
 
 export default function Home() {
@@ -29,22 +18,8 @@ export default function Home() {
   
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
-
-  // 認証コールバックエラーをURLから取得
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const err = params.get('error');
-      if (err) {
-        setAuthError(decodeURIComponent(err));
-        window.history.replaceState({}, '', '/');
-      }
-    }
-  }, []);
   
   console.log('State - loading:', loading);
   console.log('State - user:', user?.id);
@@ -64,18 +39,44 @@ export default function Home() {
         return;
       }
 
-      // 初期キャラクター（common レアリティ、個体値・才能値を付与）
+      // 初期キャラクター（common レアリティ）
       const starterCharacters = [
-        { name: 'smile', emoji: '😊', description: 'チームリーダー', rarity: 'common' as const },
-        { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', rarity: 'common' as const },
-        { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', rarity: 'common' as const }
+        { 
+          name: 'smile', 
+          emoji: '😊', 
+          description: 'チームリーダー',
+          rarity: 'common',
+          hp: 60,
+          attack: 10,
+          defense: 8,
+          speed: 10
+        },
+        { 
+          name: 'zerom', 
+          emoji: '⚡', 
+          description: 'エースプレイヤー',
+          rarity: 'common',
+          hp: 60,
+          attack: 10,
+          defense: 8,
+          speed: 10
+        },
+        { 
+          name: 'shunkoro', 
+          emoji: '🔥', 
+          description: 'ストラテジスト',
+          rarity: 'common',
+          hp: 60,
+          attack: 10,
+          defense: 8,
+          speed: 10
+        }
       ];
-      const baseStats = { hp: 60, attack: 10, defense: 8, speed: 10 };
 
+      // 初期キャラクターを付与（エラーチェック付き）
       const insertResults = await Promise.all(
-        starterCharacters.map(char => {
-          const statsWithIV = generateMemberStatsWithIV(baseStats);
-          return supabase
+        starterCharacters.map(char =>
+          supabase
             .from('user_members')
             .insert({
               user_id: userId,
@@ -85,21 +86,16 @@ export default function Home() {
               rarity: char.rarity,
               level: 1,
               experience: 0,
-              hp: statsWithIV.hp,
-              max_hp: statsWithIV.hp,
-              current_hp: statsWithIV.hp,
-              attack: statsWithIV.attack,
-              defense: statsWithIV.defense,
-              speed: statsWithIV.speed,
+              hp: char.hp,
+              max_hp: char.hp,
+              current_hp: char.hp,
+              attack: char.attack,
+              defense: char.defense,
+              speed: char.speed,
               skill_type: null,
-              skill_power: 0,
-              individual_hp: statsWithIV.individual_hp,
-              individual_atk: statsWithIV.individual_atk,
-              individual_def: statsWithIV.individual_def,
-              individual_spd: statsWithIV.individual_spd,
-              talent_value: statsWithIV.talent_value
-            });
-        })
+              skill_power: 0
+            })
+        )
       );
 
       // エラーチェック
@@ -174,12 +170,7 @@ export default function Home() {
               speed: finalStats.speed,
               skill_type: 'revive',
               skill_power: 1,
-              revive_used: false,
-              individual_hp: 0,
-              individual_atk: 0,
-              individual_def: 0,
-              individual_spd: 0,
-              talent_value: 50
+              revive_used: false
             });
         }
 
@@ -200,30 +191,34 @@ export default function Home() {
     }, 5000);
     
     const fetchProfile = async () => {
+      console.log('  fetchProfile: 開始');
+
       try {
-        // getSession を先に試す（未ログイン時は getUser が AuthSessionMissingError を投げる場合がある）
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user ?? null;
+        console.log('  fetchProfile: getUser 呼び出し');
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        console.log('  fetchProfile: getUser 完了', { userId: user?.id, error: userError });
+
+        if (userError) {
+          console.error('  fetchProfile: getUser エラー', userError);
+          clearTimeout(timeout);
+          setLoading(false);
+          return;
+        }
 
         if (!user) {
+          console.log('  fetchProfile: ユーザーなし → loading終了');
           clearTimeout(timeout);
           setLoading(false);
           return;
         }
 
         console.log('  fetchProfile: profiles取得 開始');
-        // RPC関数を優先（RLSをバイパス、SQLでget_my_profileを作成済みの場合）
-        let { data: profileData, error: rpcError } = await supabase.rpc('get_my_profile');
-        let profile = Array.isArray(profileData) ? profileData[0] ?? null : profileData;
-        let profileError = rpcError;
+        let { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
 
-        // RPCが失敗または未定義の場合は従来のSELECT
-        if (profileError) {
-          console.log('  fetchProfile: RPC エラー／未定義、従来のSELECTを使用', profileError);
-          const res = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
-          profile = res.data ?? profile;
-          profileError = res.error ?? profileError;
-        }
         console.log('  fetchProfile: profiles取得 完了', {
           profile: profile,
           error: profileError
@@ -246,14 +241,6 @@ export default function Home() {
 
           if (createError) {
             console.error('  fetchProfile: プロフィール作成エラー', createError);
-            // プロフィール作成失敗時もユーザーは表示する（ログイン状態は維持）
-            setUser(user);
-            setProfile(null);
-            setLoading(false);
-            clearTimeout(timeout);
-            // エラーメッセージを表示
-            setAuthError(`プロフィール作成に失敗しました: ${createError.message}`);
-            return;
           } else {
             profile = newProfile;
             console.log('  fetchProfile: プロフィール作成完了', profile);
@@ -276,15 +263,6 @@ export default function Home() {
         if (profile != null && profile.role === 'owner') {
           await checkOwnerBonuses(user.id);
         }
-
-        // お知らせ取得（最新5件、固定優先）
-        const { data: annData } = await supabase
-          .from('announcements')
-          .select('*')
-          .order('is_pinned', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(5);
-        setAnnouncements((annData as Announcement[]) ?? []);
 
         clearTimeout(timeout);
         setLoading(false);
@@ -320,40 +298,13 @@ export default function Home() {
   if (!user) {
     console.log('=== 描画: ログインボタン ===');
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
-        {authError && (
-          <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm max-w-md">
-            <p className="font-bold mb-2">ログインエラー</p>
-            <p>{authError}</p>
-            <p className="mt-2 text-sm text-gray-300">
-              {authError.includes('server_error') ? (
-                <>
-                  <strong>server_error の対処法：</strong><br />
-                  1. <strong>必ず https://hstfanclub.vercel.app でアクセス</strong>してからログインしてください（プレビューURLでは失敗します）<br />
-                  2. ブラウザのCookieを有効にしてください<br />
-                  3. シークレットモードで試してください<br />
-                  4. Supabase → URL Configuration に <code className="bg-black/30 px-1">https://hstfanclub.vercel.app/auth/callback</code> が追加されているか確認
-                </>
-              ) : authError.includes('プロフィール作成に失敗') ? (
-                <>
-                  <strong>対処法：</strong><br />
-                  Supabase Dashboard → SQL Editor で <code className="bg-black/30 px-1">supabase_fix_new_user_login.sql</code> を実行してください。新規ユーザーのプロフィール作成が有効になります。
-                </>
-              ) : (
-                'Supabaseの認証設定（Redirect URLs）を確認してください。'
-              )}
-            </p>
-          </div>
-        )}
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <button
           onClick={async () => {
             console.log('Discordログイン開始');
-            const redirectUrl = typeof window !== 'undefined' 
-              ? `${window.location.origin}/auth/callback`
-              : '/auth/callback';
             await supabase.auth.signInWithOAuth({
               provider: 'discord',
-              options: { redirectTo: redirectUrl },
+              options: { redirectTo: 'http://localhost:3000/auth/callback' },
             });
           }}
           className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-bold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/50"
@@ -369,81 +320,14 @@ export default function Home() {
     <div className="min-h-screen p-8 bg-black text-white">
       <h1 className="text-4xl font-bold mb-6 text-orange-500">HSTファンクラブ</h1>
       
-      {authError && (
-        <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
-          <p className="font-bold mb-2">エラー</p>
-          <p>{authError}</p>
-          {authError.includes('プロフィール作成に失敗') && (
-            <p className="mt-2 text-sm text-gray-300">
-              Supabase Dashboard → SQL Editor で <code className="bg-black/30 px-1">supabase_fix_new_user_login.sql</code> を実行してください。
-            </p>
-          )}
-        </div>
-      )}
       {profile ? (
         <div className="border border-orange-500/30 bg-gray-900 p-4 rounded-lg mb-6 shadow-lg shadow-orange-500/10">
-          <div className="flex items-center gap-3">
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-orange-500/30 flex items-center justify-center text-orange-500 font-bold">
-                {(profile.display_name || '?').charAt(0)}
-              </div>
-            )}
-            <div>
-              <p className="text-white">ようこそ、<span className="text-orange-500 font-bold">{profile.display_name}</span>さん</p>
-              <p className="text-gray-300">あなたのrole: <span className="text-orange-400">{profile.role}</span></p>
-              <p className="text-gray-300">ポイント: <span className="text-orange-500 font-bold">{profile.points}pt</span></p>
-              <button
-                onClick={() => router.push('/profile/edit')}
-                className="text-sm text-orange-400 hover:text-orange-300 underline mt-1"
-              >
-                プロフィール編集
-              </button>
-            </div>
-          </div>
+          <p className="text-white">ようこそ、<span className="text-orange-500 font-bold">{profile.display_name}</span>さん</p>
+          <p className="text-gray-300">あなたのrole: <span className="text-orange-400">{profile.role}</span></p>
+          <p className="text-gray-300">ポイント: <span className="text-orange-500 font-bold">{profile.points}pt</span></p>
         </div>
       ) : (
-        <></>
-      )}
-      {profile && announcements.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-bold text-orange-500">📢 お知らせ</h2>
-            <button
-              onClick={() => router.push('/announcements')}
-              className="text-sm text-orange-400 hover:text-orange-300 underline"
-            >
-              一覧を見る
-            </button>
-          </div>
-          <ul className="space-y-3">
-            {announcements.map((a) => (
-              <li key={a.id} className="border border-orange-500/30 bg-gray-900 p-4 rounded-lg shadow-lg shadow-orange-500/10">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-orange-500">{a.title}</span>
-                  {a.is_pinned && <span className="text-xs bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded">固定</span>}
-                </div>
-                <p className="text-gray-300 text-sm mt-1 line-clamp-2">{a.body}</p>
-                <p className="text-xs text-gray-500 mt-1">{new Date(a.created_at).toLocaleString('ja-JP')}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {!profile && (
-        <div className="mb-4">
-          <p className="text-orange-500 mb-3">プロフィールが見つかりません</p>
-          <p className="text-gray-300 text-sm mb-3">
-            SupabaseでSQLを実行した後は、下のボタンで再読み込みしてください。
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-          >
-            プロフィールを再読み込み
-          </button>
-        </div>
+        <p className="text-orange-500 mb-4">プロフィールが見つかりません</p>
       )}
       
       {profile && (
@@ -477,12 +361,6 @@ export default function Home() {
             className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
           >
             📋 デイリーミッション
-          </button>
-          <button 
-            onClick={() => router.push('/announcements')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
-          >
-            📢 お知らせ
           </button>
           
           {(profile.role === 'owner' || profile.role === 'staff') && (
@@ -534,14 +412,6 @@ export default function Home() {
             className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30"
           >
             🎪 イベントガチャ
-          </button>
-
-          {/* 装備 */}
-          <button 
-            onClick={() => router.push('/equipment')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg font-semibold hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg shadow-amber-500/30"
-          >
-            ⚔️ 装備
           </button>
           
           {profile.role === 'owner' && (

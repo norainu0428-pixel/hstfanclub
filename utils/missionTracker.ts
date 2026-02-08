@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabaseClient';
-import { updateProfilePoints } from '@/utils/profilePoints';
 
 export type MissionType = 'battle_win' | 'battle_complete' | 'gacha_pull' | 'stage_clear' | 'level_up';
 
@@ -147,9 +146,20 @@ export async function claimMissionReward(
       return { success: false, message: '報酬を受け取れません' };
     }
 
-    // 報酬を付与（RPCで確実に反映）
+    // 報酬を付与
     if (rewardPoints > 0) {
-      await updateProfilePoints(rewardPoints);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('user_id', userId)
+        .single();
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({ points: (profile.points || 0) + rewardPoints })
+          .eq('user_id', userId);
+      }
     }
 
     // 経験値報酬は全メンバーに付与（簡易実装）

@@ -1,20 +1,16 @@
 'use client';
 
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo, isExtraStage, getExtraStageNum, isExpStage, getExpStageDifficulty, EXTRA_STAGE_BASE, EXTRA_STAGE_COUNT } from '@/utils/stageGenerator';
+import { getStageInfo } from '@/utils/stageGenerator';
 import { updateMissionProgress } from '@/utils/missionTracker';
-import { calculateDamage } from '@/utils/damage';
-import { tryDropEquipmentFromExtraStage } from '@/utils/equipmentDrop';
-import { getRarityColor, getRarityLabel } from '@/utils/equipment';
-import type { EquipmentMaster } from '@/types/equipment';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
 
-function BattleContent() {
+export default function BattlePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -22,8 +18,10 @@ function BattleContent() {
   const stageId = parseInt(stageIdParam);
   const partyIds = searchParams.get('party')?.split(',') || [];
   
-  // ステージIDが無効な場合のチェック（通常1-400、エクストラ1001-1010、経験値アップ2001-2003）
-  const isValidStage = (!isNaN(stageId) && stageId >= 1 && stageId <= 400) || isExtraStage(stageId) || isExpStage(stageId);
+  // ステージIDが無効な場合のチェック
+  if (isNaN(stageId) || stageId < 1 || stageId > 400) {
+    // useEffect内でリダイレクトするため、ここでは早期リターンしない
+  }
 
   const [party, setParty] = useState<Member[]>([]);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
@@ -38,25 +36,13 @@ function BattleContent() {
   const [skillCooldown, setSkillCooldown] = useState<{ [key: string]: number }>({});
   const [attackBoost, setAttackBoost] = useState<{ [key: string]: number }>({}); // 攻撃力ブースト（次の攻撃まで）
   const [defenseBoost, setDefenseBoost] = useState<{ [key: string]: number }>({}); // 防御力ブースト（次の被ダメージまで）
-  const [enemySkillCooldown, setEnemySkillCooldown] = useState<{ [key: string]: number }>({});
-  const [enemyAttackBoost, setEnemyAttackBoost] = useState<{ [key: string]: number }>({});
-  const [enemyDefenseBoost, setEnemyDefenseBoost] = useState<{ [key: string]: number }>({});
-  const enemiesRef = useRef<Enemy[]>([]);
   const [originalHp, setOriginalHp] = useState<{ [key: string]: number }>({}); // バトル開始時のHP（復元用）
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
-  const [autoMode, setAutoMode] = useState(false);
-  const [droppedEquipment, setDroppedEquipment] = useState<EquipmentMaster | null>(null);
-  /** 武器スキル（Lv5解放）: memberId -> { skill_type, skill_power } */
-  const [memberWeaponSkills, setMemberWeaponSkills] = useState<Record<string, { skill_type: string; skill_power: number }>>({});
 
   useEffect(() => {
     initBattle();
   }, []);
-
-  useEffect(() => {
-    enemiesRef.current = enemies;
-  }, [enemies]);
 
   // パーティ全滅チェック（useEffectで監視）
   useEffect(() => {
@@ -70,8 +56,8 @@ function BattleContent() {
   }, [party, loading, battleResult]);
 
   async function initBattle() {
-    // ステージIDが無効な場合（通常1-400、エクストラ1001-1010）
-    if (!isValidStage) {
+    // ステージIDが無効な場合
+    if (isNaN(stageId) || stageId < 1 || stageId > 400) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
@@ -95,26 +81,6 @@ function BattleContent() {
       return;
     }
 
-    // 経験値アップステージ：1日5回まで
-    if (isExpStage(stageId)) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const today = new Date().toISOString().slice(0, 10);
-        const { data: clears } = await supabase
-          .from('exp_stage_clears')
-          .select('clear_count')
-          .eq('user_id', user.id)
-          .eq('clear_date', today)
-          .maybeSingle();
-        const count = clears?.clear_count ?? 0;
-        if (count >= 5) {
-          alert('本日の経験値アップステージは5回までです。明日また挑戦してください！');
-          router.push('/adventure/exp-stage');
-          return;
-        }
-      }
-    }
-
     // current_hpを初期化（存在しない場合）
     const initializedParty = partyData.map(member => ({
       ...member,
@@ -131,26 +97,9 @@ function BattleContent() {
     
     setParty(initializedParty);
 
-    // 装備済み武器スキル読み込み（Lv5で解放）
-    const { data: equipData } = await supabase
-      .from('user_equipment')
-      .select('equipped_member_id, level, equipment_master(weapon_skill_type, weapon_skill_power, slot_type)')
-      .in('equipped_member_id', partyIds);
-    const weaponSkills: Record<string, { skill_type: string; skill_power: number }> = {};
-    type EquipRow = { equipped_member_id: string; level: number; equipment_master: { weapon_skill_type?: string | null; weapon_skill_power?: number | null; slot_type?: string } | null };
-    ((equipData || []) as EquipRow[]).forEach((row) => {
-      const eq = row.equipment_master;
-      if (!eq || eq.slot_type !== 'weapon' || row.level < 5 || !eq.weapon_skill_type) return;
-      weaponSkills[row.equipped_member_id] = {
-        skill_type: eq.weapon_skill_type,
-        skill_power: eq.weapon_skill_power ?? 0
-      };
-    });
-    setMemberWeaponSkills(weaponSkills);
+    // 敵読み込み（ステージに応じて）
     const stageInfo = getStageInfo(stageId);
-    const enemiesCopy = stageInfo.enemies.map(enemy => ({ ...enemy }));
-    setEnemies(enemiesCopy);
-    enemiesRef.current = enemiesCopy;
+    setEnemies(stageInfo.enemies.map(enemy => ({ ...enemy }))); // コピーを作成
 
     addLog(`ステージ${stageId}の戦闘が始まった！（推奨レベル: ${stageInfo.recommendedLevel}）`);
     setLoading(false);
@@ -207,8 +156,7 @@ function BattleContent() {
     const member = party[memberIndex];
     if (!member) return;
     
-    const effectiveSkill = getEffectiveSkill(member);
-    if (!effectiveSkill) {
+    if (!member.skill_type) {
       return;
     }
 
@@ -218,13 +166,13 @@ function BattleContent() {
     }
 
     // 自己蘇生スキルはHPが0でも使用可能
-    if (member.hp <= 0 && effectiveSkill.skill_type !== 'revive') {
+    if (member.hp <= 0 && member.skill_type !== 'revive') {
       alert('このメンバーは戦闘不能です');
       return;
     }
 
     // 自己蘇生スキルが既に使用済みの場合は使用不可
-    if (effectiveSkill.skill_type === 'revive' && memberReviveStatus[member.id]) {
+    if (member.skill_type === 'revive' && memberReviveStatus[member.id]) {
       alert('自己蘇生は既に使用済みです');
       return;
     }
@@ -233,7 +181,7 @@ function BattleContent() {
 
     const newParty = [...party];
 
-    switch (effectiveSkill.skill_type) {
+    switch (member.skill_type) {
       case 'revive':
         // 自己蘇生（HPが0でも使用可能）
         if (member.hp <= 0) {
@@ -249,7 +197,7 @@ function BattleContent() {
 
       case 'heal':
         // HP回復
-        const healAmount = effectiveSkill.skill_power || 30;
+        const healAmount = member.skill_power || 30;
         
         // targetIndexの範囲チェック
         if (targetIndex !== undefined) {
@@ -293,7 +241,7 @@ function BattleContent() {
 
       case 'attack_boost':
         // 攻撃力アップ（次の攻撃まで有効）
-        const attackBoostAmount = effectiveSkill.skill_power || 20;
+        const attackBoostAmount = member.skill_power || 20;
         setAttackBoost({
           ...attackBoost,
           [member.id]: attackBoostAmount
@@ -303,7 +251,7 @@ function BattleContent() {
 
       case 'defense_boost':
         // 防御力アップ（次の被ダメージまで有効）
-        const defenseBoostAmount = effectiveSkill.skill_power || 15;
+        const defenseBoostAmount = member.skill_power || 15;
         setDefenseBoost({
           ...defenseBoost,
           [member.id]: defenseBoostAmount
@@ -313,7 +261,7 @@ function BattleContent() {
 
       case 'hst_power':
         // HSTパワー：強力な攻撃スキル（全敵にダメージ）
-        const hstPower = effectiveSkill.skill_power || 100;
+        const hstPower = member.skill_power || 100;
         const newEnemies = [...enemies];
         let totalDamage = 0;
         
@@ -361,75 +309,6 @@ function BattleContent() {
     return names[skillType] || skillType;
   }
 
-  /** メンバーの実効スキル（武器スキルLv5解放 or メンバースキル） */
-  function getEffectiveSkill(member: Member): { skill_type: string; skill_power: number } | null {
-    const weaponSkill = memberWeaponSkills[member.id];
-    if (weaponSkill) return weaponSkill;
-    if (member.skill_type) {
-      return { skill_type: member.skill_type, skill_power: member.skill_power ?? 0 };
-    }
-    return null;
-  }
-
-  // AUTOモード: 自動で最適な行動を選択
-  function executeAutoAction() {
-    const aliveMembers = party.filter(m => m.hp > 0);
-    const aliveEnemies = enemies.filter(e => e.hp > 0);
-    if (aliveMembers.length === 0 || aliveEnemies.length === 0) return;
-
-    // 蘇生可能なメンバーを優先（HP0でreviveスキル持ち、未使用）
-    const revivableIndex = party.findIndex(m => 
-      m.hp <= 0 && getEffectiveSkill(m)?.skill_type === 'revive' && !memberReviveStatus[m.id] && !skillCooldown[m.id]
-    );
-    if (revivableIndex >= 0) {
-      useSkill(revivableIndex);
-      return;
-    }
-
-    // 最初の生存メンバーを選択
-    const memberIndex = party.findIndex(m => m.hp > 0);
-    if (memberIndex < 0) return;
-
-    const member = party[memberIndex];
-    const cd = skillCooldown[member.id] || 0;
-    const effSkill = getEffectiveSkill(member);
-
-    // 回復: 味方のHPが70%未満の人がいる場合
-    if (effSkill?.skill_type === 'heal' && cd === 0) {
-      const lowHpAlly = party
-        .map((p, i) => ({ p, i }))
-        .filter(({ p }) => p.hp > 0 && p.hp < p.max_hp * 0.7)
-        .sort((a, b) => a.p.hp - b.p.hp)[0];
-      if (lowHpAlly) {
-        useSkill(memberIndex, lowHpAlly.i);
-        return;
-      }
-    }
-
-    // HSTパワー: 複数敵がいる場合
-    if (effSkill?.skill_type === 'hst_power' && cd === 0 && aliveEnemies.length > 0) {
-      useSkill(memberIndex);
-      return;
-    }
-
-    // 攻撃: HPが最も低い敵を狙う
-    const targetEnemyIndex = enemies.findIndex(e => e.hp > 0);
-    if (targetEnemyIndex >= 0) {
-      const lowestHpEnemyIndex = enemies
-        .map((e, i) => ({ e, i }))
-        .filter(({ e }) => e.hp > 0)
-        .sort((a, b) => a.e.hp - b.e.hp)[0]?.i ?? targetEnemyIndex;
-      playerAttack(memberIndex, lowestHpEnemyIndex);
-    }
-  }
-
-  // AUTOモード: プレイヤーターン時に自動実行
-  useEffect(() => {
-    if (!autoMode || !isPlayerTurn || battleResult || loading) return;
-    const timer = setTimeout(() => executeAutoAction(), 600);
-    return () => clearTimeout(timer);
-  }, [autoMode, isPlayerTurn, battleResult, loading, party, enemies, skillCooldown, memberReviveStatus, memberWeaponSkills]);
-
   async function playerAttack(memberIndex: number, enemyIndex: number) {
     if (!isPlayerTurn) return;
     
@@ -443,23 +322,17 @@ function BattleContent() {
 
     setIsPlayerTurn(false);
 
-    // ダメージ計算（攻撃力ブースト・敵の防御力ブーストを適用）
+    // ダメージ計算（攻撃力ブーストを適用）
     const attackBoostAmount = attackBoost[member.id] || 0;
     const boostedAttack = member.attack + attackBoostAmount;
-    const defenseBoostAmount = enemy.id ? (enemyDefenseBoost[enemy.id] || 0) : 0;
-    const effectiveDefense = enemy.defense + defenseBoostAmount;
-    const damage = calculateDamage(boostedAttack, effectiveDefense);
+    const baseDamage = boostedAttack - enemy.defense;
+    const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
 
-    // 攻撃力ブースト・敵の防御力ブーストを消費（使用後は削除）
+    // 攻撃力ブーストを消費（使用後は削除）
     if (attackBoost[member.id]) {
       const newAttackBoost = { ...attackBoost };
       delete newAttackBoost[member.id];
       setAttackBoost(newAttackBoost);
-    }
-    if (enemy.id && enemyDefenseBoost[enemy.id]) {
-      const newEnemyDefenseBoost = { ...enemyDefenseBoost };
-      delete newEnemyDefenseBoost[enemy.id];
-      setEnemyDefenseBoost(newEnemyDefenseBoost);
     }
 
     // 敵のHP減少
@@ -468,8 +341,7 @@ function BattleContent() {
     setEnemies(newEnemies);
 
     const boostText = attackBoostAmount > 0 ? `（攻撃力+${attackBoostAmount}）` : '';
-    const enemyDefText = defenseBoostAmount > 0 ? `（防御力+${defenseBoostAmount}で軽減）` : '';
-    addLog(`${member.member_emoji} ${member.member_name}の攻撃${boostText}！ ${enemy.emoji} ${enemy.name}${enemyDefText}に${damage}ダメージ！`);
+    addLog(`${member.member_emoji} ${member.member_name}の攻撃${boostText}！ ${enemy.emoji} ${enemy.name}に${damage}ダメージ！`);
 
     // 敵全滅チェック
     if (newEnemies.every(e => e.hp <= 0)) {
@@ -521,15 +393,6 @@ function BattleContent() {
               });
               return newCooldown;
             });
-            // 敵スキルクールダウン減少
-            setEnemySkillCooldown(current => {
-              const newCooldown: any = {};
-              Object.keys(current).forEach(key => {
-                const cd = current[key] - 1;
-                if (cd > 0) newCooldown[key] = cd;
-              });
-              return newCooldown;
-            });
             
             // 蘇生チェックの完了を待ってから全滅チェック（useEffectが検出する）
             setTimeout(() => {
@@ -552,52 +415,8 @@ function BattleContent() {
       const enemy = aliveEnemies[enemyIndex];
       
       setTimeout(() => {
-        // ステージ60+のボス: スキルを使用する場合がある
-        const currentEnemies = enemiesRef.current;
-        const skillCd = enemy.id ? (enemySkillCooldown[enemy.id] || 0) : 999;
-        const canUseSkill = (stageId >= 60 || stageId >= 1001) && enemy.skill_type && skillCd === 0;
-
-        let useSkill = false;
-        if (canUseSkill) {
-          const deadEnemies = currentEnemies.filter(e => e.hp <= 0);
-          const damagedEnemies = currentEnemies.filter(e => e.hp > 0 && e.hp < e.max_hp);
-          if (enemy.skill_type === 'revive' && deadEnemies.length > 0) useSkill = Math.random() < 0.6;
-          else if (enemy.skill_type === 'heal' && damagedEnemies.length > 0) useSkill = Math.random() < 0.5;
-          else if (enemy.skill_type === 'attack_boost') useSkill = Math.random() < 0.5;
-          else if (enemy.skill_type === 'defense_boost') useSkill = Math.random() < 0.5;
-        }
-
-        if (useSkill) {
-          setEnemySkillCooldown(prev => ({ ...prev, [enemy.id!]: 3 }));
-          if (enemy.skill_type === 'heal') {
-            const healTargets = currentEnemies.filter(e => e.hp > 0 && e.hp < e.max_hp);
-            const targets = healTargets.length > 0 ? healTargets : currentEnemies.filter(e => e.hp > 0);
-            const target = targets[Math.floor(Math.random() * targets.length)];
-            if (target) {
-              const healAmount = Math.min(enemy.skill_power || 0, target.max_hp - target.hp);
-              addLog(`${enemy.emoji} ${enemy.name}が回復魔法を発動！ ${target.name}のHPを${healAmount}回復！`);
-              const newEnemies = currentEnemies.map(e => e.id === target.id ? { ...e, hp: Math.min(e.max_hp, e.hp + healAmount) } : e);
-              setEnemies(newEnemies);
-            }
-          } else if (enemy.skill_type === 'revive') {
-            const deadEnemies = currentEnemies.filter(e => e.hp <= 0);
-            if (deadEnemies.length > 0) {
-              const target = deadEnemies[Math.floor(Math.random() * deadEnemies.length)];
-              addLog(`${enemy.emoji} ${enemy.name}が蘇生魔法を発動！ ${target.name}が復活した！`);
-              const newEnemies = currentEnemies.map(e => e.id === target.id ? { ...e, hp: Math.min(e.max_hp, enemy.skill_power || 0) } : e);
-              setEnemies(newEnemies);
-            }
-          } else if (enemy.skill_type === 'attack_boost') {
-            setEnemyAttackBoost(prev => ({ ...prev, [enemy.id!]: enemy.skill_power || 0 }));
-            addLog(`${enemy.emoji} ${enemy.name}が攻撃力上昇を発動！ 次の攻撃が強化される！`);
-          } else if (enemy.skill_type === 'defense_boost') {
-            setEnemyDefenseBoost(prev => ({ ...prev, [enemy.id!]: enemy.skill_power || 0 }));
-            addLog(`${enemy.emoji} ${enemy.name}が防御力上昇を発動！ 次の被ダメージが軽減される！`);
-          }
-          setTimeout(() => processEnemyAttack(enemyIndex + 1), 500);
-        } else {
-          // 通常攻撃
-          setParty(currentParty => {
+        // 最新のparty状態と防御力ブーストを取得
+        setParty(currentParty => {
           const currentAliveParty = currentParty.filter(m => m.hp > 0);
           if (currentAliveParty.length === 0) {
             handleDefeat();
@@ -606,43 +425,56 @@ function BattleContent() {
 
           const targetIndex = Math.floor(Math.random() * currentAliveParty.length);
           const target = currentAliveParty[targetIndex];
+          
           if (!target) {
+            // ターゲットが見つからない場合は次の敵の攻撃を処理
             processEnemyAttack(enemyIndex + 1);
             return currentParty;
           }
 
+          // 最新の防御力ブーストを取得してダメージ計算
           setDefenseBoost(currentDefenseBoost => {
             const defenseBoostAmount = currentDefenseBoost[target.id] || 0;
             const boostedDefense = target.defense + defenseBoostAmount;
-            const effectiveAttack = enemy.attack + (enemy.id ? (enemyAttackBoost[enemy.id] || 0) : 0);
-            const damage = calculateDamage(effectiveAttack, boostedDefense);
+            const baseDamage = enemy.attack - boostedDefense;
+            const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
 
-            // 攻撃力ブースト・防御力ブーストを消費
+            // 防御力ブーストを消費（使用後は削除）
             const newDefenseBoost = { ...currentDefenseBoost };
-            if (newDefenseBoost[target.id]) delete newDefenseBoost[target.id];
-            if (enemy.id && enemyAttackBoost[enemy.id]) {
-              setEnemyAttackBoost(prev => { const n = { ...prev }; delete n[enemy.id!]; return n; });
+            if (newDefenseBoost[target.id]) {
+              delete newDefenseBoost[target.id];
             }
 
             const boostText = defenseBoostAmount > 0 ? `（防御力+${defenseBoostAmount}で軽減）` : '';
             addLog(`${enemy.emoji} ${enemy.name}の攻撃${boostText}！ ${target.member_emoji} ${target.member_name}に${damage}ダメージ！`);
 
+            // パーティのHPを更新
             setParty(partyState => {
               const updatedParty = partyState.map(m => 
-                m.id === target.id ? { ...m, hp: Math.max(m.hp - damage, 0) } : m
+                m.id === target.id 
+                  ? { ...m, hp: Math.max(m.hp - damage, 0) }
+                  : m
               );
+
+              // STARY蘇生チェック
               const targetMemberIndex = updatedParty.findIndex(m => m.id === target.id);
               if (targetMemberIndex >= 0 && updatedParty[targetMemberIndex].hp <= 0) {
-                setTimeout(() => checkAutoRevive(targetMemberIndex), 300);
+                setTimeout(() => {
+                  checkAutoRevive(targetMemberIndex);
+                }, 300);
               }
+
+              // 次の敵の攻撃を処理
               processEnemyAttack(enemyIndex + 1);
+
               return updatedParty;
             });
+
             return newDefenseBoost;
           });
+
           return currentParty;
         });
-        }
       }, enemyIndex * 500);
     };
 
@@ -690,7 +522,7 @@ function BattleContent() {
     if (user) {
       // ★ メンバーのステータスをデータベースに保存（勝利時はHPを全回復）
       for (const member of updatedParty) {
-        const { error: memberUpdateError } = await supabase
+        await supabase
           .from('user_members')
           .update({
             level: member.level,
@@ -703,31 +535,20 @@ function BattleContent() {
             current_hp: member.max_hp // current_hpも全回復
           })
           .eq('id', member.id);
-        if (memberUpdateError) {
-          console.error('メンバー更新エラー:', member.member_name, memberUpdateError);
-        }
       }
       
-      // ポイント付与（RPCでRLSをバイパス、確実に反映）
-      const { error: pointsError } = await supabase.rpc('add_profile_points', {
-        points_to_add: totalPoints
-      });
-      if (pointsError) {
-        // RPC未定義などで失敗した場合は従来の方法で試行
-        const { data: profile } = await supabase
+      // ポイント付与
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profile && !profileError) {
+        await supabase
           .from('profiles')
-          .select('points')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (profile) {
-          const { error: updateErr } = await supabase
-            .from('profiles')
-            .update({ points: (profile.points || 0) + totalPoints })
-            .eq('user_id', user.id);
-          if (updateErr) console.error('ポイント更新エラー:', updateErr);
-        } else {
-          console.error('ポイント付与エラー:', pointsError);
-        }
+          .update({ points: (profile.points || 0) + totalPoints })
+          .eq('user_id', user.id);
       }
 
       // 進行状況更新
@@ -737,13 +558,11 @@ function BattleContent() {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      // エクストラ・経験値アップステージはメイン進行に影響しない
-      const updateStage = !isExtraStage(stageId) && !isExpStage(stageId);
       if (progress && !progressError) {
         await supabase
           .from('user_progress')
           .update({
-            ...(updateStage && { current_stage: Math.max(stageId + 1, progress.current_stage) }),
+            current_stage: Math.max(stageId + 1, progress.current_stage),
             total_battles: (progress.total_battles || 0) + 1,
             total_victories: (progress.total_victories || 0) + 1,
             updated_at: new Date().toISOString()
@@ -754,7 +573,7 @@ function BattleContent() {
           .from('user_progress')
           .insert({
             user_id: user.id,
-            current_stage: updateStage ? stageId + 1 : 1,
+            current_stage: stageId + 1,
             total_battles: 1,
             total_victories: 1
           });
@@ -777,40 +596,6 @@ function BattleContent() {
           experience_gained: totalExp,
           points_earned: totalPoints
         });
-
-      // エクストラステージ勝利時：レア装備を低確率でドロップ
-      if (isExtraStage(stageId)) {
-        const dropped = await tryDropEquipmentFromExtraStage(user.id);
-        if (dropped) setDroppedEquipment(dropped);
-      }
-
-      // 経験値アップステージ勝利時：本日のクリア回数をカウント
-      if (isExpStage(stageId)) {
-        const today = new Date().toISOString().slice(0, 10);
-        const { data: existing } = await supabase
-          .from('exp_stage_clears')
-          .select('id, clear_count')
-          .eq('user_id', user.id)
-          .eq('clear_date', today)
-          .maybeSingle();
-        if (existing) {
-          await supabase
-            .from('exp_stage_clears')
-            .update({
-              clear_count: Math.min((existing.clear_count ?? 0) + 1, 5),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existing.id);
-        } else {
-          await supabase
-            .from('exp_stage_clears')
-            .insert({
-              user_id: user.id,
-              clear_date: today,
-              clear_count: 1
-            });
-        }
-      }
 
       // ミッション進捗更新
       await updateMissionProgress(user.id, 'battle_win', 1);
@@ -909,20 +694,7 @@ function BattleContent() {
       <div className="max-w-6xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-6">
-          <div className="flex items-center justify-center gap-4 mb-2">
-            <h1 className="text-3xl font-bold">
-              ⚔️ バトル - {isExtraStage(stageId) ? `⭐エクストラ${getExtraStageNum(stageId)}` : isExpStage(stageId) ? `📚 経験値アップ（${getExpStageDifficulty(stageId) === 'easy' ? 'イージー' : getExpStageDifficulty(stageId) === 'normal' ? 'ノーマル' : 'ハード'}）` : `ステージ${stageId}`} - ターン {turn}
-            </h1>
-            <button
-              onClick={() => setAutoMode(prev => !prev)}
-              className={`px-4 py-2 rounded-lg font-bold transition ${
-                autoMode ? 'bg-green-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'
-              }`}
-              title={autoMode ? 'AUTOモードON（クリックでOFF）' : 'AUTOモードOFF（クリックでON）'}
-            >
-              {autoMode ? '▶ AUTO' : 'AUTO'}
-            </button>
-          </div>
+          <h1 className="text-3xl font-bold">⚔️ バトル - ステージ{stageId} - ターン {turn}</h1>
           {(() => {
             const stageInfo = getStageInfo(stageId);
             const avgPartyLevel = party.length > 0 
@@ -991,8 +763,8 @@ function BattleContent() {
                       <div className="text-sm text-gray-600 font-semibold">Lv.{member.level}</div>
                     </div>
                     <div className="text-right text-sm">
-                      <div className="text-gray-800 font-semibold">ATK: {member.attack}</div>
-                      <div className="text-gray-800 font-semibold">DEF: {member.defense}</div>
+                      <div className="text-gray-700 font-semibold">ATK: {member.attack}</div>
+                      <div className="text-gray-700 font-semibold">DEF: {member.defense}</div>
                     </div>
                   </div>
                   <div className="mb-1">
@@ -1008,10 +780,10 @@ function BattleContent() {
                     </div>
                   </div>
                   
-                  {/* スキルボタン（メンバースキル or 武器スキルLv5解放） */}
-                  {getEffectiveSkill(member) && (member.hp > 0 || (getEffectiveSkill(member)?.skill_type === 'revive' && !memberReviveStatus[member.id])) && isPlayerTurn && (
+                  {/* スキルボタン */}
+                  {member.skill_type && (member.hp > 0 || (member.skill_type === 'revive' && !memberReviveStatus[member.id])) && isPlayerTurn && (
                     <div className="mt-2">
-                      {getEffectiveSkill(member)?.skill_type === 'heal' ? (
+                      {member.skill_type === 'heal' ? (
                         <div className="space-y-1">
                           {party.map((target, tIndex) => (
                             target.hp > 0 && target.hp < target.max_hp && (
@@ -1055,7 +827,7 @@ function BattleContent() {
                             </button>
                           )}
                         </div>
-                      ) : getEffectiveSkill(member)?.skill_type === 'revive' ? (
+                      ) : member.skill_type === 'revive' ? (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1076,7 +848,7 @@ function BattleContent() {
                             ? `クールダウン: ${skillCooldown[member.id]}`
                             : member.hp <= 0
                             ? '✨ 自己蘇生'
-                            : `${getSkillName(getEffectiveSkill(member)?.skill_type)} 使用`
+                            : `${getSkillName(member.skill_type)} 使用`
                           }
                         </button>
                       ) : (
@@ -1094,7 +866,7 @@ function BattleContent() {
                         >
                           {skillCooldown[member.id] > 0 
                             ? `クールダウン: ${skillCooldown[member.id]}`
-                            : `${getSkillName(getEffectiveSkill(member)?.skill_type)} 使用`
+                            : `${getSkillName(member.skill_type)} 使用`
                           }
                         </button>
                       )}
@@ -1102,8 +874,8 @@ function BattleContent() {
                   )}
                   
                   {/* 蘇生使用済み表示 */}
-                  {getEffectiveSkill(member)?.skill_type === 'revive' && memberReviveStatus[member.id] && (
-                    <div className="mt-1 text-sm text-gray-600 text-center">
+                  {member.skill_type === 'revive' && memberReviveStatus[member.id] && (
+                    <div className="mt-1 text-xs text-gray-500 text-center">
                       蘇生使用済み
                     </div>
                   )}
@@ -1148,8 +920,8 @@ function BattleContent() {
                       <div className="font-bold text-lg text-gray-900">{enemy.name}</div>
                     </div>
                     <div className="text-right text-sm">
-                      <div className="text-gray-800 font-semibold">ATK: {enemy.attack}</div>
-                      <div className="text-gray-800 font-semibold">DEF: {enemy.defense}</div>
+                      <div className="text-gray-700 font-semibold">ATK: {enemy.attack}</div>
+                      <div className="text-gray-700 font-semibold">DEF: {enemy.defense}</div>
                     </div>
                   </div>
                   <div className="mb-1">
@@ -1173,9 +945,9 @@ function BattleContent() {
         {/* バトルログ */}
         <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
           <h2 className="text-xl font-bold mb-4">バトルログ</h2>
-          <div className="bg-gray-900 text-green-300 p-4 rounded-lg h-48 overflow-y-auto font-mono text-sm">
+          <div className="bg-gray-900 text-green-400 p-4 rounded-lg h-48 overflow-y-auto font-mono text-sm">
             {battleLog.length === 0 ? (
-              <div className="text-gray-300">戦闘ログがここに表示されます...</div>
+              <div className="text-gray-500">戦闘ログがここに表示されます...</div>
             ) : (
               battleLog.map((log, index) => (
                 <div key={index} className="mb-1">&gt; {log}</div>
@@ -1187,15 +959,13 @@ function BattleContent() {
         {/* 結果表示 */}
         {battleResult && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto text-gray-900">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
               {battleResult === 'victory' ? (
                 <>
                   <div className="text-center mb-6">
                     <div className="text-6xl mb-4">🎉</div>
                     <h2 className="text-3xl font-bold text-green-600 mb-2">勝利！</h2>
-                    <p className="text-gray-900">
-                      {isExtraStage(stageId) ? `エクストラステージ${getExtraStageNum(stageId)}` : `ステージ${stageId}`}をクリアしました！
-                    </p>
+                    <p className="text-gray-600">ステージ{stageId}をクリアしました！</p>
                   </div>
                   
                   {/* ★ レベルアップ演出 ★ */}
@@ -1233,21 +1003,21 @@ function BattleContent() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-4 gap-2 text-sm">
+                              <div className="grid grid-cols-4 gap-2 text-xs">
                                 <div className="text-center bg-red-50 rounded p-1">
-                                  <div className="text-gray-700 font-medium">HP</div>
+                                  <div className="text-gray-500">HP</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.hp}</div>
                                 </div>
                                 <div className="text-center bg-orange-50 rounded p-1">
-                                  <div className="text-gray-700 font-medium">ATK</div>
+                                  <div className="text-gray-500">ATK</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.attack}</div>
                                 </div>
                                 <div className="text-center bg-blue-50 rounded p-1">
-                                  <div className="text-gray-700 font-medium">DEF</div>
+                                  <div className="text-gray-500">DEF</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.defense}</div>
                                 </div>
                                 <div className="text-center bg-yellow-50 rounded p-1">
-                                  <div className="text-gray-700 font-medium">SPD</div>
+                                  <div className="text-gray-500">SPD</div>
                                   <div className="text-green-600 font-bold">+{levelUp.stat_gains.speed}</div>
                                 </div>
                               </div>
@@ -1258,66 +1028,29 @@ function BattleContent() {
                     </div>
                   )}
                   
-                  {/* エクストラステージでドロップした装備 */}
-                  {droppedEquipment && (
-                    <div className={`bg-gradient-to-r ${getRarityColor(droppedEquipment.rarity)} rounded-xl p-6 mb-6 text-white`}>
-                      <h3 className="font-bold text-lg mb-3 text-center">⚔️ レア装備ドロップ！</h3>
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="text-5xl">{droppedEquipment.emoji}</div>
-                        <div className="font-bold text-xl">{droppedEquipment.name}</div>
-                        <div className="text-sm opacity-90">
-                          {getRarityLabel(droppedEquipment.rarity)} / {' '}
-                          {droppedEquipment.slot_type === 'weapon' && '武器'}
-                          {droppedEquipment.slot_type === 'armor' && '防具'}
-                          {droppedEquipment.slot_type === 'accessory' && 'アクセサリ'}
-                          {' '}Lv.1
-                        </div>
-                        <div className="flex gap-4 text-sm mt-1">
-                          {droppedEquipment.base_atk > 0 && <span>ATK+{droppedEquipment.base_atk}</span>}
-                          {droppedEquipment.base_def > 0 && <span>DEF+{droppedEquipment.base_def}</span>}
-                          {droppedEquipment.base_hp > 0 && <span>HP+{droppedEquipment.base_hp}</span>}
-                          {droppedEquipment.base_spd > 0 && <span>SPD+{droppedEquipment.base_spd}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6 text-gray-900">
-                    <h3 className="font-bold text-lg mb-3 text-gray-900">報酬</h3>
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6">
+                    <h3 className="font-bold text-lg mb-3">報酬</h3>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-gray-900">経験値:</span>
+                        <span>経験値:</span>
                         <span className="font-bold text-blue-600">+{rewards.exp}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-900">ポイント:</span>
+                        <span>ポイント:</span>
                         <span className="font-bold text-green-600">+{rewards.points}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => {
-                        if (isExpStage(stageId)) {
-                          router.push('/adventure/exp-stage');
-                        } else if (isExtraStage(stageId)) {
-                          const nextExtra = stageId + 1;
-                          if (nextExtra <= EXTRA_STAGE_BASE + EXTRA_STAGE_COUNT) {
-                            router.push(`/adventure/stage/${nextExtra}?party=${partyIds.join(',')}`);
-                          } else {
-                            router.push(`/adventure/stages?party=${partyIds}&current=100`);
-                          }
-                        } else {
-                          router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`);
-                        }
-                      }}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-gray-900 px-6 py-3 rounded-lg font-bold hover:opacity-90"
+                      onClick={() => router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
-                      {isExpStage(stageId) ? '経験値アップへ戻る' : isExtraStage(stageId) && getExtraStageNum(stageId) >= EXTRA_STAGE_COUNT ? 'ステージ選択に戻る' : '次のステージへ'}
+                      次のステージへ
                     </button>
                     <button
                       onClick={() => router.push('/adventure')}
-                      className="flex-1 bg-gray-200 text-gray-900 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
+                      className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
                     >
                       パーティ編成に戻る
                     </button>
@@ -1329,9 +1062,7 @@ function BattleContent() {
                     <div className="text-8xl mb-6 animate-pulse">💀</div>
                     <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
                     <p className="text-2xl text-gray-700 mb-2 font-semibold">全滅してしまいました...</p>
-                    <p className="text-lg text-gray-700">
-                      {isExtraStage(stageId) ? `エクストラステージ${getExtraStageNum(stageId)}` : isExpStage(stageId) ? `経験値アップ（${getExpStageDifficulty(stageId) === 'easy' ? 'イージー' : getExpStageDifficulty(stageId) === 'normal' ? 'ノーマル' : 'ハード'}）` : `ステージ${stageId}`}で敗北しました
-                    </p>
+                    <p className="text-lg text-gray-500">ステージ{stageId}で敗北しました</p>
                   </div>
                   
                   <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">
@@ -1348,10 +1079,10 @@ function BattleContent() {
                   
                   <div className="flex gap-3">
                     <button
-                      onClick={() => isExpStage(stageId) ? router.push('/adventure/exp-stage') : router.push(`/adventure/stage/${stageId}?party=${partyIds.join(',')}`)}
+                      onClick={() => router.push(`/adventure/stage/${stageId}?party=${partyIds.join(',')}`)}
                       className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-lg font-bold text-lg hover:opacity-90 shadow-lg transform hover:scale-105 transition-all"
                     >
-                      {isExpStage(stageId) ? '経験値アップへ戻る' : '🔄 リトライ'}
+                      🔄 リトライ
                     </button>
                     <button
                       onClick={() => router.push('/adventure')}
@@ -1367,17 +1098,5 @@ function BattleContent() {
         )}
       </div>
     </div>
-  );
-}
-
-export default function BattlePage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-orange-500 text-xl">読み込み中...</div>
-      </div>
-    }>
-      <BattleContent />
-    </Suspense>
   );
 }

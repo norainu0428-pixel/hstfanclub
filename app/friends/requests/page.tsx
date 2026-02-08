@@ -25,39 +25,29 @@ export default function FriendRequestsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: reqData } = await supabase
+    const { data } = await supabase
       .from('friend_requests')
-      .select('id, sender_id, created_at')
+      .select(`
+        id,
+        sender_id,
+        created_at,
+        sender:profiles!friend_requests_sender_id_fkey(display_name, membership_tier)
+      `)
       .eq('receiver_id', user.id)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
-    if (!reqData || reqData.length === 0) {
-      setRequests([]);
-      setLoading(false);
-      return;
-    }
-
-    const senderIds = [...new Set(reqData.map((r: { sender_id: string }) => r.sender_id))];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, membership_tier')
-      .in('user_id', senderIds);
-
-    const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name?: string; membership_tier?: string }) => [p.user_id, p]));
-
-    const formatted = reqData.map((req: { id: string; sender_id: string; created_at: string }) => {
-      const p = profileMap.get(req.sender_id);
-      return {
+    if (data) {
+      const formatted = data.map((req: any) => ({
         id: req.id,
         sender_id: req.sender_id,
-        sender_name: p?.display_name || '不明',
-        sender_tier: p?.membership_tier || 'free',
+        sender_name: req.sender?.display_name || '不明',
+        sender_tier: req.sender?.membership_tier || 'free',
         created_at: req.created_at
-      };
-    });
+      }));
+      setRequests(formatted);
+    }
 
-    setRequests(formatted);
     setLoading(false);
   }
 
@@ -76,16 +66,11 @@ export default function FriendRequestsPage() {
       return;
     }
 
-    // 双方向のフレンドシップを作成（両者とも一覧に表示されるように2件）
-    const { error: insertError } = await supabase.from('friendships').insert([
+    // 双方向のフレンドシップを作成
+    await supabase.from('friendships').insert([
       { user_id: user.id, friend_id: senderId, status: 'accepted' },
       { user_id: senderId, friend_id: user.id, status: 'accepted' }
     ]);
-
-    if (insertError) {
-      alert('フレンド追加に失敗しました: ' + insertError.message + '（Supabaseで supabase_friend_fix.sql を実行してください）');
-      return;
-    }
 
     alert('フレンド申請を承認しました！');
     loadRequests();
@@ -123,10 +108,10 @@ export default function FriendRequestsPage() {
         </div>
 
         {requests.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center text-gray-900">
+          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center">
             <div className="text-6xl mb-4">📭</div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-900">申請はありません</h2>
-            <p className="text-gray-800 mb-6">新しいフレンド申請が届くとここに表示されます</p>
+            <h2 className="text-2xl font-bold mb-2">申請はありません</h2>
+            <p className="text-gray-600 mb-6">新しいフレンド申請が届くとここに表示されます</p>
             <button
               onClick={() => router.push('/friends/search')}
               className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-full font-bold hover:opacity-90"
@@ -135,7 +120,7 @@ export default function FriendRequestsPage() {
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl">
             <div className="space-y-4">
               {requests.map(request => (
                 <div
@@ -147,8 +132,8 @@ export default function FriendRequestsPage() {
                       {request.sender_name.charAt(0)}
                     </div>
                     <div>
-                      <div className="font-bold text-lg text-gray-900">{request.sender_name}</div>
-                      <div className="text-sm text-gray-800">
+                      <div className="font-bold text-lg">{request.sender_name}</div>
+                      <div className="text-sm text-gray-500">
                         {new Date(request.created_at).toLocaleString('ja-JP')}
                       </div>
                     </div>

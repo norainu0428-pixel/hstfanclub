@@ -4,13 +4,6 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
-interface SearchProfileRow {
-  user_id: string;
-  display_name: string | null;
-  avatar_url?: string | null;
-  membership_tier?: string | null;
-}
-
 interface PlayerSearchResult {
   user_id: string;
   display_name: string;
@@ -39,39 +32,22 @@ export default function PlayerSearchPage() {
   }
 
   async function searchPlayers() {
-    const term = searchTerm.trim();
-    if (!term) {
+    if (!searchTerm.trim()) {
       alert('検索キーワードを入力してください');
       return;
     }
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const myId = user?.id ?? currentUserId;
-    if (!myId) {
-      alert('ログインしてください');
-      setLoading(false);
-      return;
-    }
+    // プレイヤー検索
+    const { data: players } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, membership_tier, avatar_url')
+      .ilike('display_name', `%${searchTerm}%`)
+      .neq('user_id', currentUserId)
+      .limit(20);
 
-    // RPC で検索（RLS をバイパスして確実に結果を取得）
-    const { data, error } = await supabase.rpc('search_profiles_for_friends', {
-      p_search_term: term,
-      p_exclude_user_id: myId
-    });
-
-    if (error) {
-      console.error('search_profiles_for_friends error:', error);
-      alert('検索に失敗しました: ' + error.message + '（supabase_friend_fix.sql の RPC を実行してください）');
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-
-    const players: SearchProfileRow[] = (data ?? []) as SearchProfileRow[];
-    if (players.length === 0) {
-      setResults([]);
+    if (!players) {
       setLoading(false);
       return;
     }
@@ -80,33 +56,22 @@ export default function PlayerSearchPage() {
     const { data: friendships } = await supabase
       .from('friendships')
       .select('friend_id, status')
-      .eq('user_id', myId)
+      .eq('user_id', currentUserId)
       .in('friend_id', players.map(p => p.user_id));
 
     // フレンド申請チェック
     const { data: requests } = await supabase
       .from('friend_requests')
       .select('receiver_id')
-      .eq('sender_id', myId)
+      .eq('sender_id', currentUserId)
       .eq('status', 'pending')
       .in('receiver_id', players.map(p => p.user_id));
 
     const friendIds = new Set(friendships?.filter(f => f.status === 'accepted').map(f => f.friend_id) || []);
     const pendingIds = new Set(requests?.map(r => r.receiver_id) || []);
 
-    // 双方向の friendships もチェック（friend_id が自分側の行）
-    const { data: revFriendships } = await supabase
-      .from('friendships')
-      .select('user_id, status')
-      .eq('friend_id', myId)
-      .in('user_id', players.map(p => p.user_id));
-    revFriendships?.filter(f => f.status === 'accepted').forEach(f => friendIds.add(f.user_id));
-
-    const resultsWithStatus: PlayerSearchResult[] = players.map(player => ({
-      user_id: player.user_id,
-      display_name: player.display_name ?? '不明',
-      avatar_url: player.avatar_url ?? undefined,
-      membership_tier: player.membership_tier ?? 'free',
+    const resultsWithStatus = players.map(player => ({
+      ...player,
       is_friend: friendIds.has(player.user_id),
       has_pending_request: pendingIds.has(player.user_id)
     }));
@@ -163,8 +128,8 @@ export default function PlayerSearchPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && searchPlayers()}
-              placeholder="プレイヤー名 または フレンドID（先頭8文字以上）"
-              className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-3 text-lg text-gray-900 placeholder-gray-500 bg-white"
+              placeholder="プレイヤー名を入力..."
+              className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-3 text-lg"
             />
             <button
               onClick={searchPlayers}
@@ -176,16 +141,10 @@ export default function PlayerSearchPage() {
           </div>
         </div>
 
-        {/* 自分のフレンドID表示 */}
-        <div className="bg-white/20 rounded-xl p-4 mb-6 text-white">
-          <p className="text-sm opacity-90">あなたのフレンドID（友達に教えて検索してもらおう）</p>
-          <p className="font-mono font-bold text-lg mt-1 break-all">{currentUserId || '読み込み中...'}</p>
-        </div>
-
         {/* 検索結果 */}
-        {results.length > 0 ? (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">検索結果 ({results.length})</h2>
+        {results.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-2xl">
+            <h2 className="text-xl font-bold mb-4">検索結果 ({results.length})</h2>
             <div className="space-y-3">
               {results.map(player => (
                 <div
@@ -193,16 +152,12 @@ export default function PlayerSearchPage() {
                   className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-400 transition"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xl font-bold">
-                      {player.avatar_url ? (
-                        <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{player.display_name?.charAt(0) || '?'}</span>
-                      )}
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                      {player.display_name?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <div className="font-bold text-lg text-gray-900">{player.display_name}</div>
-                      <div className="text-sm text-gray-800">ID: {player.user_id.slice(0, 8)}...</div>
+                      <div className="font-bold text-lg">{player.display_name}</div>
+                      <div className="text-sm text-gray-500">ID: {player.user_id.slice(0, 8)}...</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -228,13 +183,7 @@ export default function PlayerSearchPage() {
               ))}
             </div>
           </div>
-        ) : !loading && searchTerm.trim() ? (
-          <div className="bg-white rounded-2xl p-6 shadow-2xl text-center text-gray-900">
-            <p className="font-bold mb-2 text-gray-900">検索結果が見つかりませんでした</p>
-            <p className="text-sm text-gray-800">・表示名の一部、またはフレンドID（先頭8文字以上）で検索できます</p>
-            <p className="text-sm text-gray-800">・該当するプレイヤーがいない可能性があります</p>
-          </div>
-        ) : null}
+        )}
 
         {/* 戻るボタン */}
         <div className="text-center mt-8">

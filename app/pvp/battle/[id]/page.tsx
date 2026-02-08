@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
-import { calculateDamage } from '@/utils/damage';
 
 interface BattleState {
   id: string;
@@ -19,12 +18,6 @@ interface BattleState {
   current_turn_player: string;
   battle_log: string[];
   winner_id?: string;
-  player1_skill_cooldown?: { [key: string]: number };
-  player2_skill_cooldown?: { [key: string]: number };
-  player1_revive_used?: string[];
-  player2_revive_used?: string[];
-  player1_buffs?: { [key: string]: { attack?: number; defense?: number } };
-  player2_buffs?: { [key: string]: { attack?: number; defense?: number } };
 }
 
 interface PlayerInfo {
@@ -50,27 +43,6 @@ export default function PvPBattlePage() {
   const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [battleResult, setBattleResult] = useState<{ won: boolean; winnerName: string } | null>(null);
-  const currentUserRef = useRef<string>('');
-  currentUserRef.current = currentUser;
-
-  function getSkillName(skillType: string | null | undefined): string {
-    if (!skillType) return '';
-    const names: { [key: string]: string } = {
-      'heal': '回復',
-      'revive': '自己蘇生',
-      'attack_boost': '攻撃強化',
-      'defense_boost': '防御強化',
-      'hst_power': 'HSTパワー'
-    };
-    return names[skillType] || skillType;
-  }
-
-  function getEffectiveSkill(member: Member): { skill_type: string; skill_power: number } | null {
-    if (member.skill_type) {
-      return { skill_type: member.skill_type, skill_power: member.skill_power ?? 0 };
-    }
-    return null;
-  }
 
   useEffect(() => {
     initBattle();
@@ -217,9 +189,6 @@ export default function PvPBattlePage() {
           setBattle(newBattle);
           setBattleLog(newBattle.battle_log || []);
 
-          if (newBattle.status === 'in_progress' && newBattle.player2_party?.length) {
-            loadPlayerInfo(newBattle);
-          }
           if (newBattle.status === 'completed') {
             setTimeout(() => showResult(newBattle), 2000);
           }
@@ -235,7 +204,6 @@ export default function PvPBattlePage() {
   async function executeAction() {
     if (!selectedAction || !battle || !player1 || !player2) return;
     if (selectedAction === 'attack' && (selectedMember === null || selectedTarget === null)) return;
-    if (selectedAction === 'skill' && selectedMember === null) return;
 
     const isPlayer1 = currentUser === battle.player1_id;
     const attacker = isPlayer1 ? player1 : player2;
@@ -244,21 +212,6 @@ export default function PvPBattlePage() {
     let newLog = [...battleLog];
     let newPlayer1Hp = { ...battle.player1_hp };
     let newPlayer2Hp = { ...battle.player2_hp };
-    let newPlayer1Buffs = { ...(battle.player1_buffs || {}) };
-    let newPlayer2Buffs = { ...(battle.player2_buffs || {}) };
-    let newPlayer1Cooldown = { ...(battle.player1_skill_cooldown || {}) };
-    let newPlayer2Cooldown = { ...(battle.player2_skill_cooldown || {}) };
-    let newPlayer1ReviveUsed = [...(battle.player1_revive_used || [])];
-    let newPlayer2ReviveUsed = [...(battle.player2_revive_used || [])];
-
-    // 自分のターンでクールダウンを1減らす（このターンで使うメンバー以外は事前に減らす）
-    const myCooldown = isPlayer1 ? newPlayer1Cooldown : newPlayer2Cooldown;
-    const nextCooldown: { [key: string]: number } = {};
-    for (const [mid, turns] of Object.entries(myCooldown)) {
-      const v = Math.max(0, turns - 1);
-      if (v > 0) nextCooldown[mid] = v;
-    }
-    if (isPlayer1) newPlayer1Cooldown = nextCooldown; else newPlayer2Cooldown = nextCooldown;
 
     if (selectedAction === 'attack' && selectedMember !== null && selectedTarget !== null) {
       const attackerMember = attacker.party[selectedMember];
@@ -286,14 +239,9 @@ export default function PvPBattlePage() {
         return;
       }
 
-      const myBuffs = isPlayer1 ? newPlayer1Buffs : newPlayer2Buffs;
-      const enemyBuffs = isPlayer1 ? newPlayer2Buffs : newPlayer1Buffs;
-      const attackBoost = myBuffs[attackerMember.id]?.attack ?? 0;
-      const defenseBoost = enemyBuffs[targetMember.id]?.defense ?? 0;
-
-      let damage = calculateDamage(attackerMember.attack + attackBoost, targetMember.defense);
-      damage = Math.max(0, damage - defenseBoost);
-
+      const baseDamage = attackerMember.attack - targetMember.defense;
+      const damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
+      
       const newHp = Math.max(targetCurrentHp - damage, 0);
 
       if (isPlayer1) {
@@ -302,133 +250,13 @@ export default function PvPBattlePage() {
         newPlayer1Hp[targetHpKey] = newHp;
       }
 
-      const boostText = attackBoost > 0 || defenseBoost > 0
-        ? `（攻撃+${attackBoost} 防御+${defenseBoost}）`
-        : '';
       newLog.push(
-        `${attackerMember.member_emoji} ${attackerMember.member_name}が ${targetMember.member_emoji} ${targetMember.member_name}に${damage}ダメージ！${boostText}`
+        `${attackerMember.member_emoji} ${attackerMember.member_name}が ${targetMember.member_emoji} ${targetMember.member_name}に${damage}ダメージ！`
       );
 
       if (newHp === 0) {
         newLog.push(`${targetMember.member_emoji} ${targetMember.member_name}は倒れた！`);
       }
-
-      // ブフ消費
-      const myBuffsNext = { ...myBuffs };
-      const enemyBuffsNext = { ...enemyBuffs };
-      if (attackBoost > 0 && myBuffsNext[attackerMember.id]) {
-        const b = { ...myBuffsNext[attackerMember.id] };
-        delete b.attack;
-        if (Object.keys(b).length === 0) delete myBuffsNext[attackerMember.id];
-        else myBuffsNext[attackerMember.id] = b;
-      }
-      if (defenseBoost > 0 && enemyBuffsNext[targetMember.id]) {
-        const b = { ...enemyBuffsNext[targetMember.id] };
-        delete b.defense;
-        if (Object.keys(b).length === 0) delete enemyBuffsNext[targetMember.id];
-        else enemyBuffsNext[targetMember.id] = b;
-      }
-      if (isPlayer1) { newPlayer1Buffs = myBuffsNext; newPlayer2Buffs = enemyBuffsNext; }
-      else { newPlayer2Buffs = myBuffsNext; newPlayer1Buffs = enemyBuffsNext; }
-    }
-
-    if (selectedAction === 'skill' && selectedMember !== null) {
-      const skillUser = attacker.party[selectedMember];
-      if (!skillUser) return;
-
-      const effectiveSkill = getEffectiveSkill(skillUser);
-      if (!effectiveSkill) {
-        alert('このメンバーはスキルを持っていません');
-        return;
-      }
-
-      const myCooldownNow = isPlayer1 ? newPlayer1Cooldown : newPlayer2Cooldown;
-      if ((myCooldownNow[skillUser.id] ?? 0) > 0) {
-        alert('スキルはクールダウン中です');
-        return;
-      }
-
-      const skillUserHp = isPlayer1
-        ? newPlayer1Hp[skillUser.id] ?? skillUser.max_hp
-        : newPlayer2Hp[skillUser.id] ?? skillUser.max_hp;
-
-      if (skillUserHp <= 0 && effectiveSkill.skill_type !== 'revive') {
-        alert('このメンバーは戦闘不能です');
-        return;
-      }
-
-      const myReviveUsed = isPlayer1 ? newPlayer1ReviveUsed : newPlayer2ReviveUsed;
-      if (effectiveSkill.skill_type === 'revive' && myReviveUsed.includes(skillUser.id)) {
-        alert('自己蘇生は既に使用済みです');
-        return;
-      }
-
-      switch (effectiveSkill.skill_type) {
-        case 'revive':
-          if (skillUserHp <= 0) {
-            const reviveHp = Math.floor(skillUser.max_hp * 0.5);
-            if (isPlayer1) newPlayer1Hp[skillUser.id] = reviveHp;
-            else newPlayer2Hp[skillUser.id] = reviveHp;
-            if (isPlayer1) newPlayer1ReviveUsed = [...newPlayer1ReviveUsed, skillUser.id];
-            else newPlayer2ReviveUsed = [...newPlayer2ReviveUsed, skillUser.id];
-            newLog.push(`✨💫 ${skillUser.member_emoji} ${skillUser.member_name}が自己蘇生した！ HP: ${reviveHp}`);
-          }
-          break;
-        case 'heal': {
-          const healAmount = effectiveSkill.skill_power || 30;
-          const targetIndex = selectedTarget !== null && selectedTarget >= 0 && selectedTarget < attacker.party.length ? selectedTarget : selectedMember;
-          const targetMember = attacker.party[targetIndex];
-          if (!targetMember) break;
-          const targetHpKey = targetMember.id;
-          const currentHp = isPlayer1 ? newPlayer1Hp[targetHpKey] ?? targetMember.max_hp : newPlayer2Hp[targetHpKey] ?? targetMember.max_hp;
-          if (currentHp <= 0) {
-            alert('戦闘不能のメンバーは回復できません');
-            return;
-          }
-          const newHpVal = Math.min(currentHp + healAmount, targetMember.max_hp);
-          if (isPlayer1) newPlayer1Hp[targetHpKey] = newHpVal;
-          else newPlayer2Hp[targetHpKey] = newHpVal;
-          newLog.push(`💚 ${skillUser.member_emoji} ${skillUser.member_name}が ${targetMember.member_name}のHPを${healAmount}回復した！`);
-          break;
-        }
-        case 'attack_boost': {
-          const amount = effectiveSkill.skill_power || 20;
-          const myBuffs = isPlayer1 ? newPlayer1Buffs : newPlayer2Buffs;
-          const next = { ...myBuffs, [skillUser.id]: { ...(myBuffs[skillUser.id] || {}), attack: amount } };
-          if (isPlayer1) newPlayer1Buffs = next; else newPlayer2Buffs = next;
-          newLog.push(`⚔️ ${skillUser.member_emoji} ${skillUser.member_name}の攻撃力が${amount}アップ！（次の攻撃まで有効）`);
-          break;
-        }
-        case 'defense_boost': {
-          const amount = effectiveSkill.skill_power || 15;
-          const myBuffs = isPlayer1 ? newPlayer1Buffs : newPlayer2Buffs;
-          const next = { ...myBuffs, [skillUser.id]: { ...(myBuffs[skillUser.id] || {}), defense: amount } };
-          if (isPlayer1) newPlayer1Buffs = next; else newPlayer2Buffs = next;
-          newLog.push(`🛡️ ${skillUser.member_emoji} ${skillUser.member_name}の防御力が${amount}アップ！（次の被ダメージまで有効）`);
-          break;
-        }
-        case 'hst_power': {
-          const hstPower = effectiveSkill.skill_power || 100;
-          let totalDamage = 0;
-          defender.party.forEach((m, idx) => {
-            const hp = isPlayer1 ? newPlayer2Hp[m.id] ?? m.max_hp : newPlayer1Hp[m.id] ?? m.max_hp;
-            if (hp > 0) {
-              const damage = Math.floor(hstPower * (1 + skillUser.attack / 100));
-              const newHpVal = Math.max(hp - damage, 0);
-              totalDamage += damage;
-              if (isPlayer1) newPlayer2Hp[m.id] = newHpVal;
-              else newPlayer1Hp[m.id] = newHpVal;
-            }
-          });
-          newLog.push(`👑 ${skillUser.member_emoji} ${skillUser.member_name}がHSTパワーを発動！相手パーティに合計${totalDamage}ダメージ！`);
-          break;
-        }
-        default:
-          break;
-      }
-
-      if (isPlayer1) newPlayer1Cooldown = { ...newPlayer1Cooldown, [skillUser.id]: 3 };
-      else newPlayer2Cooldown = { ...newPlayer2Cooldown, [skillUser.id]: 3 };
     }
 
     // 全滅チェック
@@ -459,26 +287,19 @@ export default function PvPBattlePage() {
       ? battle.player2_id
       : battle.player1_id;
 
-    // バトル状態更新（スキル用カラムも含む）
-    const updatePayload: Record<string, unknown> = {
-      player1_hp: newPlayer1Hp,
-      player2_hp: newPlayer2Hp,
-      turn_number: battle.turn_number + 1,
-      current_turn_player: newStatus === 'completed' ? battle.current_turn_player : nextTurnPlayer,
-      battle_log: newLog,
-      status: newStatus,
-      winner_id: winnerId,
-      completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
-      player1_skill_cooldown: newPlayer1Cooldown,
-      player2_skill_cooldown: newPlayer2Cooldown,
-      player1_revive_used: newPlayer1ReviveUsed,
-      player2_revive_used: newPlayer2ReviveUsed,
-      player1_buffs: newPlayer1Buffs,
-      player2_buffs: newPlayer2Buffs
-    };
+    // バトル状態更新
     const { error } = await supabase
       .from('pvp_battles')
-      .update(updatePayload)
+      .update({
+        player1_hp: newPlayer1Hp,
+        player2_hp: newPlayer2Hp,
+        turn_number: battle.turn_number + 1,
+        current_turn_player: newStatus === 'completed' ? battle.current_turn_player : nextTurnPlayer,
+        battle_log: newLog,
+        status: newStatus,
+        winner_id: winnerId,
+        completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+      })
       .eq('id', battleId);
 
     if (error) {
@@ -515,10 +336,9 @@ export default function PvPBattlePage() {
   }
 
   function showResult(battleData: BattleState) {
-    const myId = currentUserRef.current;
-    const won = battleData.winner_id === myId;
+    const won = battleData.winner_id === currentUser;
     const winnerName = won 
-      ? (myId === battleData.player1_id ? player1?.name : player2?.name) || 'あなた'
+      ? (currentUser === battleData.player1_id ? player1?.name : player2?.name) || 'あなた'
       : (battleData.winner_id === battleData.player1_id ? player1?.name : player2?.name) || '相手';
     
     setBattleResult({ won, winnerName });
@@ -574,10 +394,10 @@ export default function PvPBattlePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-600 to-orange-600 p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center text-gray-900">
+          <div className="bg-white rounded-2xl p-12 shadow-2xl text-center">
             <div className="text-6xl mb-6 animate-bounce">⏳</div>
-            <h1 className="text-3xl font-bold mb-4 text-gray-900">対戦相手を待っています...</h1>
-            <p className="text-gray-900 mb-8">
+            <h1 className="text-3xl font-bold mb-4">対戦相手を待っています...</h1>
+            <p className="text-gray-600 mb-8">
               {player2 ? `${player2.name}が参加するのを待っています` : '相手が参加するのを待っています'}
             </p>
             <button
@@ -615,12 +435,12 @@ export default function PvPBattlePage() {
         {/* バトルフィールド */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Player 1 */}
-          <div className={`bg-white rounded-2xl p-6 shadow-2xl text-gray-900 ${
+          <div className={`bg-white rounded-2xl p-6 shadow-2xl ${
             battle.current_turn_player === player1.id ? 'ring-4 ring-yellow-400' : ''
           }`}>
             <div className="text-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">{player1.name}</h2>
-              <div className="text-sm text-gray-700">
+              <h2 className="text-2xl font-bold">{player1.name}</h2>
+              <div className="text-sm text-gray-500">
                 {currentUser === player1.id ? '(あなた)' : '(相手)'}
               </div>
             </div>
@@ -628,8 +448,7 @@ export default function PvPBattlePage() {
               {player1.party.map((member, index) => {
                 const currentHp = battle.player1_hp[member.id] ?? member.max_hp;
                 const hpPercent = (currentHp / member.max_hp) * 100;
-                const skill = getEffectiveSkill(member);
-                const skillCd = (battle.player1_skill_cooldown || {})[member.id] ?? 0;
+                
                 return (
                   <div
                     key={member.id}
@@ -648,32 +467,18 @@ export default function PvPBattlePage() {
                           setSelectedTarget(index);
                         }
                       }
-                      if (isMyTurn && selectedAction === 'skill' && isPlayer1) {
-                        if (selectedMember === null && getEffectiveSkill(member) && (currentHp > 0 || getEffectiveSkill(member)?.skill_type === 'revive')) {
-                          setSelectedMember(index);
-                          if (getEffectiveSkill(member)?.skill_type === 'heal') setSelectedTarget(index);
-                        } else if (selectedMember !== null && getEffectiveSkill(player1.party[selectedMember])?.skill_type === 'heal' && currentHp > 0) {
-                          setSelectedTarget(index);
-                        }
-                      }
                     }}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-3xl">{member.member_emoji}</span>
                         <div>
-                          <div className="font-bold text-gray-900">{member.member_name}</div>
-                          <div className="text-xs text-gray-800">Lv.{member.level}</div>
-                          {skill && (
-                            <div className="text-xs text-gray-700 mt-0.5">
-                              ✨{getSkillName(skill.skill_type)}
-                              {skillCd > 0 && <span className="text-amber-600"> (CD{skillCd})</span>}
-                            </div>
-                          )}
+                          <div className="font-bold">{member.member_name}</div>
+                          <div className="text-xs text-gray-500">Lv.{member.level}</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-bold text-gray-900">
+                        <div className="text-sm font-bold">
                           HP: {currentHp}/{member.max_hp}
                         </div>
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -694,12 +499,12 @@ export default function PvPBattlePage() {
 
           {/* Player 2 */}
           {player2 && (
-            <div className={`bg-white rounded-2xl p-6 shadow-2xl text-gray-900 ${
+            <div className={`bg-white rounded-2xl p-6 shadow-2xl ${
               battle.current_turn_player === player2.id ? 'ring-4 ring-yellow-400' : ''
             }`}>
               <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">{player2.name}</h2>
-                <div className="text-sm text-gray-700">
+                <h2 className="text-2xl font-bold">{player2.name}</h2>
+                <div className="text-sm text-gray-500">
                   {currentUser === player2.id ? '(あなた)' : '(相手)'}
                 </div>
               </div>
@@ -707,8 +512,7 @@ export default function PvPBattlePage() {
                 {player2.party.map((member, index) => {
                   const currentHp = battle.player2_hp[member.id] ?? member.max_hp;
                   const hpPercent = (currentHp / member.max_hp) * 100;
-                  const skill = getEffectiveSkill(member);
-                  const skillCd = (battle.player2_skill_cooldown || {})[member.id] ?? 0;
+                  
                   return (
                     <div
                       key={member.id}
@@ -727,34 +531,20 @@ export default function PvPBattlePage() {
                             setSelectedTarget(index);
                           }
                         }
-                        if (isMyTurn && selectedAction === 'skill' && !isPlayer1) {
-                          if (selectedMember === null && getEffectiveSkill(member) && (currentHp > 0 || getEffectiveSkill(member)?.skill_type === 'revive')) {
-                            setSelectedMember(index);
-                            if (getEffectiveSkill(member)?.skill_type === 'heal') setSelectedTarget(index);
-                          } else if (selectedMember !== null && getEffectiveSkill(player2.party[selectedMember])?.skill_type === 'heal' && currentHp > 0) {
-                            setSelectedTarget(index);
-                          }
-                        }
                       }}
                     >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-3xl">{member.member_emoji}</span>
-                        <div>
-                          <div className="font-bold text-gray-900">{member.member_name}</div>
-                          <div className="text-xs text-gray-800">Lv.{member.level}</div>
-                          {skill && (
-                            <div className="text-xs text-gray-700 mt-0.5">
-                              ✨{getSkillName(skill.skill_type)}
-                              {skillCd > 0 && <span className="text-amber-600"> (CD{skillCd})</span>}
-                            </div>
-                          )}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-3xl">{member.member_emoji}</span>
+                          <div>
+                            <div className="font-bold">{member.member_name}</div>
+                            <div className="text-xs text-gray-500">Lv.{member.level}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-gray-900">
-                          HP: {currentHp}/{member.max_hp}
-                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold">
+                            HP: {currentHp}/{member.max_hp}
+                          </div>
                           <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div
                               className={`h-full transition-all ${
@@ -774,8 +564,8 @@ export default function PvPBattlePage() {
         </div>
 
         {/* アクションパネル */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
-          <h3 className="text-xl font-bold mb-4 text-gray-900">アクション</h3>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
+          <h3 className="text-xl font-bold mb-4">アクション</h3>
           {isMyTurn ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -784,30 +574,27 @@ export default function PvPBattlePage() {
                   className={`px-6 py-4 rounded-lg font-bold text-lg ${
                     selectedAction === 'attack'
                       ? 'bg-red-500 text-white'
-                      : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   ⚔️ 攻撃
                 </button>
                 <button
-                  onClick={() => {
-                    setSelectedAction('skill');
-                    setSelectedMember(null);
-                    setSelectedTarget(null);
-                  }}
+                  onClick={() => setSelectedAction('skill')}
                   className={`px-6 py-4 rounded-lg font-bold text-lg ${
                     selectedAction === 'skill'
                       ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
+                  disabled
                 >
-                  ✨ スキル
+                  ✨ スキル（未実装）
                 </button>
               </div>
 
               {selectedAction === 'attack' && (
                 <div className="space-y-2">
-                  <div className="text-sm font-bold text-gray-900">
+                  <div className="text-sm font-bold text-gray-700">
                     {selectedMember === null ? '攻撃するメンバーを選択' : selectedTarget === null ? '攻撃する敵を選択' : '準備完了'}
                   </div>
                   {selectedMember !== null && selectedTarget !== null && (
@@ -820,53 +607,23 @@ export default function PvPBattlePage() {
                   )}
                 </div>
               )}
-
-              {selectedAction === 'skill' && (
-                <div className="space-y-2">
-                  {(() => {
-                    const needTarget = selectedMember !== null && myParty?.party[selectedMember] && getEffectiveSkill(myParty.party[selectedMember])?.skill_type === 'heal';
-                    const canExecute = selectedMember !== null && (!needTarget || (selectedTarget !== null && selectedTarget >= 0));
-                    return (
-                      <>
-                        <div className="text-sm font-bold text-gray-900">
-                          {selectedMember === null
-                            ? 'スキルを使うメンバーを選択'
-                            : needTarget && selectedTarget === null
-                              ? '回復する味方を選択'
-                              : needTarget
-                                ? '準備完了'
-                                : '準備完了'}
-                        </div>
-                        {canExecute && (
-                          <button
-                            onClick={executeAction}
-                            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-8 py-4 rounded-full text-xl font-bold hover:opacity-90"
-                          >
-                            スキルを実行
-                          </button>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-900">
+            <div className="text-center py-8 text-gray-500">
               相手のターンです...
             </div>
           )}
         </div>
 
         {/* バトルログ */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
-          <h3 className="text-xl font-bold mb-4 text-gray-900">📜 バトルログ</h3>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
+          <h3 className="text-xl font-bold mb-4">📜 バトルログ</h3>
           <div className="h-48 overflow-y-auto bg-gray-50 rounded-lg p-4 space-y-2">
             {battleLog.length === 0 ? (
-              <div className="text-sm text-gray-900 text-center">バトルログがありません</div>
+              <div className="text-sm text-gray-500 text-center">バトルログがありません</div>
             ) : (
               battleLog.map((log, index) => (
-                <div key={index} className="text-sm text-gray-900">
+                <div key={index} className="text-sm text-gray-700">
                   {log}
                 </div>
               ))
@@ -888,20 +645,20 @@ export default function PvPBattlePage() {
       {/* バトル結果モーダル */}
       {battleResult && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-gray-900">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
             {battleResult.won ? (
               <>
                 <div className="text-center mb-6">
                   <div className="text-8xl mb-4 animate-bounce">🎉</div>
                   <h2 className="text-4xl font-bold text-green-600 mb-2">勝利！</h2>
-                  <p className="text-xl text-gray-900">おめでとうございます！</p>
+                  <p className="text-xl text-gray-700">おめでとうございます！</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6 border-2 border-green-300">
                   <div className="text-center space-y-2">
                     <div className="text-lg font-semibold text-green-700">
                       レーティング +25
                     </div>
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-gray-600">
                       {battleResult.winnerName}の勝利！
                     </div>
                   </div>
@@ -918,15 +675,15 @@ export default function PvPBattlePage() {
                 <div className="text-center mb-8">
                   <div className="text-8xl mb-6 animate-pulse">💀</div>
                   <h2 className="text-5xl font-bold text-red-600 mb-4 animate-bounce">GAME OVER</h2>
-                  <p className="text-2xl text-gray-900 mb-2 font-semibold">敗北してしまいました...</p>
-                  <p className="text-lg text-gray-900">{battleResult.winnerName}に敗れました</p>
+                  <p className="text-2xl text-gray-700 mb-2 font-semibold">敗北してしまいました...</p>
+                  <p className="text-lg text-gray-500">{battleResult.winnerName}に敗れました</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-red-300">
                   <div className="text-center space-y-2">
                     <div className="text-lg font-semibold text-red-700">
                       レーティング -15
                     </div>
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-gray-600">
                       次回は頑張りましょう！
                     </div>
                   </div>
@@ -940,7 +697,7 @@ export default function PvPBattlePage() {
                   </button>
                   <button
                     onClick={() => router.push('/pvp/history')}
-                    className="flex-1 bg-gray-200 text-gray-900 px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-300 shadow-lg transform hover:scale-105 transition-all"
+                    className="flex-1 bg-gray-200 text-gray-700 px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-300 shadow-lg transform hover:scale-105 transition-all"
                   >
                     📜 履歴を見る
                   </button>

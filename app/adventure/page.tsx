@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Member } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
+import { canEvolve, getEvolvedStats } from '@/utils/evolution';
 
 export default function AdventurePage() {
   const [loading, setLoading] = useState(true);
@@ -14,8 +15,10 @@ export default function AdventurePage() {
   const [currentStage, setCurrentStage] = useState(1);
   const [isOwner, setIsOwner] = useState(false);
   const [fusionMode, setFusionMode] = useState(false);
+  const [evolutionMode, setEvolutionMode] = useState(false);
   const [baseMember, setBaseMember] = useState<Member | null>(null);
   const [materialMembers, setMaterialMembers] = useState<Member[]>([]);
+  const [evolutionMember, setEvolutionMember] = useState<Member | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -142,43 +145,9 @@ export default function AdventurePage() {
     router.push(`/adventure/stages?party=${partyIds}&current=${currentStage}`);
   }
 
-  async function toggleLock(member: Member) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const newLocked = !member.locked;
-    const { error } = await supabase
-      .from('user_members')
-      .update({ locked: newLocked })
-      .eq('id', member.id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('ロック更新エラー:', error);
-      return;
-    }
-
-    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: newLocked } : m));
-    if (newLocked) {
-      if (baseMember?.id === member.id) setBaseMember(null);
-      setMaterialMembers(prev => prev.filter(m => m.id !== member.id));
-    } else {
-      if (baseMember?.id === member.id) setBaseMember(prev => prev ? { ...prev, locked: false } : null);
-      setMaterialMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: false } : m));
-    }
-  }
-
   // 合成実行
   async function executeFusion() {
     if (!baseMember || materialMembers.length === 0) return;
-    if (baseMember.locked) {
-      alert('ロック中のメンバーは合成に使えません');
-      return;
-    }
-    if (materialMembers.some(m => m.locked)) {
-      alert('ロック中のメンバーは素材に使えません');
-      return;
-    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -257,6 +226,48 @@ export default function AdventurePage() {
     }
   }
 
+  async function executeEvolution() {
+    if (!evolutionMember) return;
+    if (!canEvolve(evolutionMember)) {
+      alert('このメンバーは進化できません。レベルMAXになっていて、まだ未進化である必要があります。');
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('ログインが必要です');
+      return;
+    }
+
+    try {
+      const evolved = getEvolvedStats(evolutionMember);
+      const { error } = await supabase
+        .from('user_members')
+        .update({
+          hp: evolved.hp,
+          max_hp: evolved.max_hp,
+          attack: evolved.attack,
+          defense: evolved.defense,
+          speed: evolved.speed,
+          current_hp: evolved.hp,
+          evolution_stage: 1,
+          evolved_at: new Date().toISOString()
+        })
+        .eq('id', evolutionMember.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      alert(`✨ 進化成功！\n${evolutionMember.member_name}が進化した！\n全ステータスが約30%アップ！`);
+      setEvolutionMember(null);
+      setEvolutionMode(false);
+      await loadData();
+    } catch (error) {
+      console.error('進化エラー:', error);
+      alert(`進化に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -297,10 +308,64 @@ export default function AdventurePage() {
         {/* パーティ編成エリア */}
         <div className="bg-gray-900 border border-orange-500/30 rounded-2xl p-6 mb-6 shadow-2xl shadow-orange-500/10">
           <h2 className="text-2xl font-bold mb-4 text-center text-white">
-            {fusionMode ? '🔮 合成強化' : 'パーティ編成'}
+            {fusionMode ? '🔮 合成強化' : evolutionMode ? '✨ 進化' : 'パーティ編成'}
           </h2>
           
-          {fusionMode ? (
+          {evolutionMode ? (
+            <>
+              {/* 進化モード */}
+              <div className="mb-6">
+                <p className="text-center text-gray-300 mb-4">
+                  レベルMAXのメンバーを進化できます。進化後は全ステータスが約30%アップ！
+                </p>
+                {evolutionMember ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative">
+                      <MemberCard member={evolutionMember} showStats={true} />
+                      <button
+                        onClick={() => setEvolutionMember(null)}
+                        className="absolute top-2 left-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {canEvolve(evolutionMember) ? (
+                      <>
+                        <div className="text-sm text-gray-400 text-center">
+                          HP: {evolutionMember.max_hp} → {getEvolvedStats(evolutionMember).max_hp} /
+                          ATK: {evolutionMember.attack} → {getEvolvedStats(evolutionMember).attack} /
+                          DEF: {evolutionMember.defense} → {getEvolvedStats(evolutionMember).defense}
+                        </div>
+                        <button
+                          onClick={executeEvolution}
+                          className="px-8 py-3 rounded-lg text-lg font-bold bg-gradient-to-r from-amber-500 to-yellow-500 text-gray-900 hover:from-amber-600 hover:to-yellow-600 shadow-lg"
+                        >
+                          ✨ 進化する！
+                        </button>
+                      </>
+                    ) : (
+                      <div className="text-amber-300 text-center">
+                        {(evolutionMember.evolution_stage ?? 0) >= 1
+                          ? 'すでに進化済みです'
+                          : 'レベルMAXになると進化できます'}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => { setEvolutionMode(false); setEvolutionMember(null); }}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-4 border-dashed border-amber-500/30 rounded-xl p-6 text-center text-gray-400 bg-gray-800/50">
+                    <div className="text-4xl mb-2">✨</div>
+                    <div>進化するメンバーを選択（レベルMAXのみ）</div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : fusionMode ? (
             <>
               {/* 合成モード */}
               <div className="mb-6">
@@ -324,7 +389,7 @@ export default function AdventurePage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="border-4 border-dashed border-orange-500/30 rounded-xl p-6 text-center text-gray-300 bg-gray-800/50">
+                    <div className="border-4 border-dashed border-orange-500/30 rounded-xl p-6 text-center text-gray-400 bg-gray-800/50">
                       <div className="text-4xl mb-2">➕</div>
                       <div>ベースメンバーを選択</div>
                     </div>
@@ -354,7 +419,7 @@ export default function AdventurePage() {
                               </button>
                             </>
                           ) : (
-                            <div className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center text-gray-400 min-h-[100px] flex items-center justify-center bg-gray-800/30">
+                            <div className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center text-gray-500 min-h-[100px] flex items-center justify-center bg-gray-800/30">
                               <div className="text-2xl">➕</div>
                             </div>
                           )}
@@ -407,7 +472,7 @@ export default function AdventurePage() {
                         showStats={false}
                       />
                     ) : (
-                      <div className="text-gray-300 text-center">
+                      <div className="text-gray-400 text-center">
                         <div className="text-4xl mb-2">➕</div>
                         <div className="text-sm">メンバーを選択</div>
                       </div>
@@ -429,26 +494,28 @@ export default function AdventurePage() {
                   冒険に出発！
                 </button>
                 <button
-                  onClick={() => router.push('/adventure/exp-stage')}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-10 py-4 rounded-lg text-xl font-bold shadow-lg shadow-emerald-500/30 transition hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/40"
-                >
-                  📚 経験値アップ
-                </button>
-                <button
                   onClick={() => {
                     setFusionMode(true);
+                    setEvolutionMode(false);
                     setBaseMember(null);
                     setMaterialMembers([]);
+                    setEvolutionMember(null);
                   }}
                   className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg text-xl font-bold hover:from-purple-600 hover:to-pink-600 transition shadow-lg"
                 >
                   🔮 合成強化
                 </button>
                 <button
-                  onClick={() => router.push('/adventure/equip')}
-                  className="bg-gradient-to-r from-amber-600 to-orange-600 text-white px-8 py-4 rounded-lg text-xl font-bold hover:from-amber-700 hover:to-orange-700 transition shadow-lg"
+                  onClick={() => {
+                    setEvolutionMode(true);
+                    setFusionMode(false);
+                    setBaseMember(null);
+                    setMaterialMembers([]);
+                    setEvolutionMember(null);
+                  }}
+                  className="bg-gradient-to-r from-amber-500 to-yellow-500 text-gray-900 px-8 py-4 rounded-lg text-xl font-bold hover:from-amber-600 hover:to-yellow-600 transition shadow-lg"
                 >
-                  ⚔️ 装備
+                  ✨ 進化
                 </button>
                 <button
                   onClick={() => router.push('/adventure/collection')}
@@ -464,22 +531,40 @@ export default function AdventurePage() {
         {/* メンバー一覧 */}
         <div className="bg-gray-900 border border-orange-500/30 rounded-2xl p-6 shadow-2xl shadow-orange-500/10">
           <h2 className="text-2xl font-bold mb-4 text-white">
-            {fusionMode ? 'メンバーを選択' : `所持メンバー (${members.length})`}
+            {fusionMode ? 'メンバーを選択' : evolutionMode ? '進化するメンバーを選択（レベルMAXのみ）' : `所持メンバー (${members.length})`}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {members.map(member => {
+              if (evolutionMode) {
+                const isSelected = evolutionMember?.id === member.id;
+                const evolvable = canEvolve(member);
+                return (
+                  <div
+                    key={member.id}
+                    onClick={() => setEvolutionMember(member)}
+                    className={`cursor-pointer ${!evolvable && !isSelected ? 'opacity-60' : ''}`}
+                  >
+                    <MemberCard
+                      member={member}
+                      selected={isSelected}
+                      showStats={true}
+                    />
+                    {evolvable && (
+                      <div className="text-center text-amber-400 text-xs mt-1">進化可能</div>
+                    )}
+                  </div>
+                );
+              }
               if (fusionMode) {
-                // 合成モードの場合（ロック中は選択不可）
+                // 合成モードの場合
                 const isBase = baseMember?.id === member.id;
                 const isMaterial = materialMembers.some(m => m.id === member.id);
                 const materialIndex = materialMembers.findIndex(m => m.id === member.id);
-                const isLocked = member.locked === true;
                 
                 return (
                   <div
                     key={member.id}
                     onClick={() => {
-                      if (isLocked) return;
                       if (isBase) {
                         setBaseMember(null);
                       } else if (isMaterial) {
@@ -494,14 +579,12 @@ export default function AdventurePage() {
                         }
                       }
                     }}
-                    className={isLocked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                    className="cursor-pointer"
                   >
                     <MemberCard
                       member={member}
                       selected={isBase || isMaterial}
                       showStats={true}
-                      showLockToggle={true}
-                      onLockToggle={toggleLock}
                     />
                   </div>
                 );
@@ -514,8 +597,6 @@ export default function AdventurePage() {
                   member={member}
                   onClick={() => addToParty(member)}
                   selected={party.some(m => m?.id === member.id)}
-                  showLockToggle={true}
-                  onLockToggle={toggleLock}
                 />
               );
             })}

@@ -3,15 +3,12 @@
 import Image from 'next/image';
 import { Member, MAX_LEVELS, getRequiredExp } from '@/types/adventure';
 import { getPlateImageUrl } from '@/utils/plateImage';
-import { getIVEvaluation, getTalentEvaluation } from '@/utils/memberStats';
 
 interface MemberCardProps {
   member: Member;
   onClick?: () => void;
   selected?: boolean;
   showStats?: boolean;
-  showLockToggle?: boolean;
-  onLockToggle?: (member: Member) => void;
 }
 
 function getSkillName(skillType: string | null | undefined): string {
@@ -26,20 +23,7 @@ function getSkillName(skillType: string | null | undefined): string {
   return names[skillType] || skillType;
 }
 
-function getRarityDisplayName(rarity: string): string {
-  const names: { [key: string]: string } = {
-    'HST': '最高位',
-    'stary': 'STARY',
-    'legendary': 'レジェンド',
-    'ultra-rare': 'ウルトラレア',
-    'super-rare': 'スーパーレア',
-    'rare': 'レア',
-    'common': 'コモン'
-  };
-  return names[rarity] || rarity;
-}
-
-export default function MemberCard({ member, onClick, selected = false, showStats = true, showLockToggle = false, onLockToggle }: MemberCardProps) {
+export default function MemberCard({ member, onClick, selected = false, showStats = true }: MemberCardProps) {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'HST': return 'from-yellow-600 via-orange-600 to-red-600';
@@ -98,25 +82,16 @@ export default function MemberCard({ member, onClick, selected = false, showStat
         </div>
       )}
 
-      {/* お気に入り */}
-      {member.is_favorite && (
-        <div className={`absolute top-2 text-2xl z-10 ${showLockToggle ? 'left-12' : 'left-2'}`}>⭐</div>
+      {/* 進化済みバッジ */}
+      {(member.evolution_stage ?? 0) >= 1 && (
+        <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-gray-900 text-xs font-bold">
+          ✨ 進化
+        </div>
       )}
 
-      {/* ロック（合成に使用不可） */}
-      {showLockToggle && onLockToggle && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onLockToggle(member);
-          }}
-          className={`absolute top-2 left-2 p-2 rounded-lg transition z-10 ${
-            member.locked ? 'bg-amber-500 text-white' : 'bg-gray-700/80 text-gray-300 hover:bg-gray-600'
-          }`}
-          title={member.locked ? 'ロック解除（合成に使える）' : 'ロック（合成に使えない）'}
-        >
-          {member.locked ? '🔒' : '🔓'}
-        </button>
+      {/* お気に入り */}
+      {member.is_favorite && (
+        <div className="absolute top-2 left-2 text-2xl">⭐</div>
       )}
 
       {/* メンバー画像（plate: HSTレア時はHSTフォルダ、それ以外は直下を使用） */}
@@ -138,12 +113,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
       {/* メンバー情報 */}
       <div className="p-4 bg-gray-800">
         <h3 className="font-bold text-lg mb-1 text-center text-white">{member.member_name}</h3>
-        <div className="flex justify-center mb-2">
-          <span className={`inline-block px-3 py-0.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${getRarityColor(member.rarity)}`}>
-            {getRarityDisplayName(member.rarity)}
-          </span>
-        </div>
-        <p className="text-sm text-gray-300 text-center mb-3">{member.member_description}</p>
+        <p className="text-xs text-gray-400 text-center mb-3">{member.member_description}</p>
 
         {showStats && (
           <>
@@ -151,7 +121,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
             <div className="mb-2">
               <div className="flex justify-between text-xs mb-1">
                 <span className="font-bold text-orange-500">HP</span>
-                <span className="text-gray-300">{member.hp}/{member.max_hp}</span>
+                <span className="text-gray-400">{member.hp}/{member.max_hp}</span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div
@@ -181,7 +151,7 @@ export default function MemberCard({ member, onClick, selected = false, showStat
                 <div className="mb-3">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="font-bold text-orange-400">EXP</span>
-                    <span className="text-gray-300">{member.experience}/{requiredExp}</span>
+                    <span className="text-gray-400">{member.experience}/{requiredExp}</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2">
                     <div
@@ -196,44 +166,34 @@ export default function MemberCard({ member, onClick, selected = false, showStat
             {/* ステータス */}
             <div className="grid grid-cols-3 gap-2 text-center mb-3">
               <div className="bg-gray-800 border border-orange-500/30 rounded p-2">
-                <div className="text-sm text-gray-300">ATK</div>
+                <div className="text-xs text-gray-400">ATK</div>
                 <div className="font-bold text-orange-500">{member.attack}</div>
               </div>
               <div className="bg-gray-800 border border-orange-500/30 rounded p-2">
-                <div className="text-sm text-gray-300">DEF</div>
+                <div className="text-xs text-gray-400">DEF</div>
                 <div className="font-bold text-orange-500">{member.defense}</div>
               </div>
               <div className="bg-gray-800 border border-orange-500/30 rounded p-2">
-                <div className="text-sm text-gray-300">SPD</div>
+                <div className="text-xs text-gray-400">SPD</div>
                 <div className="font-bold text-orange-500">{member.speed}</div>
               </div>
-            </div>
-
-            {/* 個体値・才能値（厳選要素） */}
-            <div className="flex gap-2 mb-3 text-xs">
-              <span className="bg-amber-900/50 text-amber-300 px-2 py-1 rounded" title={`HP${(member.individual_hp ?? 0) >= 0 ? '+' : ''}${member.individual_hp ?? 0} ATK${(member.individual_atk ?? 0) >= 0 ? '+' : ''}${member.individual_atk ?? 0} DEF${(member.individual_def ?? 0) >= 0 ? '+' : ''}${member.individual_def ?? 0} SPD${(member.individual_spd ?? 0) >= 0 ? '+' : ''}${member.individual_spd ?? 0}`}>
-                個体: {getIVEvaluation({ individual_hp: member.individual_hp ?? 0, individual_atk: member.individual_atk ?? 0, individual_def: member.individual_def ?? 0, individual_spd: member.individual_spd ?? 0 })}
-              </span>
-              <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded" title={`才能値: ${member.talent_value ?? 50}`}>
-                才能: {getTalentEvaluation(member.talent_value ?? 50)}
-              </span>
             </div>
 
             {/* スキル表示 */}
             {member.skill_type && showStats && (
               <div className="mt-3 pt-3 border-t border-gray-700">
                 <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-lg p-2">
-                  <div className="text-sm text-gray-300 mb-1">スキル</div>
+                  <div className="text-xs text-gray-400 mb-1">スキル</div>
                   <div className="font-bold text-sm text-orange-400">
                     {getSkillName(member.skill_type)}
                   </div>
                   {member.skill_type === 'heal' && (
-                    <div className="text-sm text-gray-300 mt-1">
+                    <div className="text-xs text-gray-400 mt-1">
                       HP {member.skill_power || 0} 回復
                     </div>
                   )}
                   {member.skill_type === 'revive' && (
-                    <div className="text-sm text-gray-300 mt-1">
+                    <div className="text-xs text-gray-400 mt-1">
                       戦闘不能時に1回だけ蘇生
                     </div>
                   )}
@@ -243,15 +203,6 @@ export default function MemberCard({ member, onClick, selected = false, showStat
           </>
         )}
       </div>
-
-      {/* ロック中オーバーレイ（合成モードでロック時） */}
-      {member.locked && showLockToggle && (
-        <div className="absolute inset-0 bg-gray-900/70 flex items-center justify-center pointer-events-none">
-          <div className="bg-amber-500/90 text-white px-4 py-2 rounded-lg font-bold">
-            🔒 ロック中
-          </div>
-        </div>
-      )}
 
       {/* 選択中インジケーター */}
       {selected && (

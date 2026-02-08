@@ -36,61 +36,58 @@ export default function MissionsPage() {
   }, []);
 
   async function loadMissions() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/');
-        return;
-      }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push('/');
+      return;
+    }
 
-      // デイリーミッションを初期化
-      await initializeDailyMissions(user.id);
+    // デイリーミッションを初期化
+    await initializeDailyMissions(user.id);
 
-      // ポイント取得
+    // ポイント取得
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('points')
         .eq('user_id', user.id)
         .maybeSingle();
-
+      
       if (profileError) {
         console.error('プロフィール取得エラー:', profileError);
-      } else if (profile) {
-        setCurrentPoints(profile.points || 0);
+        return;
       }
-
-      // 今日の日付
-      const today = new Date().toISOString().split('T')[0];
-
-      // ミッションと進捗を取得
-      const { data: progressData } = await supabase
-        .from('user_mission_progress')
-        .select(`
-          *,
-          mission:daily_missions(*)
-        `)
-        .eq('user_id', user.id)
-        .eq('mission_date', today)
-        .order('mission_id');
-
-      if (progressData) {
-        const formattedMissions: MissionProgress[] = progressData
-          .filter((p: any) => p.mission != null)
-          .map((p: any) => ({
-            id: p.id,
-            mission_id: p.mission_id,
-            current_count: p.current_count,
-            completed: p.completed,
-            claimed: p.claimed,
-            mission: p.mission
-          }));
-        setMissions(formattedMissions);
-      }
-    } catch (error) {
-      console.error('ミッション読み込みエラー:', error);
-    } finally {
-      setLoading(false);
+    
+    if (profile) {
+      setCurrentPoints(profile.points || 0);
     }
+
+    // 今日の日付
+    const today = new Date().toISOString().split('T')[0];
+
+    // ミッションと進捗を取得
+    const { data: progressData } = await supabase
+      .from('user_mission_progress')
+      .select(`
+        *,
+        mission:daily_missions(*)
+      `)
+      .eq('user_id', user.id)
+      .eq('mission_date', today)
+      .order('mission_id');
+
+    if (progressData) {
+      const formattedMissions: MissionProgress[] = progressData.map((p: any) => ({
+        id: p.id,
+        mission_id: p.mission_id,
+        current_count: p.current_count,
+        completed: p.completed,
+        claimed: p.claimed,
+        mission: p.mission
+      }));
+      setMissions(formattedMissions);
+    }
+
+    setLoading(false);
   }
 
   async function handleClaimReward(progress: MissionProgress) {
@@ -113,31 +110,6 @@ export default function MissionsPage() {
     } else {
       alert(result.message);
     }
-  }
-
-  async function handleClaimAllRewards() {
-    const claimable = missions.filter(m => m.completed && !m.claimed);
-    if (claimable.length === 0) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    let totalPoints = 0;
-    let totalExp = 0;
-    for (const progress of claimable) {
-      const result = await claimMissionReward(
-        user.id,
-        progress.id,
-        progress.mission.reward_points,
-        progress.mission.reward_exp
-      );
-      if (result.success) {
-        totalPoints += progress.mission.reward_points;
-        totalExp += progress.mission.reward_exp;
-      }
-    }
-    alert(`${claimable.length}件の報酬を受け取りました！\n💰 ${totalPoints}pt\n⭐ ${totalExp}EXP`);
-    await loadMissions();
   }
 
   function getDifficultyColor(difficulty: string) {
@@ -180,7 +152,6 @@ export default function MissionsPage() {
   const completedCount = missions.filter(m => m.completed).length;
   const totalMissions = missions.length;
   const progressPercent = totalMissions > 0 ? (completedCount / totalMissions) * 100 : 0;
-  const claimableCount = missions.filter(m => m.completed && !m.claimed).length;
 
   return (
     <div className="min-h-screen bg-black p-4">
@@ -191,7 +162,7 @@ export default function MissionsPage() {
           <p className="text-lg text-gray-300">毎日のミッションをクリアして報酬を獲得しよう！</p>
           <div className="mt-4 bg-gray-900 border border-orange-500/30 rounded-lg px-6 py-3 inline-block shadow-lg shadow-orange-500/10">
             <div className="text-2xl font-bold text-orange-500">{currentPoints}pt</div>
-            <div className="text-sm text-gray-300">現在のポイント</div>
+            <div className="text-sm text-gray-400">現在のポイント</div>
           </div>
         </div>
 
@@ -209,18 +180,8 @@ export default function MissionsPage() {
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="flex items-center justify-between mt-4 gap-4">
-            <div className="text-sm text-gray-300">
-              {progressPercent.toFixed(0)}% 完了
-            </div>
-            {claimableCount > 0 && (
-              <button
-                onClick={handleClaimAllRewards}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg font-bold hover:scale-105 transition shadow-lg shadow-orange-500/30"
-              >
-                🎁 すべて受け取る（{claimableCount}件）
-              </button>
-            )}
+          <div className="text-sm text-gray-400 mt-2 text-center">
+            {progressPercent.toFixed(0)}% 完了
           </div>
         </div>
 
@@ -265,7 +226,7 @@ export default function MissionsPage() {
                         </div>
                         <p className="text-gray-300 mb-3">{mission.description}</p>
                         <div className="flex items-center gap-4 text-sm">
-                          <div className="text-gray-300">
+                          <div className="text-gray-400">
                             進捗: <span className="font-bold text-orange-400">
                               {progress.current_count} / {mission.target_count}
                             </span>
@@ -288,11 +249,11 @@ export default function MissionsPage() {
                           🎁 報酬受け取り
                         </button>
                       ) : isClaimed ? (
-                        <div className="bg-gray-800 text-gray-300 border border-gray-700 px-6 py-3 rounded-lg font-bold">
+                        <div className="bg-gray-800 text-gray-400 border border-gray-700 px-6 py-3 rounded-lg font-bold">
                           ✓ 受け取り済み
                         </div>
                       ) : (
-                        <div className="text-gray-400 text-sm">未達成</div>
+                        <div className="text-gray-500 text-sm">未達成</div>
                       )}
                     </div>
                   </div>

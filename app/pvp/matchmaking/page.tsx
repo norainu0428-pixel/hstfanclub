@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
 
-function MatchmakingContent() {
+export default function MatchmakingPage() {
   const [party, setParty] = useState<Member[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<Member[]>([]);
   const [friendName, setFriendName] = useState('');
@@ -17,7 +17,7 @@ function MatchmakingContent() {
 
   useEffect(() => {
     loadData();
-  }, [friendId, battleId]);
+  }, []);
 
   async function loadData() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -32,30 +32,15 @@ function MatchmakingContent() {
 
     setParty(members || []);
 
+    // フレンド名取得
     if (friendId) {
       const { data: friendProfile } = await supabase
         .from('profiles')
         .select('display_name')
         .eq('user_id', friendId)
         .single();
+
       setFriendName(friendProfile?.display_name || '不明');
-
-      // 相手が自分を招待している「待機中」バトルがあれば参加する（battleId が URL に無い場合）
-      if (!battleId) {
-        const { data: waitingList } = await supabase
-          .from('pvp_battles')
-          .select('id')
-          .eq('player1_id', friendId)
-          .eq('player2_id', user.id)
-          .eq('status', 'waiting')
-          .limit(1);
-        const waitingBattle = Array.isArray(waitingList) ? waitingList[0] : null;
-
-        if (waitingBattle?.id) {
-          router.replace(`/pvp/matchmaking?friend=${friendId}&battle=${waitingBattle.id}`);
-          return;
-        }
-      }
     }
 
     setLoading(false);
@@ -78,31 +63,27 @@ function MatchmakingContent() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // 初期HPを設定
     const initialHp: { [key: string]: number } = {};
     selectedMembers.forEach(member => {
-      if (member?.id != null) initialHp[member.id] = Number(member.max_hp) || 100;
+      initialHp[member.id] = member.max_hp;
     });
-    const partyIds = selectedMembers.map(m => m?.id).filter((id): id is string => Boolean(id));
 
     // 既存のバトルに参加する場合
     if (battleId) {
-      const currentLog = await getCurrentBattleLog();
-      const newLog = Array.isArray(currentLog) ? [...currentLog, 'バトル開始！'] : ['バトル開始！'];
-
       const { error } = await supabase
         .from('pvp_battles')
         .update({
-          player2_party: partyIds,
+          player2_party: selectedMembers.map(m => m.id),
           player2_hp: initialHp,
           status: 'in_progress',
-          battle_log: newLog
+          battle_log: [...(await getCurrentBattleLog()), 'バトル開始！']
         })
-        .eq('id', battleId)
-        .eq('player2_id', user.id);
+        .eq('id', battleId);
 
       if (error) {
-        console.error('pvp_battles update error:', error);
-        alert('バトルへの参加に失敗しました: ' + (error.message || 'エラーが発生しました'));
+        alert('バトルへの参加に失敗しました');
+        console.error(error);
         return;
       }
 
@@ -110,29 +91,24 @@ function MatchmakingContent() {
       return;
     }
 
-    // 新しいバトルルーム作成（対戦相手が必須）
-    if (!friendId) {
-      alert('対戦相手を選んでからフレンドの「対戦する」で入り直してください');
-      return;
-    }
-
+    // 新しいバトルルーム作成
     const { data: battle, error } = await supabase
       .from('pvp_battles')
       .insert({
         player1_id: user.id,
         player2_id: friendId,
-        player1_party: partyIds,
+        player1_party: selectedMembers.map(m => m.id),
         player1_hp: initialHp,
         status: 'waiting',
         current_turn_player: user.id,
-        battle_log: [friendName ? `${friendName}との対戦が開始されました！` : '対戦開始']
+        battle_log: [`${friendName}との対戦が開始されました！`]
       })
       .select()
       .single();
 
     if (error || !battle) {
-      console.error('pvp_battles insert error:', error);
-      alert('バトルルームの作成に失敗しました: ' + (error?.message || 'エラーが発生しました'));
+      alert('バトルルームの作成に失敗しました');
+      console.error(error);
       return;
     }
 
@@ -169,16 +145,11 @@ function MatchmakingContent() {
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">⚔️ PvP対戦</h1>
           <p className="text-lg opacity-90">対戦相手: {friendName}</p>
-          {battleId && (
-            <p className="mt-2 px-4 py-2 bg-white/20 rounded-lg text-sm">
-              {friendName}から対戦招待が来ています。パーティを選んで「対戦開始！」を押してください
-            </p>
-          )}
         </div>
 
         {/* パーティ選択 */}
-        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl text-gray-900">
-          <h2 className="text-2xl font-bold mb-4 text-gray-900">パーティを選択（最大3体）</h2>
+        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
+          <h2 className="text-2xl font-bold mb-4">パーティを選択（最大3体）</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {[0, 1, 2].map(index => (
               <div
@@ -188,13 +159,13 @@ function MatchmakingContent() {
                 {selectedMembers[index] ? (
                   <div className="text-center">
                     <div className="text-4xl mb-2">{selectedMembers[index].member_emoji}</div>
-                    <div className="font-bold text-gray-900">{selectedMembers[index].member_name}</div>
-                    <div className="text-sm text-gray-800">Lv.{selectedMembers[index].level}</div>
+                    <div className="font-bold">{selectedMembers[index].member_name}</div>
+                    <div className="text-sm text-gray-500">Lv.{selectedMembers[index].level}</div>
                   </div>
                 ) : (
-                  <div className="text-gray-600 text-center">
+                  <div className="text-gray-400 text-center">
                     <div className="text-4xl mb-2">➕</div>
-                    <div className="text-sm text-gray-700">メンバーを選択</div>
+                    <div className="text-sm">メンバーを選択</div>
                   </div>
                 )}
               </div>
@@ -215,8 +186,8 @@ function MatchmakingContent() {
         </div>
 
         {/* メンバー一覧 */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
-          <h2 className="text-xl font-bold mb-4 text-gray-900">所持メンバー</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl">
+          <h2 className="text-xl font-bold mb-4">所持メンバー</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {party.map(member => (
               <div
@@ -230,8 +201,8 @@ function MatchmakingContent() {
               >
                 <div className="text-center">
                   <div className="text-4xl mb-2">{member.member_emoji}</div>
-                  <div className="font-bold text-sm text-gray-900">{member.member_name}</div>
-                  <div className="text-xs text-gray-800">Lv.{member.level}</div>
+                  <div className="font-bold text-sm">{member.member_name}</div>
+                  <div className="text-xs text-gray-500">Lv.{member.level}</div>
                 </div>
               </div>
             ))}
@@ -248,17 +219,5 @@ function MatchmakingContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function MatchmakingPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center">
-        <div className="text-white text-xl">読み込み中...</div>
-      </div>
-    }>
-      <MatchmakingContent />
-    </Suspense>
   );
 }

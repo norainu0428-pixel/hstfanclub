@@ -1,5 +1,4 @@
 import { Member, LEVEL_UP_STATS, MAX_LEVELS, getRequiredExp, LevelUpResult } from '@/types/adventure';
-import { getTalentGrowthMultiplier } from '@/utils/memberStats';
 
 export function calculateLevelUp(member: Member, gainedExp: number): {
   updatedMember: Member;
@@ -13,9 +12,6 @@ export function calculateLevelUp(member: Member, gainedExp: number): {
   
   // 最大レベル取得
   const maxLevel = MAX_LEVELS[currentMember.rarity] || 40;
-  
-  // 才能値による成長倍率（0.5〜1.5）
-  const talentMultiplier = getTalentGrowthMultiplier(member.talent_value ?? 50);
   
   // レベルアップ判定（複数回レベルアップする可能性あり）
   // 無限ループを防ぐため、最大レベルアップ回数を制限（安全のため）
@@ -32,14 +28,8 @@ export function calculateLevelUp(member: Member, gainedExp: number): {
       currentMember.experience -= requiredExp;
       levelUpCount++;
       
-      // ステータス上昇（才能値で倍率適用）
-      const baseStats = LEVEL_UP_STATS[currentMember.rarity] || LEVEL_UP_STATS['common'];
-      const stats = {
-        hp: Math.max(1, Math.floor(baseStats.hp * talentMultiplier)),
-        attack: Math.max(1, Math.floor(baseStats.attack * talentMultiplier)),
-        defense: Math.max(1, Math.floor(baseStats.defense * talentMultiplier)),
-        speed: Math.max(1, Math.floor(baseStats.speed * talentMultiplier))
-      };
+      // ステータス上昇
+      const stats = LEVEL_UP_STATS[currentMember.rarity] || LEVEL_UP_STATS['common'];
       
       currentMember.hp += stats.hp;
       currentMember.max_hp += stats.hp;

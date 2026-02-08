@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getStageInfo, isExtraStage, EXTRA_STAGE_BASE, EXTRA_STAGE_COUNT } from '@/utils/stageGenerator';
+import { getStageInfo } from '@/utils/stageGenerator';
 
-function StagesContent() {
+export default function StagesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const partyIds = searchParams.get('party') || '';
@@ -16,7 +16,6 @@ function StagesContent() {
   const currentStage = (isNaN(parsedStage) || parsedStage < 1 || parsedStage > 400) ? 1 : parsedStage;
   const [unlockedStages, setUnlockedStages] = useState<number[]>([]);
   const [clearedStages, setClearedStages] = useState<number[]>([]);
-  const [extraUnlocked, setExtraUnlocked] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const stagesPerPage = 100; // 1ページあたり100ステージ表示
 
@@ -50,7 +49,6 @@ function StagesContent() {
       });
     }
     setClearedStages(Array.from(cleared));
-    setExtraUnlocked(cleared.has(100));
 
     if (progressResult.data) {
       // 現在のステージまでと、次の1ステージまでをアンロック（1ステージずつ）
@@ -71,12 +69,7 @@ function StagesContent() {
   }
 
   function selectStage(stage: number) {
-    if (isExtraStage(stage)) {
-      if (!extraUnlocked) {
-        alert('エクストラステージはステージ100クリア後に解放されます！');
-        return;
-      }
-    } else if (!unlockedStages.includes(stage)) {
+    if (!unlockedStages.includes(stage)) {
       alert(`ステージ${stage}はまだアンロックされていません！`);
       return;
     }
@@ -92,7 +85,7 @@ function StagesContent() {
         </div>
 
         {/* ページネーション */}
-        <div className="bg-white rounded-2xl p-4 shadow-xl mb-4 text-gray-900">
+        <div className="bg-white rounded-2xl p-4 shadow-xl mb-4">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -102,10 +95,10 @@ function StagesContent() {
               ← 前のページ
             </button>
             <div className="text-center">
-              <div className="text-lg font-bold text-gray-900">
+              <div className="text-lg font-bold text-gray-700">
                 ページ {currentPage} / {Math.ceil(400 / stagesPerPage)}
               </div>
-              <div className="text-sm text-gray-800">
+              <div className="text-sm text-gray-500">
                 ステージ {(currentPage - 1) * stagesPerPage + 1} - {Math.min(currentPage * stagesPerPage, 400)}
               </div>
             </div>
@@ -120,7 +113,7 @@ function StagesContent() {
         </div>
 
         {/* ステージグリッド */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
           <div className="grid grid-cols-10 gap-2">
             {Array.from({ length: stagesPerPage }, (_, i) => {
               const stage = (currentPage - 1) * stagesPerPage + i + 1;
@@ -186,8 +179,8 @@ function StagesContent() {
         </div>
 
         {/* ステージ詳細表示 */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6 text-gray-900">
-          <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">ステージ情報</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl mb-6">
+          <h2 className="text-2xl font-bold mb-4 text-center">ステージ情報</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[currentStage, currentStage + 1, currentStage + 2].map(stage => {
               if (stage > 400) return null;
@@ -207,10 +200,10 @@ function StagesContent() {
                     {stage % 100 === 0 && stage % 200 !== 0 && <span className="ml-2">👑🔥</span>}
                     {stage % 10 === 0 && stage % 100 !== 0 && <span className="ml-2">👑</span>}
                   </div>
-                  <div className="text-sm space-y-1 text-gray-900">
+                  <div className="text-sm space-y-1">
                     <div>推奨レベル: <span className="font-bold">{stageInfo.recommendedLevel}</span></div>
                     <div>敵の数: <span className="font-bold">{stageInfo.enemies.length}体</span></div>
-                    <div className="text-xs text-gray-800 mt-2">
+                    <div className="text-xs text-gray-600 mt-2">
                       {stageInfo.enemies.slice(0, 2).map(e => e.emoji).join(' ')}
                       {stageInfo.enemies.length > 2 && ' ...'}
                     </div>
@@ -220,50 +213,6 @@ function StagesContent() {
             })}
           </div>
         </div>
-
-        {/* エクストラステージ（ステージ100クリアで解放） */}
-        {extraUnlocked && (
-          <div className="bg-gradient-to-br from-amber-600 to-orange-700 rounded-2xl p-6 shadow-2xl mb-6 border-4 border-amber-400">
-            <h2 className="text-2xl font-bold text-white mb-4 text-center flex items-center justify-center gap-2">
-              ⭐ エクストラステージ
-            </h2>
-            <p className="text-amber-100 text-center mb-4 text-sm">ステージ100クリアで解放！強力なボスに挑戦</p>
-            <div className="grid grid-cols-5 gap-3">
-              {Array.from({ length: EXTRA_STAGE_COUNT }, (_, i) => {
-                const stage = EXTRA_STAGE_BASE + i + 1;
-                const stageInfo = getStageInfo(stage);
-                const isCleared = clearedStages.includes(stage);
-                return (
-                  <button
-                    key={stage}
-                    onClick={() => selectStage(stage)}
-                    className={`
-                      relative p-4 rounded-xl font-bold transition
-                      ${isCleared
-                        ? 'bg-gradient-to-br from-amber-400 to-yellow-500 text-amber-900 hover:scale-105 ring-2 ring-amber-300'
-                        : 'bg-gradient-to-br from-amber-700 to-orange-800 text-white hover:scale-105 ring-2 ring-amber-500'
-                      }
-                    `}
-                  >
-                    <div className="text-xl">⭐{i + 1}</div>
-                    <div className="text-xs mt-1">Lv.{stageInfo.recommendedLevel}</div>
-                    {isCleared && (
-                      <div className="absolute -top-1 -right-1 bg-green-500 rounded-full w-5 h-5 border-2 border-white flex items-center justify-center">
-                        <span className="text-xs">✓</span>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {!extraUnlocked && (
-          <div className="bg-gray-800 rounded-2xl p-6 shadow-xl mb-6 border-2 border-gray-600 opacity-75">
-            <h2 className="text-xl font-bold text-gray-400 mb-2 text-center">⭐ エクストラステージ</h2>
-            <p className="text-gray-500 text-center text-sm">ステージ100をクリアすると解放されます</p>
-          </div>
-        )}
 
         {/* 戻るボタン */}
         <div className="text-center">
@@ -276,17 +225,5 @@ function StagesContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function StagesPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-        <div className="text-white text-xl">読み込み中...</div>
-      </div>
-    }>
-      <StagesContent />
-    </Suspense>
   );
 }

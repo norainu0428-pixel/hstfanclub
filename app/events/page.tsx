@@ -5,8 +5,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { Rarity } from '@/types/adventure';
-import { generateMemberStatsWithIV } from '@/utils/memberStats';
-import { getPlateImageUrl } from '@/utils/plateImage';
 
 // HSTメンバーデータ
 const HST_MEMBERS = {
@@ -162,15 +160,6 @@ interface GachaResult {
   };
 }
 
-// 開催中のイベントがあるか（管理者がイベント開始時にtrueに変更）
-const HAS_ACTIVE_EVENT = false;
-
-// HST Smile ガチャ 開催予定（2月8日 21:00）
-const EVENT_SCHEDULE_TEXT = '2月8日 21:00';
-
-// HST Smile Lv1 ステータス（HSTレアリティの基本値）
-const HST_SMILE_LV1_STATS = baseStats['HST'];
-
 export default function EventsPage() {
   const [points, setPoints] = useState(0);
   const [rates, setRates] = useState<any[]>([]);
@@ -190,23 +179,30 @@ export default function EventsPage() {
       return;
     }
 
+    // オーナー権限チェック
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, points')
       .eq('user_id', user.id)
       .single();
 
+    if (profile?.role !== 'owner') {
+      router.push('/');
+      return;
+    }
+
     if (profile) {
       setPoints(profile.points || 0);
     }
 
-    // イベントガチャ確率取得（開催中の場合のみ）
-    if (HAS_ACTIVE_EVENT) {
-      const { data: ratesData } = await supabase
-        .from('event_gacha_rates')
-        .select('*')
-        .order('rate', { ascending: false });
-      if (ratesData) setRates(ratesData);
+    // イベントガチャ確率取得
+    const { data: ratesData } = await supabase
+      .from('event_gacha_rates')
+      .select('*')
+      .order('rate', { ascending: false });
+
+    if (ratesData) {
+      setRates(ratesData);
     }
 
     setLoading(false);
@@ -239,65 +235,28 @@ export default function EventsPage() {
           member
         });
 
-        // メンバーをDBに追加（個体値・才能値を付与。カラムが無い場合は従来の項目のみで保存）
-        const baseStatsForRarity = baseStats[rarity];
-        const statsWithIV = generateMemberStatsWithIV(baseStatsForRarity);
-        const insertPayload = {
-          user_id: user.id,
-          member_name: member.name,
-          member_emoji: member.emoji,
-          member_description: member.description,
-          rarity: rarity,
-          level: 1,
-          experience: 0,
-          max_hp: statsWithIV.hp,
-          hp: statsWithIV.hp,
-          current_hp: statsWithIV.hp,
-          attack: statsWithIV.attack,
-          defense: statsWithIV.defense,
-          speed: statsWithIV.speed,
-          skill_type: member.skill_type,
-          skill_power: member.skill_power || 0,
-          revive_used: false,
-          individual_hp: statsWithIV.individual_hp,
-          individual_atk: statsWithIV.individual_atk,
-          individual_def: statsWithIV.individual_def,
-          individual_spd: statsWithIV.individual_spd,
-          talent_value: statsWithIV.talent_value
-        };
-        const { error: insertError } = await supabase.from('user_members').insert(insertPayload);
-        if (insertError) {
-          const isColumnError = /column.*does not exist|unknown column/i.test(insertError.message);
-          if (isColumnError) {
-            const { error: fallbackError } = await supabase.from('user_members').insert({
-              user_id: user.id,
-              member_name: member.name,
-              member_emoji: member.emoji,
-              member_description: member.description,
-              rarity: rarity,
-              level: 1,
-              experience: 0,
-              max_hp: statsWithIV.hp,
-              hp: statsWithIV.hp,
-              current_hp: statsWithIV.hp,
-              attack: statsWithIV.attack,
-              defense: statsWithIV.defense,
-              speed: statsWithIV.speed,
-              skill_type: member.skill_type,
-              skill_power: member.skill_power || 0,
-              revive_used: false
-            });
-            if (fallbackError) {
-              alert(`キャラの保存に失敗しました: ${fallbackError.message}\n（Supabaseで supabase_iv_talent.sql の実行を推奨します）`);
-              setPulling(false);
-              return;
-            }
-          } else {
-            alert(`キャラの保存に失敗しました: ${insertError.message}`);
-            setPulling(false);
-            return;
-          }
-        }
+        // メンバーをDBに追加
+        const stats = baseStats[rarity];
+        await supabase
+          .from('user_members')
+          .insert({
+            user_id: user.id,
+            member_name: member.name,
+            member_emoji: member.emoji,
+            member_description: member.description,
+            rarity: rarity,
+            level: 1,
+            experience: 0,
+            max_hp: stats.hp,
+            hp: stats.hp,
+            current_hp: stats.hp,
+            attack: stats.attack,
+            defense: stats.defense,
+            speed: stats.speed,
+            skill_type: member.skill_type,
+            skill_power: member.skill_power || 0,
+            revive_used: false
+          });
       }
 
       // ポイント消費
@@ -408,78 +367,13 @@ export default function EventsPage() {
     );
   }
 
-  // 開催中のイベントがない場合
-  if (!HAS_ACTIVE_EVENT) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center text-white mb-8">
-            <h1 className="text-4xl font-bold mb-2">🎪 イベントガチャ</h1>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-12 shadow-2xl border border-white/20 mt-8">
-              <p className="text-2xl font-bold text-white/90">開催中のイベントはありません</p>
-              <p className="text-white/70 mt-4">新しいイベントの開催をお楽しみに！</p>
-              
-              {/* HST Smile ガチャ 開催予定 */}
-              <div className="mt-8 p-6 bg-yellow-500/20 rounded-xl border border-yellow-400/50 text-gray-900">
-                <h3 className="text-xl font-bold mb-2 text-gray-900 flex items-center gap-2">
-                  {getPlateImageUrl('smile', 'HST') && (
-                    <img src={getPlateImageUrl('smile', 'HST')!} alt="HST Smile" className="w-10 h-10 object-cover rounded-full" />
-                  )}
-                  HST Smile ガチャ
-                </h3>
-                <p className="text-lg font-semibold text-gray-900">開催予定: {EVENT_SCHEDULE_TEXT}</p>
-              </div>
-
-              {/* HST Smile Lv1 ステータス */}
-              <div className="mt-6 p-6 bg-white/20 rounded-xl border border-white/30 text-gray-900">
-                <h3 className="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
-                  {getPlateImageUrl('smile', 'HST') && (
-                    <img src={getPlateImageUrl('smile', 'HST')!} alt="HST Smile" className="w-10 h-10 object-cover rounded-full" />
-                  )}
-                  HST Smile ステータス（Lv.1）
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <div className="text-sm text-gray-700">HP</div>
-                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.hp}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-700">攻撃力</div>
-                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.attack}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-700">防御力</div>
-                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.defense}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-700">素早さ</div>
-                    <div className="text-xl font-bold text-gray-900">{HST_SMILE_LV1_STATS.speed}</div>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-700 mt-3">※ 個体値・才能値により変動します</p>
-              </div>
-            </div>
-          </div>
-          <div className="text-center mt-8">
-            <button
-              onClick={() => router.push('/')}
-              className="text-white text-lg hover:underline"
-            >
-              ← トップに戻る
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 p-4">
       <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">🎪 イベントガチャ</h1>
-          <p className="text-xl opacity-90 mb-4">😊 HST Smileが出るかも！</p>
+          <p className="text-xl opacity-90 mb-4">HST Smileが出るかも！</p>
           <div className="text-3xl font-bold">
             ポイント: {points.toLocaleString()}pt
           </div>

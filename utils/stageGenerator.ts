@@ -1,4 +1,4 @@
-import { Enemy, EnemySkillType } from '@/types/adventure';
+import { Enemy } from '@/types/adventure';
 
 // ステージ情報
 export interface StageInfo {
@@ -90,9 +90,8 @@ export function generateStageInfo(stage: number): StageInfo {
     bossMultiplier = 1.2; // 10の倍数は1.2倍
   }
   
-  // 敵ステータス: ステージ1は易しく、それ以外は推奨レベル+10相当（やや緩め）
-  const enemyLevel = stage === 1 ? 1 : recommendedLevel + 10;
-  const baseStats = calculateEnemyStatsByLevel(enemyLevel);
+  // 推奨レベルに基づいて基本ステータスを計算
+  const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
   
   const enemies: Enemy[] = [];
   
@@ -115,23 +114,20 @@ export function generateStageInfo(stage: number): StageInfo {
     const isBoss = isBossStage && i === enemyCount - 1;
     const multiplier = isBoss ? bossMultiplier : 1;
     
-    // ステージ1は易しく、それ以外はやや緩めの難易度
-    const isStage1 = stage === 1;
-    const hpRatio = isStage1 ? (isBoss ? 0.6 : 0.5) : (isBoss ? 1.05 * multiplier : 0.95);
-    const defenseRatio = isStage1 ? (isBoss ? 0.5 : 0.45) : (isBoss ? 1.15 * multiplier : 1.0);
-    const attackRatio = isStage1 ? (isBoss ? 0.7 : 0.6) : (isBoss ? 1.6 * multiplier : 1.5);
-    const speedRatio = isStage1 ? (isBoss ? 0.7 : 0.6) : (isBoss ? 1.1 * multiplier : 1.0);
+    // 推奨レベルに基づいてステータスを計算（敵はプレイヤーより少し弱めに設定）
+    // 通常敵は推奨レベルの80%、ボスはmultiplierを適用
+    const enemyPowerRatio = isBoss ? 0.9 * multiplier : 0.8;
     
-    const hp = Math.floor(baseStats.hp * hpRatio);
-    const attack = Math.floor(baseStats.attack * attackRatio);
-    const defense = Math.floor(baseStats.defense * defenseRatio);
-    const speed = Math.floor(baseStats.speed * speedRatio);
+    const hp = Math.floor(baseStats.hp * enemyPowerRatio);
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio);
+    const defense = Math.floor(baseStats.defense * enemyPowerRatio);
+    const speed = Math.floor(baseStats.speed * enemyPowerRatio);
     
     // 経験値とポイント報酬（400ステージまで適切にスケール）
-    // ポイント報酬：ステージ1-30は10pt、31-60は20pt、61-90は30pt... 30ステージごとに+10pt
+    // ポイント報酬は1勝利あたり10ポイント（全敵を倒した時の合計）
+    // 敵1体あたりのポイントを計算（敵の数で割る）
     let expReward: number, pointsReward: number;
-    const basePointsPerStage = 10 + Math.floor((stage - 1) / 30) * 10;
-    const basePointsPerEnemy = basePointsPerStage / enemyCount; // 敵の数で割って1体あたりに
+    const basePointsPerEnemy = 10 / enemyCount; // 1勝利で10ポイントになるように敵の数で割る
     
     if (stage <= 100) {
       expReward = Math.floor((20 + (stage - 1) * 5) * multiplier);
@@ -162,23 +158,7 @@ export function generateStageInfo(stage: number): StageInfo {
       enemyName = `${enemyType.name} Lv.${Math.floor(stage / 5) + 1}`;
     }
     
-    // ステージ60+のボスは強力なスキルを持つ
-    let skill_type: EnemySkillType = null;
-    let skill_power = 0;
-    if (stage >= 60 && isBoss) {
-      const bossSkills: { type: EnemySkillType; power: number }[] = [
-        { type: 'heal', power: Math.floor(hp * 0.3) },              // 自分or味方のHP30%回復
-        { type: 'revive', power: Math.floor(hp * 0.5) },            // 倒れた味方を50%HPで蘇生
-        { type: 'attack_boost', power: Math.floor(attack * 0.5) },  // 攻撃力50%上昇
-        { type: 'defense_boost', power: Math.floor(defense * 0.5) } // 防御力50%上昇
-      ];
-      const skillIndex = stage % bossSkills.length;
-      skill_type = bossSkills[skillIndex].type;
-      skill_power = bossSkills[skillIndex].power;
-    }
-    
     enemies.push({
-      id: `enemy_${stage}_${i}`,
       name: enemyName,
       emoji: enemyType.emoji,
       hp: hp,
@@ -187,8 +167,7 @@ export function generateStageInfo(stage: number): StageInfo {
       defense: defense,
       speed: speed,
       experience_reward: expReward,
-      points_reward: pointsReward,
-      ...(skill_type && { skill_type, skill_power })
+      points_reward: pointsReward
     });
   }
   
@@ -208,138 +187,7 @@ export function getAllStages(): StageInfo[] {
   return stages;
 }
 
-// エクストラステージ定数（ステージ100クリアで解放）
-export const EXTRA_STAGE_BASE = 1000; // 1001=Extra1, 1002=Extra2...
-export const EXTRA_STAGE_COUNT = 10;
-
-// エクストラステージ情報を生成（強力なボス1体、推奨レベル65〜110）
-function generateExtraStageInfo(extraStageNum: number): StageInfo {
-  const stage = EXTRA_STAGE_BASE + extraStageNum;
-  const recommendedLevel = 60 + extraStageNum * 5; // Extra1=65, Extra10=110
-  const enemyLevel = recommendedLevel + 10; // やや緩め
-  const baseStats = calculateEnemyStatsByLevel(enemyLevel);
-  
-  // 強力なボス1体（最強の敵タイプを使用）
-  const enemyType = ENEMY_TYPES[Math.min(9 + extraStageNum, ENEMY_TYPES.length - 1)];
-  const bossMultiplier = 1.15 + (extraStageNum - 1) * 0.04; // やや緩め
-  
-  const hp = Math.floor(baseStats.hp * 1.1 * bossMultiplier);
-  const attack = Math.floor(baseStats.attack * 1.6 * bossMultiplier);
-  const defense = Math.floor(baseStats.defense * 1.1 * bossMultiplier);
-  const speed = Math.floor(baseStats.speed * 1.1 * bossMultiplier);
-  
-  const expReward = Math.floor((500 + extraStageNum * 200) * bossMultiplier);
-  const pointsReward = Math.floor((20 + extraStageNum * 5) * bossMultiplier);
-  
-  const bossSkills: { type: EnemySkillType; power: number }[] = [
-    { type: 'heal', power: Math.floor(hp * 0.3) },
-    { type: 'revive', power: Math.floor(hp * 0.5) },
-    { type: 'attack_boost', power: Math.floor(attack * 0.5) },
-    { type: 'defense_boost', power: Math.floor(defense * 0.5) }
-  ];
-  const skillIndex = extraStageNum % bossSkills.length;
-  const { type: skill_type, power: skill_power } = bossSkills[skillIndex];
-  
-  const enemy: Enemy = {
-    id: `enemy_extra_${extraStageNum}`,
-    name: `${enemyType.name}（エクストラボス）`,
-    emoji: enemyType.emoji,
-    hp,
-    max_hp: hp,
-    attack,
-    defense,
-    speed,
-    experience_reward: expReward,
-    points_reward: pointsReward,
-    skill_type,
-    skill_power
-  };
-  
-  return { stage, recommendedLevel, enemies: [enemy] };
-}
-
-// ステージIDがエクストラかどうか
-export function isExtraStage(stage: number): boolean {
-  return stage >= EXTRA_STAGE_BASE + 1 && stage <= EXTRA_STAGE_BASE + EXTRA_STAGE_COUNT;
-}
-
-// エクストラステージ番号を取得（1〜10）
-export function getExtraStageNum(stage: number): number {
-  return stage - EXTRA_STAGE_BASE;
-}
-
-// 経験値アップステージ定数（1日5回までクリア可能）
-export const EXP_STAGE_EASY = 2001;
-export const EXP_STAGE_NORMAL = 2002;
-export const EXP_STAGE_HARD = 2003;
-export const EXP_STAGE_DAILY_LIMIT = 5;
-
-export type ExpStageDifficulty = 'easy' | 'normal' | 'hard';
-
-export function isExpStage(stage: number): boolean {
-  return stage === EXP_STAGE_EASY || stage === EXP_STAGE_NORMAL || stage === EXP_STAGE_HARD;
-}
-
-export function getExpStageDifficulty(stage: number): ExpStageDifficulty | null {
-  if (stage === EXP_STAGE_EASY) return 'easy';
-  if (stage === EXP_STAGE_NORMAL) return 'normal';
-  if (stage === EXP_STAGE_HARD) return 'hard';
-  return null;
-}
-
-export function getExpStageId(difficulty: ExpStageDifficulty): number {
-  if (difficulty === 'easy') return EXP_STAGE_EASY;
-  if (difficulty === 'normal') return EXP_STAGE_NORMAL;
-  return EXP_STAGE_HARD;
-}
-
-// 経験値アップステージ情報を生成（難易度に応じて敵強さ・報酬が変化）
-function generateExpStageInfo(difficulty: ExpStageDifficulty): StageInfo {
-  const config = {
-    easy: { recommendedLevel: 5, enemyLevel: 10, expBase: 600, pointsBase: 15, enemyCount: 2, enemyTypeIndex: 0, statMultiplier: 0.7 },
-    normal: { recommendedLevel: 20, enemyLevel: 30, expBase: 1800, pointsBase: 40, enemyCount: 3, enemyTypeIndex: 2, statMultiplier: 1.0 },
-    hard: { recommendedLevel: 40, enemyLevel: 55, expBase: 4000, pointsBase: 80, enemyCount: 4, enemyTypeIndex: 5, statMultiplier: 1.3 }
-  };
-  const c = config[difficulty];
-  const stage = getExpStageId(difficulty);
-  const baseStats = calculateEnemyStatsByLevel(c.enemyLevel);
-  const enemyType = ENEMY_TYPES[Math.min(c.enemyTypeIndex, ENEMY_TYPES.length - 1)];
-  const enemies: Enemy[] = [];
-  const expPerEnemy = Math.floor(c.expBase / c.enemyCount);
-  const pointsPerEnemy = Math.floor(c.pointsBase / c.enemyCount);
-
-  for (let i = 0; i < c.enemyCount; i++) {
-    const hp = Math.floor(baseStats.hp * c.statMultiplier * (i === c.enemyCount - 1 ? 1.2 : 0.9));
-    const attack = Math.floor(baseStats.attack * c.statMultiplier * (i === c.enemyCount - 1 ? 1.2 : 0.9));
-    const defense = Math.floor(baseStats.defense * c.statMultiplier * (i === c.enemyCount - 1 ? 1.1 : 0.9));
-    const speed = Math.floor(baseStats.speed * c.statMultiplier * (i === c.enemyCount - 1 ? 1.1 : 0.9));
-    const isBoss = i === c.enemyCount - 1;
-    const enemyName = isBoss ? `${enemyType.name}（ボス）` : `${enemyType.name}`;
-    enemies.push({
-      id: `enemy_exp_${difficulty}_${i}`,
-      name: enemyName,
-      emoji: enemyType.emoji,
-      hp,
-      max_hp: hp,
-      attack,
-      defense,
-      speed,
-      experience_reward: expPerEnemy,
-      points_reward: pointsPerEnemy
-    });
-  }
-
-  return { stage, recommendedLevel: c.recommendedLevel, enemies };
-}
-
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
-  if (isExtraStage(stage)) {
-    return generateExtraStageInfo(getExtraStageNum(stage));
-  }
-  const difficulty = getExpStageDifficulty(stage);
-  if (difficulty) {
-    return generateExpStageInfo(difficulty);
-  }
   return generateStageInfo(stage);
 }

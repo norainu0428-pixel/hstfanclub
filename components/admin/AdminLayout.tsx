@@ -18,7 +18,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'メンバー管理', path: '/admin/members', icon: '🎴' },
     { name: 'バトルログ', path: '/admin/battles', icon: '⚔️' },
     { name: 'システム設定', path: '/admin/settings', icon: '⚙️' },
-    { name: 'お知らせ', path: '/admin/announcements', icon: '📢' },
     { name: 'HST配布', path: '/admin/distribute-hst', icon: '😊' }
   ];
 

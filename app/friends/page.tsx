@@ -7,18 +7,9 @@ import { useRouter } from 'next/navigation';
 interface FriendWithProfile {
   friend_id: string;
   display_name: string;
-  avatar_url: string | null;
   membership_tier: string;
   is_online: boolean;
   last_seen_at: string;
-}
-
-interface FriendProfileRow {
-  user_id: string;
-  display_name?: string | null;
-  avatar_url?: string | null;
-  membership_tier?: string | null;
-  last_seen_at?: string | null;
 }
 
 export default function FriendsPage() {
@@ -36,60 +27,26 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 自分が user_id または friend_id の両方を取得（双方向）
-    const { data: rows } = await supabase
+    const { data } = await supabase
       .from('friendships')
-      .select('user_id, friend_id')
-      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+      .select(`
+        friend_id,
+        friend:profiles!friendships_friend_id_fkey(display_name, membership_tier, last_seen_at)
+      `)
+      .eq('user_id', user.id)
       .eq('status', 'accepted');
 
-    if (!rows || rows.length === 0) {
-      setFriends([]);
-      setLoading(false);
-      return;
+    if (data) {
+      const formatted = data.map((f: any) => ({
+        friend_id: f.friend_id,
+        display_name: f.friend?.display_name || '不明',
+        membership_tier: f.friend?.membership_tier || 'free',
+        is_online: isOnline(f.friend?.last_seen_at),
+        last_seen_at: f.friend?.last_seen_at
+      }));
+      setFriends(formatted);
     }
 
-    const friendIds = [...new Set(rows.map((r: { user_id: string; friend_id: string }) =>
-      r.user_id === user.id ? r.friend_id : r.user_id
-    ))];
-
-    // フレンドのプロフィールを直接取得
-    let profileRows: FriendProfileRow[] = [];
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('user_id, display_name')
-      .in('user_id', friendIds);
-
-    if (error) {
-      // .in() で 400 になる場合、1件ずつ取得を試行
-      for (const fid of friendIds) {
-        const { data: p } = await supabase
-          .from('profiles')
-          .select('user_id, display_name')
-          .eq('user_id', fid)
-          .maybeSingle();
-        if (p) profileRows.push(p as FriendProfileRow);
-      }
-    } else {
-      profileRows = (profiles ?? []) as FriendProfileRow[];
-    }
-    const profileMap = new Map<string, FriendProfileRow>(
-      profileRows.map(p => [String(p.user_id), p])
-    );
-
-    const formatted: FriendWithProfile[] = friendIds.map(fid => {
-      const p = profileMap.get(String(fid));
-      return {
-        friend_id: fid,
-        display_name: p?.display_name || 'ユーザー',
-        avatar_url: p?.avatar_url ?? null,
-        membership_tier: p?.membership_tier || 'free',
-        is_online: isOnline(p?.last_seen_at ?? ''),
-        last_seen_at: p?.last_seen_at || ''
-      };
-    });
-
-    setFriends(formatted);
     setLoading(false);
   }
 
@@ -192,24 +149,8 @@ export default function FriendsPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      {friend.avatar_url ? (
-                        <img
-                          src={friend.avatar_url}
-                          alt=""
-                          className="w-12 h-12 rounded-full object-cover"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const fallback = e.currentTarget.nextElementSibling;
-                            if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold shrink-0"
-                        style={{ display: friend.avatar_url ? 'none' : 'flex' }}
-                      >
-                        {(friend.display_name || '?').charAt(0)}
+                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                        {friend.display_name.charAt(0)}
                       </div>
                       {friend.is_online && (
                         <div className="absolute bottom-0 right-0 w-4 h-4 bg-orange-500 border-2 border-gray-900 rounded-full"></div>
@@ -221,7 +162,7 @@ export default function FriendsPage() {
                         {friend.is_online ? (
                           <span className="text-orange-500">● オンライン</span>
                         ) : (
-                          <span>最終: {friend.last_seen_at ? new Date(friend.last_seen_at).toLocaleString('ja-JP') : '---'}</span>
+                          <span>最終: {new Date(friend.last_seen_at).toLocaleString('ja-JP')}</span>
                         )}
                       </div>
                     </div>

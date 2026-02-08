@@ -161,19 +161,19 @@ export default function PointsManagement() {
 
   return (
     <AdminLayout>
-      <div className="text-gray-900">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">ポイント管理</h1>
+      <div>
+        <h1 className="text-3xl font-bold mb-8">ポイント管理</h1>
 
         {/* 個別付与 */}
-        <div className="bg-white rounded-xl p-6 shadow-lg mb-6 text-gray-900">
-          <h2 className="text-xl font-bold mb-4 text-gray-900">個別ポイント付与</h2>
+        <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
+          <h2 className="text-xl font-bold mb-4">個別ポイント付与</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-bold mb-2 text-gray-900">ユーザー選択</label>
+              <label className="block text-sm font-bold mb-2">ユーザー選択</label>
               <select
                 value={selectedUser}
                 onChange={(e) => setSelectedUser(e.target.value)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
               >
                 <option value="">選択してください</option>
                 {users.map(user => (
@@ -184,22 +184,22 @@ export default function PointsManagement() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold mb-2 text-gray-900">ポイント数（マイナス可）</label>
+              <label className="block text-sm font-bold mb-2">ポイント数（マイナス可）</label>
               <input
                 type="number"
                 value={pointAmount}
                 onChange={(e) => setPointAmount(parseInt(e.target.value) || 0)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
                 placeholder="100"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold mb-2 text-gray-900">理由</label>
+              <label className="block text-sm font-bold mb-2">理由</label>
               <input
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white placeholder-gray-600"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
                 placeholder="例: イベント参加報酬"
               />
             </div>
@@ -213,15 +213,15 @@ export default function PointsManagement() {
         </div>
 
         {/* 一括付与 */}
-        <div className="bg-white rounded-xl p-6 shadow-lg text-gray-900">
-          <h2 className="text-xl font-bold mb-4 text-gray-900">一括ポイント付与</h2>
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <h2 className="text-xl font-bold mb-4">一括ポイント付与</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-bold mb-2 text-gray-900">対象</label>
+              <label className="block text-sm font-bold mb-2">対象</label>
               <select
                 value={bulkRole}
                 onChange={(e) => setBulkRole(e.target.value)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
               >
                 <option value="all">全ユーザー</option>
                 <option value="member">メンバーのみ</option>
@@ -230,12 +230,12 @@ export default function PointsManagement() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold mb-2 text-gray-900">ポイント数</label>
+              <label className="block text-sm font-bold mb-2">ポイント数</label>
               <input
                 type="number"
                 value={bulkAmount}
                 onChange={(e) => setBulkAmount(parseInt(e.target.value) || 0)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
                 placeholder="100"
               />
             </div>

@@ -103,27 +103,27 @@ export default function PvPHistoryPage() {
 
         {/* 戦績サマリー */}
         {stats && (
-          <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl text-gray-900">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">戦績</h2>
+          <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4">戦績</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <div className="text-3xl font-bold text-blue-600">{stats.total_battles || 0}</div>
-                <div className="text-sm text-gray-800">総戦闘数</div>
+                <div className="text-sm text-gray-600">総戦闘数</div>
               </div>
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <div className="text-3xl font-bold text-green-600">{stats.wins || 0}</div>
-                <div className="text-sm text-gray-800">勝利</div>
+                <div className="text-sm text-gray-600">勝利</div>
               </div>
               <div className="text-center p-4 bg-red-50 rounded-lg">
                 <div className="text-3xl font-bold text-red-600">{stats.losses || 0}</div>
-                <div className="text-sm text-gray-800">敗北</div>
+                <div className="text-sm text-gray-600">敗北</div>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-lg">
                 <div className="text-3xl font-bold text-purple-600">{stats.rating || 1000}</div>
-                <div className="text-sm text-gray-800">レーティング</div>
+                <div className="text-sm text-gray-600">レーティング</div>
               </div>
             </div>
-            <div className="mt-4 text-center text-gray-900">
+            <div className="mt-4 text-center">
               <div className="text-lg">
                 勝率: <span className="font-bold text-blue-600">
                   {stats.total_battles > 0 ? ((stats.wins / stats.total_battles) * 100).toFixed(1) : 0}%
@@ -134,10 +134,10 @@ export default function PvPHistoryPage() {
         )}
 
         {/* 対戦履歴 */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
-          <h2 className="text-xl font-bold mb-4 text-gray-900">最近の対戦</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-2xl">
+          <h2 className="text-xl font-bold mb-4">最近の対戦</h2>
           {history.length === 0 ? (
-            <div className="text-center py-12 text-gray-800">
+            <div className="text-center py-12 text-gray-500">
               対戦履歴がありません
             </div>
           ) : (
@@ -158,10 +158,10 @@ export default function PvPHistoryPage() {
                       {battle.result === 'win' ? '🎉' : battle.result === 'loss' ? '😢' : '🤝'}
                     </div>
                     <div>
-                      <div className="font-bold text-lg text-gray-900">
+                      <div className="font-bold text-lg">
                         vs {battle.opponent_name}
                       </div>
-                      <div className="text-sm text-gray-800">
+                      <div className="text-sm text-gray-500">
                         {new Date(battle.created_at).toLocaleString('ja-JP')}
                       </div>
                     </div>

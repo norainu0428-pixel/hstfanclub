@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
-import { generateMemberStatsWithIV } from '@/utils/memberStats';
 
 type Rarity = 'HST' | 'stary' | 'common' | 'rare' | 'super-rare' | 'ultra-rare' | 'legendary';
 
@@ -17,11 +16,6 @@ interface GachaResult {
     skill_type?: string | null;
     skill_power?: number;
   };
-  individual_hp?: number;
-  individual_atk?: number;
-  individual_def?: number;
-  individual_spd?: number;
-  talent_value?: number;
 }
 
 // HSTメンバーデータ（スキル情報追加）
@@ -387,76 +381,36 @@ export default function PremiumGachaPage() {
     if (!user) return;
 
     const baseStats: { [key: string]: { hp: number; attack: number; defense: number; speed: number } } = {
-      'HST': { hp: 300, attack: 80, defense: 50, speed: 60 },
-      'stary': { hp: 200, attack: 50, defense: 30, speed: 40 },
-      'legendary': { hp: 150, attack: 35, defense: 20, speed: 25 },
-      'ultra-rare': { hp: 120, attack: 25, defense: 15, speed: 20 },
-      'super-rare': { hp: 100, attack: 20, defense: 12, speed: 15 },
-      'rare': { hp: 80, attack: 15, defense: 10, speed: 12 },
-      'common': { hp: 60, attack: 10, defense: 8, speed: 10 }
+      'HST': { hp: 300, attack: 100, defense: 50, speed: 60 },
+      'stary': { hp: 200, attack: 65, defense: 30, speed: 40 },
+      'legendary': { hp: 150, attack: 45, defense: 20, speed: 25 },
+      'ultra-rare': { hp: 120, attack: 35, defense: 15, speed: 20 },
+      'super-rare': { hp: 100, attack: 28, defense: 12, speed: 15 },
+      'rare': { hp: 80, attack: 22, defense: 10, speed: 12 },
+      'common': { hp: 60, attack: 16, defense: 8, speed: 10 }
     };
 
-    // メンバー保存（個体値・才能値を付与。カラムが無い場合は従来の項目のみで保存）
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      const baseStatsForRarity = baseStats[result.rarity];
-      const statsWithIV = generateMemberStatsWithIV(baseStatsForRarity);
-      result.individual_hp = statsWithIV.individual_hp;
-      result.individual_atk = statsWithIV.individual_atk;
-      result.individual_def = statsWithIV.individual_def;
-      result.individual_spd = statsWithIV.individual_spd;
-      result.talent_value = statsWithIV.talent_value;
-
-      const insertPayload = {
-        user_id: user.id,
-        member_name: result.member.name,
-        member_emoji: result.member.emoji,
-        member_description: result.member.description,
-        rarity: result.rarity,
-        hp: statsWithIV.hp,
-        max_hp: statsWithIV.hp,
-        current_hp: statsWithIV.hp,
-        attack: statsWithIV.attack,
-        defense: statsWithIV.defense,
-        speed: statsWithIV.speed,
-        skill_type: result.member.skill_type || null,
-        skill_power: result.member.skill_power || 0,
-        individual_hp: statsWithIV.individual_hp,
-        individual_atk: statsWithIV.individual_atk,
-        individual_def: statsWithIV.individual_def,
-        individual_spd: statsWithIV.individual_spd,
-        talent_value: statsWithIV.talent_value
-      };
-
-      const { error: insertError } = await supabase.from('user_members').insert(insertPayload);
-
-      if (insertError) {
-        const isColumnError = /column.*does not exist|unknown column/i.test(insertError.message);
-        if (isColumnError) {
-          const { error: fallbackError } = await supabase.from('user_members').insert({
-            user_id: user.id,
-            member_name: result.member.name,
-            member_emoji: result.member.emoji,
-            member_description: result.member.description,
-            rarity: result.rarity,
-            hp: statsWithIV.hp,
-            max_hp: statsWithIV.hp,
-            current_hp: statsWithIV.hp,
-            attack: statsWithIV.attack,
-            defense: statsWithIV.defense,
-            speed: statsWithIV.speed,
-            skill_type: result.member.skill_type || null,
-            skill_power: result.member.skill_power || 0
-          });
-          if (fallbackError) {
-            alert(`キャラの保存に失敗しました: ${fallbackError.message}\n（Supabaseで supabase_iv_talent.sql の実行を推奨します）`);
-            return;
-          }
-        } else {
-          alert(`キャラの保存に失敗しました: ${insertError.message}`);
-          return;
-        }
-      }
+    // メンバー保存
+    for (const result of results) {
+      const stats = baseStats[result.rarity];
+      
+      await supabase
+        .from('user_members')
+        .insert({
+          user_id: user.id,
+          member_name: result.member.name,
+          member_emoji: result.member.emoji,
+          member_description: result.member.description,
+          rarity: result.rarity,
+          hp: stats.hp,
+          max_hp: stats.hp,
+          current_hp: stats.hp,
+          attack: stats.attack,
+          defense: stats.defense,
+          speed: stats.speed,
+          skill_type: result.member.skill_type || null,
+          skill_power: result.member.skill_power || 0
+        });
     }
 
     // ポイント消費
@@ -604,7 +558,7 @@ export default function PremiumGachaPage() {
           <div className="text-center">
             <div className="text-gray-600 mb-2">現在のポイント</div>
             <div className="text-5xl font-bold text-purple-600">{currentPoints}</div>
-            <div className="text-sm text-gray-700 mt-2">pt</div>
+            <div className="text-sm text-gray-500 mt-2">pt</div>
             {currentPoints < 50 && (
               <div className="mt-3 text-red-500 font-bold">
                 ⚠️ ガチャにはあと{50 - currentPoints}pt必要です
@@ -674,7 +628,7 @@ export default function PremiumGachaPage() {
                 >
                   {isSpinning ? '抽選中...' : currentPoints < 50 ? 'ポイント不足' : 'ガチャを回す！（50pt）'}
                 </button>
-                <div className="text-sm text-gray-700 mt-4">
+                <div className="text-sm text-gray-500 mt-4">
                   ガチャ1回: 50pt消費
                 </div>
               </>

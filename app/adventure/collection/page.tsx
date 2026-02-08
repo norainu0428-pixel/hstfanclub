@@ -48,32 +48,6 @@ export default function CollectionPage() {
     return ownerStatus;
   }
 
-  async function toggleLock(member: Member) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const newLocked = !member.locked;
-    const { error } = await supabase
-      .from('user_members')
-      .update({ locked: newLocked })
-      .eq('id', member.id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('ロック更新エラー:', error);
-      return;
-    }
-
-    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: newLocked } : m));
-    if (newLocked) {
-      if (baseMember?.id === member.id) setBaseMember(null);
-      setMaterialMembers(prev => prev.filter(m => m.id !== member.id));
-    } else {
-      if (baseMember?.id === member.id) setBaseMember(prev => prev ? { ...prev, locked: false } : null);
-      setMaterialMembers(prev => prev.map(m => m.id === member.id ? { ...m, locked: false } : m));
-    }
-  }
-
   async function loadMembers() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -210,14 +184,6 @@ export default function CollectionPage() {
   // 合成実行
   async function executeFusion() {
     if (!baseMember || materialMembers.length === 0) return;
-    if (baseMember.locked) {
-      alert('ロック中のメンバーは合成に使えません');
-      return;
-    }
-    if (materialMembers.some(m => m.locked)) {
-      alert('ロック中のメンバーは素材に使えません');
-      return;
-    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -381,14 +347,14 @@ export default function CollectionPage() {
         </div>
 
         {/* フィルター・ソート */}
-        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl text-gray-900">
+        <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-bold mb-2 text-gray-900">並び替え</label>
+              <label className="block text-sm font-bold mb-2">並び替え</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'level' | 'rarity' | 'obtained')}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
               >
                 <option value="level">レベル順</option>
                 <option value="rarity">レアリティ順</option>
@@ -396,11 +362,11 @@ export default function CollectionPage() {
               </select>
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-bold mb-2 text-gray-900">レアリティ</label>
+              <label className="block text-sm font-bold mb-2">レアリティ</label>
               <select
                 value={filterRarity}
                 onChange={(e) => setFilterRarity(e.target.value)}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
               >
                 <option value="all">すべて</option>
                 {isOwner && <option value="HST">👑 HST</option>}
@@ -417,15 +383,15 @@ export default function CollectionPage() {
 
         {/* 合成モード */}
         {fusionMode && (
-          <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl text-gray-900">
-            <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">🔮 メンバー合成</h2>
-            <p className="text-center text-gray-800 mb-6">
+          <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 text-center">🔮 メンバー合成</h2>
+            <p className="text-center text-gray-600 mb-6">
               ベースメンバー1体に素材メンバー5体を合成して強化できます
             </p>
             
             {/* ベースメンバー選択 */}
             <div className="mb-6">
-              <h3 className="text-lg font-bold mb-3 text-gray-900">ベースメンバー（強化されるメンバー）</h3>
+              <h3 className="text-lg font-bold mb-3">ベースメンバー（強化されるメンバー）</h3>
               {baseMember ? (
                 <div className="flex justify-center">
                   <div className="relative">
@@ -439,7 +405,7 @@ export default function CollectionPage() {
                   </div>
                 </div>
               ) : (
-                <div className="border-4 border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-800">
+                <div className="border-4 border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400">
                   <div className="text-4xl mb-2">➕</div>
                   <div>ベースメンバーを選択</div>
                 </div>
@@ -448,7 +414,7 @@ export default function CollectionPage() {
 
             {/* 素材メンバー選択 */}
             <div className="mb-6">
-              <h3 className="text-lg font-bold mb-3 text-gray-900">
+              <h3 className="text-lg font-bold mb-3">
                 素材メンバー（最大5体）: {materialMembers.length}/5
               </h3>
               <div className="grid grid-cols-5 gap-3">
@@ -469,7 +435,7 @@ export default function CollectionPage() {
                           </button>
                         </>
                       ) : (
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-800 min-h-[120px] flex items-center justify-center">
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-400 min-h-[120px] flex items-center justify-center">
                           <div className="text-2xl">➕</div>
                         </div>
                       )}
@@ -518,24 +484,22 @@ export default function CollectionPage() {
         )}
 
         {/* メンバー一覧 */}
-        <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
-          <h2 className="text-xl font-bold mb-4 text-gray-900">
+        <div className="bg-white rounded-2xl p-6 shadow-2xl">
+          <h2 className="text-xl font-bold mb-4">
             {fusionMode ? 'メンバーを選択' : '所持メンバー'}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {members.map(member => {
-              // 合成モードの場合、クリックで選択（ロック中は選択不可）
+              // 合成モードの場合、クリックで選択
               if (fusionMode) {
                 const isBase = baseMember?.id === member.id;
                 const isMaterial = materialMembers.some(m => m.id === member.id);
                 const materialIndex = materialMembers.findIndex(m => m.id === member.id);
-                const isLocked = member.locked === true;
                 
                 return (
                   <div
                     key={member.id}
                     onClick={() => {
-                      if (isLocked) return;
                       if (isBase) {
                         setBaseMember(null);
                       } else if (isMaterial) {
@@ -550,31 +514,22 @@ export default function CollectionPage() {
                         }
                       }
                     }}
-                    className={`${isLocked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+                    className="cursor-pointer"
                   >
                     <MemberCard
                       member={member}
                       selected={isBase || isMaterial}
                       showStats={!fusionMode}
-                      showLockToggle={true}
-                      onLockToggle={toggleLock}
                     />
                   </div>
                 );
               }
               
-              return (
-                <MemberCard
-                  key={member.id}
-                  member={member}
-                  showLockToggle={true}
-                  onLockToggle={toggleLock}
-                />
-              );
+              return <MemberCard key={member.id} member={member} />;
             })}
           </div>
           {members.length === 0 && (
-            <div className="text-center text-gray-800 py-12">
+            <div className="text-center text-gray-500 py-12">
               メンバーがいません
             </div>
           )}

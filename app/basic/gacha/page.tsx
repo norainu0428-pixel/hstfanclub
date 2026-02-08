@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
-import { updateProfilePoints } from '@/utils/profilePoints';
-import { generateMemberStatsWithIV, getIVEvaluation, getTalentEvaluation } from '@/utils/memberStats';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import Image from 'next/image';
 
@@ -20,11 +18,6 @@ interface GachaResult {
     skill_type?: string | null;
     skill_power?: number;
   };
-  individual_hp?: number;
-  individual_atk?: number;
-  individual_def?: number;
-  individual_spd?: number;
-  talent_value?: number;
 }
 
 // HSTメンバーデータ（プレミアムと同じ）
@@ -206,26 +199,45 @@ export default function BasicGachaPage() {
           return;
         }
 
-        // ログイン済みならアクセス許可（通常会員ガチャは全ログインユーザーに開放）
-        // プロフィールはポイント表示用に取得（失敗時は0ptで表示）
-        let points = 0;
-        let isOwner = false;
-        const { data: profileData, error: rpcError } = await supabase.rpc('get_my_profile');
-        const profileFromRpc = Array.isArray(profileData) ? profileData[0] : profileData;
-        if (profileFromRpc) {
-          points = profileFromRpc.points ?? 0;
-          isOwner = profileFromRpc.role === 'owner';
-        } else if (rpcError) {
-          const res = await supabase.from('profiles').select('points, role').eq('user_id', user.id).maybeSingle();
-          if (res.data) {
-            points = res.data.points ?? 0;
-            isOwner = res.data.role === 'owner';
-          }
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, premium_until, points')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('プロフィール取得エラー:', profileError);
+        }
+
+        if (!profile) {
+          setIsAuthorized(false);
+          setLoading(false);
+          return;
+        }
+
+        // ownerとstaffは無条件でアクセス可能
+        if (profile.role === 'owner' || profile.role === 'staff') {
+          setIsAuthorized(true);
+          setCurrentPoints(profile.points || 0);
+          setIsOwner(profile.role === 'owner');
+          await loadGachaRates();
+          setLoading(false);
+          return;
+        }
+
+        // 一般ユーザーはpremium_untilをチェック
+        const now = new Date();
+        const premiumUntil = profile.premium_until ? new Date(profile.premium_until) : null;
+
+        if (!premiumUntil || premiumUntil < now) {
+          alert('プレミアム会員限定です');
+          router.push('/');
+          setLoading(false);
+          return;
         }
 
         setIsAuthorized(true);
-        setCurrentPoints(points);
-        setIsOwner(isOwner);
+        setCurrentPoints(profile.points || 0);
         await loadGachaRates();
         setLoading(false);
       } catch (error) {
@@ -338,72 +350,36 @@ export default function BasicGachaPage() {
       'common': { hp: 60, attack: 10, defense: 8, speed: 10 }
     };
 
-    // メンバー保存（個体値・才能値を付与。カラムが無い場合は従来の項目のみで保存）
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      const baseStatsForRarity = baseStats[result.rarity];
-      const statsWithIV = generateMemberStatsWithIV(baseStatsForRarity);
-      result.individual_hp = statsWithIV.individual_hp;
-      result.individual_atk = statsWithIV.individual_atk;
-      result.individual_def = statsWithIV.individual_def;
-      result.individual_spd = statsWithIV.individual_spd;
-      result.talent_value = statsWithIV.talent_value;
-
-      const insertPayload = {
-        user_id: user.id,
-        member_name: result.member.name,
-        member_emoji: result.member.emoji,
-        member_description: result.member.description,
-        rarity: result.rarity,
-        hp: statsWithIV.hp,
-        max_hp: statsWithIV.hp,
-        current_hp: statsWithIV.hp,
-        attack: statsWithIV.attack,
-        defense: statsWithIV.defense,
-        speed: statsWithIV.speed,
-        skill_type: result.member.skill_type || null,
-        skill_power: result.member.skill_power || 0,
-        individual_hp: statsWithIV.individual_hp,
-        individual_atk: statsWithIV.individual_atk,
-        individual_def: statsWithIV.individual_def,
-        individual_spd: statsWithIV.individual_spd,
-        talent_value: statsWithIV.talent_value
-      };
-
-      const { error: insertError } = await supabase.from('user_members').insert(insertPayload);
-
-      if (insertError) {
-        const isColumnError = /column.*does not exist|unknown column/i.test(insertError.message);
-        if (isColumnError) {
-          const { error: fallbackError } = await supabase.from('user_members').insert({
-            user_id: user.id,
-            member_name: result.member.name,
-            member_emoji: result.member.emoji,
-            member_description: result.member.description,
-            rarity: result.rarity,
-            hp: statsWithIV.hp,
-            max_hp: statsWithIV.hp,
-            current_hp: statsWithIV.hp,
-            attack: statsWithIV.attack,
-            defense: statsWithIV.defense,
-            speed: statsWithIV.speed,
-            skill_type: result.member.skill_type || null,
-            skill_power: result.member.skill_power || 0
-          });
-          if (fallbackError) {
-            alert(`キャラの保存に失敗しました: ${fallbackError.message}\n（Supabaseで supabase_iv_talent.sql の実行を推奨します）`);
-            return;
-          }
-        } else {
-          alert(`キャラの保存に失敗しました: ${insertError.message}`);
-          return;
-        }
-      }
+    // メンバー保存
+    for (const result of results) {
+      const stats = baseStats[result.rarity];
+      
+      await supabase
+        .from('user_members')
+        .insert({
+          user_id: user.id,
+          member_name: result.member.name,
+          member_emoji: result.member.emoji,
+          member_description: result.member.description,
+          rarity: result.rarity,
+          hp: stats.hp,
+          max_hp: stats.hp,
+          current_hp: stats.hp,
+          attack: stats.attack,
+          defense: stats.defense,
+          speed: stats.speed,
+          skill_type: result.member.skill_type || null,
+          skill_power: result.member.skill_power || 0
+        });
     }
 
-    // ポイント消費（RPCで確実に反映）
+    // ポイント消費
     const newPoints = currentPoints - pointCost;
-    await updateProfilePoints(-pointCost);
+    await supabase
+      .from('profiles')
+      .update({ points: newPoints })
+      .eq('user_id', user.id);
+
     setCurrentPoints(newPoints);
 
     // ミッション進捗更新（ガチャを引いた回数分）
@@ -592,7 +568,7 @@ export default function BasicGachaPage() {
           <div className="text-center">
             <div className="text-gray-600 mb-2">現在のポイント</div>
             <div className="text-5xl font-bold text-blue-600">{currentPoints}</div>
-            <div className="text-sm text-gray-700 mt-2">pt</div>
+            <div className="text-sm text-gray-500 mt-2">pt</div>
             {currentPoints < 30 && (
               <div className="mt-3 text-red-500 font-bold">
                 ⚠️ ガチャにはあと{30 - currentPoints}pt必要です
@@ -682,16 +658,6 @@ export default function BasicGachaPage() {
                         スキル: {getSkillName(result.member.skill_type)}
                       </div>
                     )}
-                    {(result.individual_hp != null || result.talent_value != null) && (
-                      <div className="mt-2 flex gap-2 justify-center flex-wrap">
-                        <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded text-sm">
-                          個体: {getIVEvaluation({ individual_hp: result.individual_hp ?? 0, individual_atk: result.individual_atk ?? 0, individual_def: result.individual_def ?? 0, individual_spd: result.individual_spd ?? 0 })}
-                        </span>
-                        <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded text-sm">
-                          才能: {getTalentEvaluation(result.talent_value ?? 50)}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -704,7 +670,7 @@ export default function BasicGachaPage() {
                 >
                   {isSpinning ? '抽選中...' : currentPoints < 30 ? 'ポイント不足' : 'ガチャを回す！（30pt）'}
                 </button>
-                <div className="text-sm text-gray-700 mt-4">
+                <div className="text-sm text-gray-500 mt-4">
                   ガチャ1回: 30pt消費
                 </div>
               </>

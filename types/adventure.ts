@@ -16,24 +16,16 @@ export interface Member {
   speed: number;
   obtained_at: string;
   is_favorite: boolean;
-  locked?: boolean;
+  /** 0=未進化, 1=進化済み */
+  evolution_stage?: number;
+  evolved_at?: string | null;
   skill_type?: string | null;
   skill_power?: number;
   revive_used?: boolean;
   current_hp?: number;
-  /** 個体値（-10〜+10） */
-  individual_hp?: number;
-  individual_atk?: number;
-  individual_def?: number;
-  individual_spd?: number;
-  /** 才能値（0〜100）、レベルアップ成長に影響 */
-  talent_value?: number;
 }
 
-export type EnemySkillType = 'heal' | 'revive' | 'attack_boost' | 'defense_boost' | null;
-
 export interface Enemy {
-  id?: string;
   name: string;
   emoji: string;
   hp: number;
@@ -43,9 +35,6 @@ export interface Enemy {
   speed: number;
   experience_reward: number;
   points_reward: number;
-  /** ステージ60+のボス用スキル */
-  skill_type?: EnemySkillType;
-  skill_power?: number;
 }
 
 export interface BattleAction {
