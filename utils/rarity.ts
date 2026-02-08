@@ -28,11 +28,27 @@ const RARITY_STAR: Record<string, string> = {
   'common': '★1'
 };
 
+// 日本語・DBの表記揺れ → 英語キーに正規化
+function normalizeRarity(rarity: string): string {
+  if (!rarity || typeof rarity !== 'string') return rarity;
+  const n = rarity.trim().toLowerCase();
+  const map: Record<string, string> = {
+    'hst': 'HST', 'stary': 'stary',
+    'レジェンド': 'legendary', 'legendary': 'legendary',
+    'ウルトラレア': 'ultra-rare', 'ultra-rare': 'ultra-rare', 'ultrare': 'ultra-rare',
+    'スーパーレア': 'super-rare', 'super-rare': 'super-rare', 'superrare': 'super-rare',
+    'レア': 'rare', 'rare': 'rare',
+    'コモン': 'common', 'common': 'common', 'ノーマル': 'common'
+  };
+  return map[n] ?? map[rarity] ?? rarity;
+}
+
 /**
  * フル表示用（ガチャ結果・詳細表示など）
  * ランク＋名前で階級が一目でわかる表記
  */
 export function getRarityLabel(rarity: string): string {
+  const key = normalizeRarity(rarity);
   const labels: Record<string, string> = {
     'HST': '★7 HST（最上位）',
     'stary': '★6 STARY（伝説）',
@@ -42,7 +58,7 @@ export function getRarityLabel(rarity: string): string {
     'rare': '★2 レア',
     'common': '★1 コモン'
   };
-  return labels[rarity] ?? `★? ${rarity}`;
+  return labels[key] ?? labels[rarity] ?? `★? ${rarity}`;
 }
 
 /**
@@ -50,7 +66,8 @@ export function getRarityLabel(rarity: string): string {
  * ランクのみで階級が一目瞭然（★7～★1）
  */
 export function getRarityShortLabel(rarity: string): string {
-  return RARITY_STAR[rarity] ?? `★? ${rarity}`;
+  const key = normalizeRarity(rarity);
+  return RARITY_STAR[key] ?? RARITY_STAR[rarity] ?? `★? ${rarity}`;
 }
 
 /**
@@ -66,13 +83,15 @@ export function getRarityMediumLabel(rarity: string): string {
     'rare': '★2 レア',
     'common': '★1 コモン'
   };
-  return labels[rarity] ?? `${RARITY_STAR[rarity] ?? '★?'} ${rarity}`;
+  const key = normalizeRarity(rarity);
+  return labels[key] ?? labels[rarity] ?? `${RARITY_STAR[key] ?? RARITY_STAR[rarity] ?? '★?'} ${rarity}`;
 }
 
 /**
  * 管理画面・確率表用（絵文字＋ランク付き）
  */
 export function getRarityLabelWithEmoji(rarity: string): string {
+  const key = normalizeRarity(rarity);
   const labels: Record<string, string> = {
     'HST': '👑 ★7 HST（最上位）',
     'stary': '🌠 ★6 STARY（伝説）',
@@ -82,14 +101,15 @@ export function getRarityLabelWithEmoji(rarity: string): string {
     'rare': '✨ ★2 レア',
     'common': '📦 ★1 コモン'
   };
-  return labels[rarity] ?? rarity;
+  return labels[key] ?? labels[rarity] ?? rarity;
 }
 
 /**
  * 背景色クラス（Tailwind）
  */
 export function getRarityColorClass(rarity: string): string {
-  switch (rarity) {
+  const key = normalizeRarity(rarity);
+  switch (key) {
     case 'HST': return 'bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600';
     case 'stary': return 'bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500';
     case 'legendary': return 'bg-gradient-to-r from-yellow-400 to-orange-500';
@@ -105,6 +125,7 @@ export function getRarityColorClass(rarity: string): string {
  * ボーダー色（HEX）
  */
 export function getRarityBorderColor(rarity: string): string {
+  const key = normalizeRarity(rarity);
   const colors: Record<string, string> = {
     'HST': '#f59e0b',
     'stary': '#ec4899',
@@ -114,7 +135,7 @@ export function getRarityBorderColor(rarity: string): string {
     'rare': '#3b82f6',
     'common': '#6b7280'
   };
-  return colors[rarity] ?? '#6b7280';
+  return colors[key] ?? colors[rarity] ?? '#6b7280';
 }
 
 /**
