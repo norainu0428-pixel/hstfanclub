@@ -27,11 +27,41 @@ export default function PartyStagesPage() {
     load();
   }, []);
 
+  // 招待ロビー解散をリアルタイム検知（invite_id付きでステージ一覧表示中）
+  useEffect(() => {
+    if (!inviteId) return;
+    const channel = supabase
+      .channel(`party-invite-stages:${inviteId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'adventure_invites', filter: `id=eq.${inviteId}` },
+        (payload: { new: { status?: string } }) => {
+          if (payload.new?.status === 'cancelled') {
+            router.push('/party?lobby_disbanded=1');
+          }
+        }
+      )
+      .subscribe();
+    return () => { channel.unsubscribe(); };
+  }, [inviteId, router]);
+
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push('/');
       return;
+    }
+    if (inviteId) {
+      const { data: invite } = await supabase
+        .from('adventure_invites')
+        .select('status')
+        .eq('id', inviteId)
+        .single();
+      if (invite?.status === 'cancelled') {
+        router.push('/party?lobby_disbanded=1');
+        setLoading(false);
+        return;
+      }
     }
     const { data } = await supabase
       .from('party_stages')

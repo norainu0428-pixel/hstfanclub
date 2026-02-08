@@ -32,6 +32,24 @@ export default function PartyStagePage() {
     load();
   }, []);
 
+  // 招待ロビー解散をリアルタイム検知（パーティモード時）
+  useEffect(() => {
+    if (!inviteId) return;
+    const channel = supabase
+      .channel(`party-invite-stage:${inviteId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'adventure_invites', filter: `id=eq.${inviteId}` },
+        (payload: { new: { status?: string } }) => {
+          if (payload.new?.status === 'cancelled') {
+            router.push('/party?lobby_disbanded=1');
+          }
+        }
+      )
+      .subscribe();
+    return () => { channel.unsubscribe(); };
+  }, [inviteId, router]);
+
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -42,12 +60,17 @@ export default function PartyStagePage() {
     if (inviteId) {
       const { data: invite, error: invErr } = await supabase
         .from('adventure_invites')
-        .select('host_id, host_party_ids, friend_party_snapshot, invite_mode')
+        .select('host_id, host_party_ids, friend_party_snapshot, invite_mode, status')
         .eq('id', inviteId)
         .single();
       if (invErr || !invite || invite.invite_mode !== 'party') {
         alert('招待情報の取得に失敗しました');
         router.push('/party');
+        setLoading(false);
+        return;
+      }
+      if (invite.status === 'cancelled') {
+        router.push('/party?lobby_disbanded=1');
         setLoading(false);
         return;
       }

@@ -63,6 +63,24 @@ export default function BattlePage() {
 
   useEffect(() => { initBattle(); }, []);
 
+  // パーティモード時: 解散をリアルタイム検知して即リダイレクト
+  useEffect(() => {
+    if (!inviteId || !partyStageId) return;
+    const channel = supabase
+      .channel(`party-invite-battle:${inviteId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'adventure_invites', filter: `id=eq.${inviteId}` },
+        (payload: { new: { status?: string } }) => {
+          if (payload.new?.status === 'cancelled') {
+            router.push('/party?lobby_disbanded=1');
+          }
+        }
+      )
+      .subscribe();
+    return () => { channel.unsubscribe(); };
+  }, [inviteId, partyStageId, router]);
+
   // オートバトル: プレイヤーターン時に自動で通常攻撃
   useEffect(() => {
     if (!isPlayerTurn || !isAutoMode || battleResult || loading || party.length === 0) return;
@@ -98,12 +116,17 @@ export default function BattlePage() {
     if (inviteId) {
       const { data: invite, error: invErr } = await supabase
         .from('adventure_invites')
-        .select('host_id, friend_id, host_party_ids, friend_party_snapshot')
+        .select('host_id, friend_id, host_party_ids, friend_party_snapshot, status')
         .eq('id', inviteId)
         .single();
       if (invErr || !invite) {
         alert('招待の取得に失敗しました');
         router.push(partyStageId ? '/party' : '/adventure');
+        return;
+      }
+      if (invite.status === 'cancelled') {
+        setLoading(false);
+        router.push('/party?lobby_disbanded=1');
         return;
       }
       const { data: { user } } = await supabase.auth.getUser();
