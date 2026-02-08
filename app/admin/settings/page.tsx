@@ -373,16 +373,16 @@ export default function SettingsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-900">★7が最上位</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">通常確率<br /><span className="text-xs font-normal text-gray-900">単発時の%</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連確率<br /><span className="text-xs font-normal text-gray-900">10回目確定の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">レアリティ<br /><span className="text-xs font-normal text-black">★7が最上位</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">通常確率<br /><span className="text-xs font-normal text-black">単発時の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">10連確率<br /><span className="text-xs font-normal text-black">10回目確定の%</span></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {[...rates].sort(sortByRarity).map(rate => (
                         <tr key={rate.rarity} className="hover:bg-gray-50">
                           <td className="px-4 py-4">
-                            <div className="font-bold text-base whitespace-nowrap">{getRarityLabel(rate.rarity)}</div>
+                            <div className="font-bold text-base whitespace-nowrap text-black">{getRarityLabel(rate.rarity)}</div>
                           </td>
                           <td className="px-4 py-4">
                             <input
@@ -395,7 +395,7 @@ export default function SettingsPage() {
                               placeholder="0"
                               className="border-2 border-gray-300 rounded-lg px-3 py-2 w-24 text-center font-bold"
                             />
-                            <span className="ml-1 text-gray-600">%</span>
+                            <span className="ml-1 text-black">%</span>
                           </td>
                           <td className="px-4 py-4">
                             <input
@@ -408,7 +408,7 @@ export default function SettingsPage() {
                               placeholder="0"
                               className="border-2 border-gray-300 rounded-lg px-3 py-2 w-24 text-center font-bold"
                             />
-                            <span className="ml-1 text-gray-600">%</span>
+                            <span className="ml-1 text-black">%</span>
                           </td>
                         </tr>
                       ))}
@@ -425,18 +425,18 @@ export default function SettingsPage() {
                     return (
                       <>
                         <div className={`p-6 rounded-xl border-2 ${okSingle ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-400'}`}>
-                          <div className="text-sm text-gray-600 mb-1">通常確率の合計</div>
+                          <div className="text-sm text-black mb-1">通常確率の合計</div>
                           <div className={`text-4xl font-bold ${okSingle ? 'text-green-600' : 'text-red-600'}`}>
                             {totalSingle.toFixed(1)}%
                           </div>
-                          <div className="text-sm mt-1">{okSingle ? '✓ 100% OK' : '※ 100%にしてください'}</div>
+                          <div className="text-sm mt-1 text-black">{okSingle ? '✓ 100% OK' : '※ 100%にしてください'}</div>
                         </div>
                         <div className={`p-6 rounded-xl border-2 ${okTen ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-400'}`}>
-                          <div className="text-sm text-gray-600 mb-1">10連確率の合計</div>
+                          <div className="text-sm text-black mb-1">10連確率の合計</div>
                           <div className={`text-4xl font-bold ${okTen ? 'text-green-600' : 'text-red-600'}`}>
                             {totalTen.toFixed(1)}%
                           </div>
-                          <div className="text-sm mt-1">{okTen ? '✓ 100% OK' : '※ 100%にしてください'}</div>
+                          <div className="text-sm mt-1 text-black">{okTen ? '✓ 100% OK' : '※ 100%にしてください'}</div>
                         </div>
                       </>
                     );
@@ -470,16 +470,16 @@ export default function SettingsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-900">★7が最上位</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">通常確率<br /><span className="text-xs font-normal text-gray-900">単発時の%</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連確率<br /><span className="text-xs font-normal text-gray-900">10回目確定の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">レアリティ<br /><span className="text-xs font-normal text-black">★7が最上位</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">通常確率<br /><span className="text-xs font-normal text-black">単発時の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">10連確率<br /><span className="text-xs font-normal text-black">10回目確定の%</span></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {[...basicRates].sort(sortByRarity).map(rate => (
                         <tr key={rate.rarity} className="hover:bg-gray-50">
                           <td className="px-4 py-4">
-                            <div className="font-bold text-base whitespace-nowrap">{getRarityLabel(rate.rarity)}</div>
+                            <div className="font-bold text-base whitespace-nowrap text-black">{getRarityLabel(rate.rarity)}</div>
                           </td>
                           <td className="px-4 py-4">
                             <input
@@ -492,7 +492,7 @@ export default function SettingsPage() {
                               placeholder="0"
                               className="border-2 border-gray-300 rounded-lg px-3 py-2 w-24 text-center font-bold"
                             />
-                            <span className="ml-1 text-gray-600">%</span>
+                            <span className="ml-1 text-black">%</span>
                           </td>
                           <td className="px-4 py-4">
                             <input
@@ -505,7 +505,7 @@ export default function SettingsPage() {
                               placeholder="0"
                               className="border-2 border-gray-300 rounded-lg px-3 py-2 w-24 text-center font-bold"
                             />
-                            <span className="ml-1 text-gray-600">%</span>
+                            <span className="ml-1 text-black">%</span>
                           </td>
                         </tr>
                       ))}
@@ -521,14 +521,14 @@ export default function SettingsPage() {
                   return (
                     <div className="mt-6 grid grid-cols-2 gap-4">
                       <div className={`p-6 rounded-xl border-2 ${okSingle ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-400'}`}>
-                        <div className="text-sm text-gray-600 mb-1">通常確率の合計</div>
+                        <div className="text-sm text-black mb-1">通常確率の合計</div>
                         <div className={`text-4xl font-bold ${okSingle ? 'text-green-600' : 'text-red-600'}`}>{totalSingle.toFixed(1)}%</div>
-                        <div className="text-sm mt-1">{okSingle ? '✓ 100% OK' : '※ 100%にしてください'}</div>
+                        <div className="text-sm mt-1 text-black">{okSingle ? '✓ 100% OK' : '※ 100%にしてください'}</div>
                       </div>
                       <div className={`p-6 rounded-xl border-2 ${okTen ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-400'}`}>
-                        <div className="text-sm text-gray-600 mb-1">10連確率の合計</div>
+                        <div className="text-sm text-black mb-1">10連確率の合計</div>
                         <div className={`text-4xl font-bold ${okTen ? 'text-green-600' : 'text-red-600'}`}>{totalTen.toFixed(1)}%</div>
-                        <div className="text-sm mt-1">{okTen ? '✓ 100% OK' : '※ 100%にしてください'}</div>
+                        <div className="text-sm mt-1 text-black">{okTen ? '✓ 100% OK' : '※ 100%にしてください'}</div>
                       </div>
                     </div>
                   );
@@ -561,16 +561,16 @@ export default function SettingsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">レアリティ<br /><span className="text-xs font-normal text-gray-900">★7が最上位</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">単発確率<br /><span className="text-xs font-normal text-gray-900">1回引く時の%</span></th>
-                        <th className="px-4 py-3 text-left font-bold text-gray-800">10連目確率<br /><span className="text-xs font-normal text-gray-900">10回目確定の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">レアリティ<br /><span className="text-xs font-normal text-black">★7が最上位</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">単発確率<br /><span className="text-xs font-normal text-black">1回引く時の%</span></th>
+                        <th className="px-4 py-3 text-left font-bold text-black">10連目確率<br /><span className="text-xs font-normal text-black">10回目確定の%</span></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {[...eventRates].sort(sortByRarity).map(rate => (
                         <tr key={rate.rarity} className="hover:bg-gray-50">
                           <td className="px-4 py-4">
-                            <div className="font-bold text-base whitespace-nowrap">{getRarityLabel(rate.rarity)}</div>
+                            <div className="font-bold text-base whitespace-nowrap text-black">{getRarityLabel(rate.rarity)}</div>
                           </td>
                           <td className="px-4 py-4">
                             <input
@@ -583,7 +583,7 @@ export default function SettingsPage() {
                               placeholder="0"
                               className="border-2 border-gray-300 rounded-lg px-3 py-2 w-24 text-center font-bold"
                             />
-                            <span className="ml-1 text-gray-600">%</span>
+                            <span className="ml-1 text-black">%</span>
                           </td>
                           <td className="px-4 py-4">
                             <input
@@ -596,7 +596,7 @@ export default function SettingsPage() {
                               placeholder="0"
                               className="border-2 border-gray-300 rounded-lg px-3 py-2 w-24 text-center font-bold"
                             />
-                            <span className="ml-1 text-gray-600">%</span>
+                            <span className="ml-1 text-black">%</span>
                           </td>
                         </tr>
                       ))}
@@ -612,14 +612,14 @@ export default function SettingsPage() {
                   return (
                     <div className="mt-6 grid grid-cols-2 gap-4">
                       <div className={`p-6 rounded-xl border-2 ${okSingle ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-400'}`}>
-                        <div className="text-sm text-gray-600 mb-1">単発確率の合計</div>
+                        <div className="text-sm text-black mb-1">単発確率の合計</div>
                         <div className={`text-4xl font-bold ${okSingle ? 'text-green-600' : 'text-red-600'}`}>{totalSingle.toFixed(1)}%</div>
-                        <div className="text-sm mt-1">{okSingle ? '✓ 100% OK' : '※ 100%にしてください'}</div>
+                        <div className="text-sm mt-1 text-black">{okSingle ? '✓ 100% OK' : '※ 100%にしてください'}</div>
                       </div>
                       <div className={`p-6 rounded-xl border-2 ${okTen ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-400'}`}>
-                        <div className="text-sm text-gray-600 mb-1">10連目確率の合計</div>
+                        <div className="text-sm text-black mb-1">10連目確率の合計</div>
                         <div className={`text-4xl font-bold ${okTen ? 'text-green-600' : 'text-red-600'}`}>{totalTen.toFixed(1)}%</div>
-                        <div className="text-sm mt-1">{okTen ? '✓ 100% OK' : '※ 100%にしてください'}</div>
+                        <div className="text-sm mt-1 text-black">{okTen ? '✓ 100% OK' : '※ 100%にしてください'}</div>
                       </div>
                     </div>
                   );
