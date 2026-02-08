@@ -53,18 +53,16 @@ export default function FriendsPage() {
       r.user_id === user.id ? r.friend_id : r.user_id
     ))];
 
-    // フレンドのプロフィールを RPC で取得（RLS をバイパス）
-    const { data: profiles } = await supabase.rpc('get_profiles_for_friends', {
-      p_friend_ids: friendIds
-    });
+    // フレンドのプロフィールを RPC で取得（RLS をバイパス、パラメータ不要）
+    const { data: profiles } = await supabase.rpc('get_profiles_for_friends');
 
     const profileRows = (profiles ?? []) as FriendProfileRow[];
     const profileMap = new Map<string, FriendProfileRow>(
-      profileRows.map(p => [p.user_id, p])
+      profileRows.map(p => [String(p.user_id), p])
     );
 
     const formatted: FriendWithProfile[] = friendIds.map(fid => {
-      const p = profileMap.get(fid);
+      const p = profileMap.get(String(fid));
       return {
         friend_id: fid,
         display_name: p?.display_name || 'ユーザー',
