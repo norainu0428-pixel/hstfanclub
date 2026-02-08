@@ -91,10 +91,11 @@ export default function FriendRequestsPage() {
     const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name: string; membership_tier: string }) => [p.user_id, p]));
     setRequests(reqRows.map((r: { id: string; sender_id: string; created_at: string }) => {
       const p = profileMap.get(r.sender_id);
+      const name = (p?.display_name && p.display_name.trim()) || `プレイヤー${r.sender_id.slice(0, 8)}`;
       return {
         id: r.id,
         sender_id: r.sender_id,
-        sender_name: p?.display_name || '不明',
+        sender_name: name,
         sender_tier: p?.membership_tier || 'free',
         created_at: r.created_at
       };

@@ -47,17 +47,22 @@ export default function FriendsPage() {
       return;
     }
 
-    const { data: profiles } = await supabase
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('user_id, display_name, membership_tier, last_seen_at')
       .in('user_id', friendIds);
 
+    if (profilesError && friendIds.length > 0) {
+      console.warn('フレンドのプロフィール取得に失敗しました。Supabaseで supabase_fix_friend_display_names.sql を実行してください。', profilesError);
+    }
+
     const profileMap = new Map((profiles || []).map((p: { user_id: string; display_name: string; membership_tier: string; last_seen_at: string }) => [p.user_id, p]));
     setFriends(friendIds.map((id) => {
       const p = profileMap.get(id);
+      const displayName = (p?.display_name && p.display_name.trim()) || `プレイヤー${id.slice(0, 8)}`;
       return {
         friend_id: id,
-        display_name: p?.display_name || '不明',
+        display_name: displayName,
         membership_tier: p?.membership_tier || 'free',
         is_online: isOnline(p?.last_seen_at),
         last_seen_at: p?.last_seen_at || ''
