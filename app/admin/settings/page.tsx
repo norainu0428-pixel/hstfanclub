@@ -179,7 +179,7 @@ export default function SettingsPage() {
   }
 
   /** 同一レアリティの重複を除去（1レアリティ1行に統一） */
-  function dedupeByRarity<T extends { rarity?: string; id?: string }>(rows: T[]): T[] {
+  function dedupeByRarity<T extends { rarity?: string; id?: string; ten_pull_rate?: unknown }>(rows: T[]): T[] {
     const byCanonical = new Map<string, T>();
     for (const r of rows) {
       const c = normalizeRarity((r.rarity || '').trim()) || 'common';
@@ -187,7 +187,7 @@ export default function SettingsPage() {
       else {
         const curr = byCanonical.get(c)!;
         const currTen = parseFloat(String(curr.ten_pull_rate ?? 0));
-        const rTen = parseFloat(String((r as any).ten_pull_rate ?? 0));
+        const rTen = parseFloat(String(r.ten_pull_rate ?? 0));
         if (rTen > currTen) byCanonical.set(c, r);
       }
     }
