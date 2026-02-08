@@ -28,6 +28,13 @@ export default function PartyPage() {
   const searchParams = useSearchParams();
   const showDisbandedMessage = searchParams.get('lobby_disbanded') === '1';
 
+  // ロビー解散後は編成をクリアし、同じキャラをそのまま使えないようにする
+  useEffect(() => {
+    if (showDisbandedMessage) {
+      setParty([null, null, null]);
+    }
+  }, [showDisbandedMessage]);
+
   const pendingCount = partyInvites.filter(i => i.status === 'pending').length;
   const acceptedInvites = partyInvites.filter(i => i.status === 'accepted');
 

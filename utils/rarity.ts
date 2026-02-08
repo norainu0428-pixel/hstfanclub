@@ -28,17 +28,18 @@ const RARITY_STAR: Record<string, string> = {
   'common': '★1'
 };
 
-// 日本語・DBの表記揺れ → 英語キーに正規化
-function normalizeRarity(rarity: string): string {
+/** 日本語・DBの表記揺れ → 英語キーに正規化（共通で使用） */
+export function normalizeRarity(rarity: string): string {
   if (!rarity || typeof rarity !== 'string') return rarity;
   const n = rarity.trim().toLowerCase();
   const map: Record<string, string> = {
-    'hst': 'HST', 'stary': 'stary',
+    'hst': 'HST', 'stary': 'stary', 'STARY': 'stary',
     'レジェンド': 'legendary', 'legendary': 'legendary',
     'ウルトラレア': 'ultra-rare', 'ultra-rare': 'ultra-rare', 'ultrare': 'ultra-rare',
     'スーパーレア': 'super-rare', 'super-rare': 'super-rare', 'superrare': 'super-rare',
     'レア': 'rare', 'rare': 'rare',
-    'コモン': 'common', 'common': 'common', 'ノーマル': 'common'
+    'コモン': 'common', 'common': 'common', 'ノーマル': 'common',
+    '★1': 'common', '★2': 'rare', '★3': 'super-rare', '★4': 'ultra-rare', '★5': 'legendary', '★6': 'stary', '★7': 'HST'
   };
   return map[n] ?? map[rarity] ?? rarity;
 }

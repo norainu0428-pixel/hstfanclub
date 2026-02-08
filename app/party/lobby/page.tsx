@@ -273,7 +273,7 @@ export default function PartyLobbyPage() {
       alert('解散に失敗しました: ' + error.message);
       return;
     }
-    router.push('/party');
+    router.push('/party?lobby_disbanded=1');
   }
 
   if (!inviteId) {

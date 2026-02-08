@@ -48,6 +48,8 @@ export default function PvPBattlePage() {
   const [loading, setLoading] = useState(true);
   const [battleResult, setBattleResult] = useState<{ won: boolean; winnerName: string } | null>(null);
   const player2LoadedRef = useRef(false);
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
 
   useEffect(() => {
     initBattle();
@@ -195,8 +197,16 @@ export default function PvPBattlePage() {
           setBattle(newBattle);
           setBattleLog(newBattle.battle_log || []);
 
+          // 相手の手番・チームのHPをリアルタイムで反映（DBの最新状態で再描画）
           if (newBattle.status === 'in_progress' && newBattle.player2_party?.length && !player2LoadedRef.current) {
             await loadPlayerInfo(newBattle);
+          }
+          // 自分のターンに切り替わったら選択をクリア
+          if (newBattle.current_turn_player === currentUserRef.current) {
+            setSelectedAction(null);
+            setSelectedMember(null);
+            setSelectedTarget(null);
+            setSelectedAllyTarget(null);
           }
           if (newBattle.status === 'completed') {
             setTimeout(() => showResult(newBattle), 2000);

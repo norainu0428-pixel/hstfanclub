@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { Rarity } from '@/types/adventure';
-import { getRarityLabel, getRarityLabelWithEmoji, getRarityColorClass, getRarityShortLabel, getRarityBorderColor } from '@/utils/rarity';
+import { getRarityLabel, getRarityLabelWithEmoji, getRarityColorClass, getRarityShortLabel, getRarityBorderColor, normalizeRarity } from '@/utils/rarity';
 import { getPlateImageUrl } from '@/utils/plateImage';
 
 // HSTメンバーデータ
@@ -211,19 +211,10 @@ export default function EventsPage() {
       .order('rate', { ascending: false });
 
     // 表示は常に固定7種。DBの値で上書き、なければデフォルト使用（重複を完全に回避）
-    const TO_CANONICAL: Record<string, string> = {
-      'hst': 'HST', 'stary': 'stary', 'legendary': 'legendary',
-      'ultra-rare': 'ultra-rare', 'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common',
-      'コモン': 'common', 'レア': 'rare', 'スーパーレア': 'super-rare',
-      'ウルトラレア': 'ultra-rare', 'レジェンド': 'legendary', '★1': 'common', '★2': 'rare',
-      '★3': 'super-rare', '★4': 'ultra-rare', '★5': 'legendary', '★6': 'stary', '★7': 'HST'
-    };
     const dbByCanonical = new Map<string, { rate: number; ten_pull_rate: number }>();
     if (ratesData && ratesData.length > 0) {
       for (const r of ratesData) {
-        const raw = (r.rarity || '').trim();
-        const key = raw.toLowerCase();
-        const canonical = TO_CANONICAL[key] ?? TO_CANONICAL[raw] ?? (raw || 'common');
+        const canonical = normalizeRarity((r.rarity || '').trim()) || 'common';
         const rate = parseFloat(r.rate || '0');
         const tenPull = parseFloat(r.ten_pull_rate || '0');
         const curr = dbByCanonical.get(canonical);
@@ -250,13 +241,7 @@ export default function EventsPage() {
     if (!user) return;
 
     for (const r of results) {
-      const rarityMap: Record<string, string> = {
-        'HST': 'HST', 'hst': 'HST',
-        'stary': 'stary', 'STARY': 'stary',
-        'legendary': 'legendary', 'ultra-rare': 'ultra-rare',
-        'super-rare': 'super-rare', 'rare': 'rare', 'common': 'common'
-      };
-      const statsKey = rarityMap[r.rarity] ?? 'common';
+      const statsKey = normalizeRarity(r.rarity) || 'common';
       const stats = baseStats[statsKey] ?? baseStats['common'];
       const { error: insertErr } = await supabase
         .from('user_members')
@@ -357,13 +342,7 @@ export default function EventsPage() {
   }
 
   function getMemberByRarity(rarity: string): any[] {
-    // データベースのレアリティ名をコードのキーにマッピング
-    const rarityKey = rarity === 'HST' ? 'HST' : 
-                     rarity === 'stary' || rarity === 'STARY' ? 'stary' :
-                     rarity === 'legendary' || rarity === 'レジェンド' ? 'legendary' :
-                     rarity === 'ultra-rare' || rarity === 'ウルトラレア' ? 'ultra-rare' :
-                     rarity === 'super-rare' || rarity === 'スーパーレア' ? 'super-rare' :
-                     rarity === 'rare' || rarity === 'レア' ? 'rare' : 'common';
+    const rarityKey = normalizeRarity(rarity) || 'common';
     return (HST_MEMBERS as any)[rarityKey] || HST_MEMBERS.common;
   }
 
