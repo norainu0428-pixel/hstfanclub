@@ -53,10 +53,10 @@ export default function FriendsPage() {
       r.user_id === user.id ? r.friend_id : r.user_id
     ))];
 
-    // フレンドのプロフィールを直接取得
+    // フレンドのプロフィールを直接取得（avatar_url, last_seen_at は SQL 実行後に利用可能）
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, display_name, avatar_url, membership_tier, last_seen_at')
+      .select('user_id, display_name, membership_tier')
       .in('user_id', friendIds);
 
     const profileRows = (profiles ?? []) as FriendProfileRow[];
