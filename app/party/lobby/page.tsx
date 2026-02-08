@@ -19,11 +19,16 @@ interface PartyStage {
   points_reward: number;
 }
 
+interface FriendOption {
+  friend_id: string;
+  display_name: string;
+}
+
 interface InviteData {
   id: string;
   host_id: string;
   host_party_ids: string[];
-  friend_id: string;
+  friend_id: string | null;
   friend_party_snapshot: Partial<Member>[] | null;
   status: string;
   host_name?: string;
@@ -42,7 +47,11 @@ export default function PartyLobbyPage() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [disbanding, setDisbanding] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [friends, setFriends] = useState<FriendOption[]>([]);
+  const [invitingFriendId, setInvitingFriendId] = useState<string | null>(null);
   const isHost = currentUserId && invite && currentUserId === invite.host_id;
+  const isLobbyOnly = invite?.status === 'lobby' && !invite?.friend_id;
 
   const loadInvite = useCallback(async () => {
     if (!inviteId) return;
@@ -70,23 +79,24 @@ export default function PartyLobbyPage() {
       return;
     }
 
-    const inInvite = user.id === inviteData.host_id || user.id === inviteData.friend_id;
+    const inInvite = user.id === inviteData.host_id || (inviteData.friend_id && user.id === inviteData.friend_id);
     if (!inInvite) {
       alert('このロビーに参加する権限がありません');
       router.push('/party');
       return;
     }
 
+    const userIds = [inviteData.host_id, inviteData.friend_id].filter(Boolean) as string[];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, display_name')
-      .in('user_id', [inviteData.host_id, inviteData.friend_id]);
+      .in('user_id', userIds);
     const nameMap = new Map((profiles || []).map(p => [p.user_id, p.display_name]));
 
     setInvite({
       ...inviteData,
       host_name: nameMap.get(inviteData.host_id) || 'ホスト',
-      friend_name: nameMap.get(inviteData.friend_id) || 'フレンド'
+      friend_name: inviteData.friend_id ? (nameMap.get(inviteData.friend_id) || 'フレンド') : undefined
     });
 
     const hostIds = (inviteData.host_party_ids || []).filter(Boolean);
@@ -104,6 +114,58 @@ export default function PartyLobbyPage() {
     }
     setLoading(false);
   }, [inviteId, router]);
+
+  async function loadFriends() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: asUser } = await supabase
+      .from('friendships')
+      .select('friend_id')
+      .eq('user_id', user.id)
+      .eq('status', 'accepted');
+    const { data: asFriend } = await supabase
+      .from('friendships')
+      .select('user_id')
+      .eq('friend_id', user.id)
+      .eq('status', 'accepted');
+    const friendIds = [
+      ...(asUser || []).map((f: { friend_id: string }) => f.friend_id),
+      ...(asFriend || []).map((f: { user_id: string }) => f.user_id)
+    ];
+    const unique = [...new Set(friendIds)];
+    if (unique.length === 0) {
+      setFriends([]);
+      return;
+    }
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name')
+      .in('user_id', unique);
+    setFriends((profiles || []).map((p: { user_id: string; display_name: string }) => ({
+      friend_id: p.user_id,
+      display_name: p.display_name || '不明'
+    })));
+  }
+
+  async function inviteFriend(friendId: string) {
+    if (!inviteId || !isHost || invitingFriendId) return;
+    setInvitingFriendId(friendId);
+    const { error } = await supabase
+      .from('adventure_invites')
+      .update({ friend_id: friendId, status: 'pending', updated_at: new Date().toISOString() })
+      .eq('id', inviteId);
+    setInvitingFriendId(null);
+    if (error) {
+      if (error.code === '23505') {
+        alert('このフレンドには既に招待を送っています');
+      } else {
+        alert('招待の送信に失敗しました: ' + error.message);
+      }
+      return;
+    }
+    setShowInviteModal(false);
+    loadInvite();
+  }
 
   useEffect(() => {
     if (!inviteId) {
@@ -146,7 +208,13 @@ export default function PartyLobbyPage() {
           if (newRow.friend_party_snapshot && Array.isArray(newRow.friend_party_snapshot)) {
             setFriendParty(newRow.friend_party_snapshot.map((m: Partial<Member>) => ({ ...m, current_hp: m.hp ?? m.max_hp } as Member)));
           }
-          setInvite(prev => prev ? { ...prev, status: newRow.status, friend_party_snapshot: newRow.friend_party_snapshot } : null);
+          setInvite(prev => prev ? {
+            ...prev,
+            status: newRow.status,
+            friend_id: newRow.friend_id ?? prev.friend_id,
+            friend_party_snapshot: newRow.friend_party_snapshot,
+            friend_name: prev.friend_name
+          } : null);
         }
       )
       .subscribe();
@@ -188,7 +256,7 @@ export default function PartyLobbyPage() {
     return (
       <div className="min-h-screen bg-slate-900 text-white p-4 flex flex-col items-center justify-center">
         <p className="text-slate-400 mb-4">ロビーIDがありません</p>
-        <p className="text-slate-500 text-sm text-center mb-6">招待から参加するか、パーティーでフレンドを誘ってロビーに入ってください</p>
+        <p className="text-slate-500 text-sm text-center mb-6">招待から参加するか、パーティーで3体選んで「ロビーに入る」でロビーに入ってください</p>
         <div className="flex flex-col gap-2 w-full max-w-xs">
           <button onClick={() => router.push('/party/invites')} className="py-3 rounded-xl bg-amber-600 text-white font-bold">
             招待を確認する
@@ -242,8 +310,8 @@ export default function PartyLobbyPage() {
 
           <section className="rounded-xl border border-slate-600 bg-slate-800 p-4">
             <h3 className="text-sm font-bold text-cyan-400 mb-2">
-              フレンド {invite.friend_name}
-              {!friendJoined && (
+              フレンド {invite.friend_name || '（未招待）'}
+              {!friendJoined && invite.friend_id && (
                 <span className="text-amber-400 font-normal text-xs ml-2">（参加待ち・招待から「参加する」で参加）</span>
               )}
             </h3>
@@ -256,8 +324,23 @@ export default function PartyLobbyPage() {
                 ))}
               </div>
             ) : (
-              <div className="min-h-[80px] flex items-center justify-center border-2 border-dashed border-slate-600 rounded-lg bg-slate-700/30">
-                <p className="text-slate-500 text-sm">フレンドの参加を待っています</p>
+              <div className="min-h-[80px] flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-600 rounded-lg bg-slate-700/30">
+                {isLobbyOnly ? (
+                  <>
+                    <p className="text-slate-500 text-sm">フレンドを招待してください</p>
+                    <button
+                      onClick={async () => {
+                        setShowInviteModal(true);
+                        await loadFriends();
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-600 text-white font-bold text-sm active:scale-[0.98] transition"
+                    >
+                      フレンドを招待
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-slate-500 text-sm">フレンドの参加を待っています</p>
+                )}
               </div>
             )}
           </section>
@@ -321,6 +404,49 @@ export default function PartyLobbyPage() {
             ロビーを出る
           </button>
         </div>
+
+        {/* フレンド招待モーダル */}
+        {showInviteModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-4">
+            <div className="rounded-2xl bg-slate-800 border border-slate-600 p-5 max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-xl">
+              <h3 className="text-lg font-bold text-white mb-1">フレンドを招待</h3>
+              <p className="text-sm text-slate-400 mb-4">招待するフレンドを選んでください</p>
+              {friends.length === 0 ? (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 mb-4">
+                  <p className="text-amber-400 font-bold text-sm">フレンドがいません</p>
+                  <p className="text-slate-400 text-xs mt-1">フレンド申請を送ってから招待できます。</p>
+                </div>
+              ) : (
+                <div className="space-y-2 flex-1 overflow-y-auto mb-4">
+                  {friends.map((f) => (
+                    <button
+                      key={f.friend_id}
+                      onClick={() => inviteFriend(f.friend_id)}
+                      disabled={!!invitingFriendId}
+                      className="w-full p-3 text-left rounded-xl border border-slate-600 bg-slate-700/50 flex items-center gap-3 text-white active:scale-[0.98] transition"
+                    >
+                      <span className="w-9 h-9 rounded-full flex items-center justify-center bg-cyan-600 text-sm font-bold">
+                        {(f.display_name || '?').charAt(0)}
+                      </span>
+                      <span className="flex-1 truncate text-sm font-medium">{f.display_name || '名前なし'}</span>
+                      {invitingFriendId === f.friend_id ? (
+                        <span className="text-cyan-400 text-xs animate-pulse">送信中...</span>
+                      ) : (
+                        <span className="text-cyan-400 text-xs">招待</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="w-full py-2.5 rounded-xl bg-slate-700 text-slate-200 text-sm font-medium border border-slate-600 active:scale-[0.98] transition"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
