@@ -16,6 +16,7 @@ import { getStageInfo, isExtraStage, EXTRA_STAGE_END } from '@/utils/stageGenera
 import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
+import { getTabSessionManager } from '@/utils/tabSession';
 import Image from 'next/image';
 
 export default function BattlePage() {
@@ -56,11 +57,45 @@ export default function BattlePage() {
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
   const [isAutoMode, setIsAutoMode] = useState(false); // オートバトル
+  const [isBlockedByOtherTab, setIsBlockedByOtherTab] = useState(false); // 他のタブで実行中のフラグ
   const barrierRef = useRef<{ [key: string]: number }>({});
+  const tabSessionRef = useRef<ReturnType<typeof getTabSessionManager> | null>(null);
 
   useEffect(() => {
     barrierRef.current = barrier;
   }, [barrier]);
+
+  // タブセッション管理の初期化
+  useEffect(() => {
+    const tabSession = getTabSessionManager();
+    tabSessionRef.current = tabSession;
+
+    // 他のタブがバトルを開始した場合のリスナー
+    const unsubscribe = tabSession.onMessage('battle_start', async (message) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && message.userId === user.id && message.stageId === stageId) {
+        // 同じユーザーが同じステージのバトルを開始した場合
+        // ただし、このタブが先に開始した場合は無視
+        if (message.sessionId !== tabSession.getSessionId() && !battleResult && !loading) {
+          setIsBlockedByOtherTab(true);
+          addLog('⚠️ 他のタブで同じバトルが実行中です。このタブでの操作は無効になります。');
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      // バトルが終了していない場合でも、ページを離れる際にセッションをクリア
+      (async () => {
+        if (tabSessionRef.current) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            tabSessionRef.current.endBattle(user.id, stageId);
+          }
+        }
+      })();
+    };
+  }, [stageId, battleResult, loading]);
 
   useEffect(() => { initBattle(); }, []);
 
@@ -110,6 +145,19 @@ export default function BattlePage() {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
+    }
+
+    // タブセッションチェック: 他のタブが同じバトルを実行中か確認
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && tabSessionRef.current) {
+      const canStart = tabSessionRef.current.startBattle(user.id, stageId);
+      if (!canStart) {
+        setIsBlockedByOtherTab(true);
+        setLoading(false);
+        alert('⚠️ 他のタブで同じバトルが実行中です。\n複数のタブで同じバトルを同時に実行することはできません。\n他のタブを閉じてから再度お試しください。');
+        router.push('/adventure');
+        return;
+      }
     }
     
     let initializedParty: Member[];
@@ -299,7 +347,7 @@ export default function BattlePage() {
 
   // スキル使用処理
   async function useSkill(memberIndex: number, targetIndex?: number, targetEnemyIndex?: number) {
-    if (!isPlayerTurn) return;
+    if (!isPlayerTurn || isBlockedByOtherTab || battleResult) return;
     
     if (memberIndex < 0 || memberIndex >= party.length) return;
     
@@ -1072,7 +1120,7 @@ export default function BattlePage() {
   }
 
   async function playerAttack(memberIndex: number, enemyIndex: number) {
-    if (!isPlayerTurn) return;
+    if (!isPlayerTurn || isBlockedByOtherTab || battleResult) return;
     
     if (memberIndex < 0 || memberIndex >= party.length) return;
     if (enemyIndex < 0 || enemyIndex >= enemies.length) return;
@@ -1404,7 +1452,20 @@ export default function BattlePage() {
 
   async function handleVictory() {
     // 重複実行を防止
-    if (isProcessingVictory || battleResult) return;
+    if (isProcessingVictory || battleResult || isBlockedByOtherTab) return;
+    
+    // 他のタブで実行中の場合、処理をブロック
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && tabSessionRef.current) {
+      // 他のタブが同じバトルを実行中かチェック
+      if (tabSessionRef.current.isBattleActive(user.id, stageId)) {
+        // このタブがブロックされている場合、処理をスキップ
+        if (isBlockedByOtherTab) {
+          return;
+        }
+      }
+    }
+    
     setIsProcessingVictory(true);
     
     setBattleResult('victory');
@@ -1550,6 +1611,11 @@ export default function BattlePage() {
       if (allLevelUps.length > 0) {
         await updateMissionProgress(user.id, 'level_up', allLevelUps.length);
       }
+
+      // バトルセッションを終了
+      if (tabSessionRef.current) {
+        tabSessionRef.current.endBattle(user.id, stageId);
+      }
     }
     
     // ★ レベルアップ情報をステートに保存（演出用）
@@ -1558,13 +1624,17 @@ export default function BattlePage() {
 
   async function handleDefeat() {
     // 重複実行を防止
-    if (battleResult) return;
+    if (battleResult || isBlockedByOtherTab) return;
     
     setBattleResult('defeat');
     addLog('全滅してしまった...');
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      // バトルセッションを終了
+      if (tabSessionRef.current) {
+        tabSessionRef.current.endBattle(user.id, stageId);
+      }
       // 敗北時も全キャラクターのHPを全回復（協力時は自分のメンバーのみDB更新）
       const restoredParty = party.map(member => ({
         ...member,
@@ -1637,13 +1707,26 @@ export default function BattlePage() {
       <div className="max-w-6xl mx-auto">
         {/* ヘッダー */}
         <div className="text-center text-white mb-6">
+          {isBlockedByOtherTab && (
+            <div className="bg-red-600 text-white p-4 rounded-lg mb-4 border-2 border-red-800">
+              <div className="font-bold text-lg">⚠️ 警告</div>
+              <div className="mt-2">
+                他のタブで同じバトルが実行中です。このタブでの操作は無効になります。
+                <br />
+                他のタブを閉じてから再度お試しください。
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <h1 className="text-3xl font-bold">⚔️ バトル - ステージ{stageId} - ターン {turn}</h1>
             {!battleResult && (
               <button
                 onClick={() => setIsAutoMode(prev => !prev)}
+                disabled={isBlockedByOtherTab}
                 className={`px-4 py-2 rounded-lg font-bold transition-all ${
-                  isAutoMode 
+                  isBlockedByOtherTab
+                    ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                    : isAutoMode 
                     ? 'bg-green-500 text-white shadow-lg shadow-green-500/50' 
                     : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
