@@ -475,14 +475,14 @@ export default function Home() {
             <span className="text-sm">ミッション</span>
           </button>
           <button 
-            onClick={() => router.push('/adventure?mode=tower')}
+            onClick={() => router.push('/adventure/tower')}
             className="rounded-2xl p-4 bg-gradient-to-br from-red-600 to-purple-700 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
             <span className="text-3xl block mb-1">🏯</span>
             <span className="text-sm">覇者の塔</span>
           </button>
           <button 
-            onClick={() => router.push('/adventure?mode=riemu_event')}
+            onClick={() => router.push('/adventure/riemu-event')}
             className="rounded-2xl p-4 bg-gradient-to-br from-pink-500 to-red-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
           >
             <span className="text-3xl block mb-1">✨</span>
