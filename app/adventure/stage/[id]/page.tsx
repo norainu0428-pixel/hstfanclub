@@ -25,7 +25,11 @@ export default function StagePage() {
   }, []);
 
   async function loadParty() {
-    if (isNaN(stageId) || stageId < 1 || stageId > 1000) {
+    if (
+      isNaN(stageId) ||
+      stageId < 1 ||
+      (!isExtraStage(stageId) && stageId > 400 && stageId < 2001) // 401〜2000 は通常バトルからは無効
+    ) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;

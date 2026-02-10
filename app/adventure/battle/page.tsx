@@ -152,7 +152,12 @@ export default function BattlePage() {
   }, [party, loading, battleResult]);
 
   async function initBattle() {
-    if (!partyStageId && (isNaN(stageId) || stageId < 1 || stageId > 1000)) {
+    if (
+      !partyStageId &&
+      (isNaN(stageId) ||
+        stageId < 1 ||
+        (!isExtraStage(stageId) && !isTowerStage(stageId) && !isRiemuEventStage(stageId) && stageId > 400))
+    ) {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
