@@ -35,7 +35,7 @@ export default function StagesPage() {
         .from('user_progress')
         .select('current_stage')
         .eq('user_id', user.id)
-        .single(),
+        .maybeSingle(),
       supabase
         .from('battle_logs')
         .select('stage')
@@ -52,13 +52,9 @@ export default function StagesPage() {
     }
     setClearedStages(Array.from(cleared));
 
-    // 解放ステージ: 1から連続してクリアした最大番号+1まで（クリアしてないと次は解放されない）
-    let maxConsecutive = 0;
-    for (let s = 1; s <= 400; s++) {
-      if (!cleared.has(s)) break;
-      maxConsecutive = s;
-    }
-    const nextUnlocked = Math.min(400, maxConsecutive + 1);
+    // 解放ステージ（通常）は user_progress.current_stage を基準にする
+    const currentStageFromProgress = progressResult.data?.current_stage ?? 1;
+    const nextUnlocked = Math.min(400, Math.max(1, currentStageFromProgress));
     const unlocked: number[] = [];
     for (let i = 1; i <= nextUnlocked; i++) {
       unlocked.push(i);

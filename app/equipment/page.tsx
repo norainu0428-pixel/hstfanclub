@@ -58,19 +58,32 @@ export default function EquipmentPage() {
   }, []);
 
   async function load() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.error('Supabase auth.getUser エラー:', authError);
+    }
     if (!user) {
       router.push('/');
       return;
     }
 
-    const { data: profile } = await supabase.from('profiles').select('points').eq('user_id', user.id).single();
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('points')
+      .eq('user_id', user.id)
+      .single();
+    if (profileError) {
+      console.error('profiles 取得エラー:', profileError);
+    }
     setPoints(profile?.points ?? 0);
 
-    const { data: equipData } = await supabase
+    const { data: equipData, error: equipError } = await supabase
       .from('user_equipment')
       .select('id, definition_id, level, equipment_definitions(*)')
       .eq('user_id', user.id);
+    if (equipError) {
+      console.error('user_equipment 取得エラー:', equipError);
+    }
     const list = (equipData || []).map((e: any) => ({
       id: e.id,
       definition_id: e.definition_id,
@@ -79,11 +92,14 @@ export default function EquipmentPage() {
     })).filter((e: any) => e.def);
     setUserEquipList(list);
 
-    const { data: membersData } = await supabase
+    const { data: membersData, error: membersError } = await supabase
       .from('user_members')
       .select('id, member_name, member_emoji, level, rarity')
       .eq('user_id', user.id)
       .order('level', { ascending: false });
+    if (membersError) {
+      console.error('user_members 取得エラー:', membersError);
+    }
 
     const memberIds = (membersData || []).map((m: { id: string }) => m.id);
     let memberEquipData: any[] | null = null;
@@ -98,6 +114,9 @@ export default function EquipmentPage() {
         `)
         .in('user_member_id', memberIds);
       memberEquipData = res.data;
+      if (res.error) {
+        console.error('member_equipment 取得エラー:', res.error);
+      }
     }
 
     const byMember: Record<string, { weapon?: any; armor?: any; accessory?: any }> = {};
