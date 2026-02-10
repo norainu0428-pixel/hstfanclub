@@ -30,13 +30,48 @@ export default function RiemuEventPage() {
       .select('*')
       .eq('user_id', user.id)
       .order('level', { ascending: false });
-    setMembers((membersData || []) as Member[]);
+    let membersList = (membersData || []) as Member[];
+    setMembers(membersList);
 
     const { data: clears } = await supabase
       .from('riemu_event_clears')
       .select('stage')
       .eq('user_id', user.id);
-    setClearedStages((clears || []).map(c => c.stage));
+    const clearedList = (clears || []).map(c => c.stage);
+    setClearedStages(clearedList);
+
+    // 復旧: 3006クリア済みなのに HST riemu がいない場合に付与する
+    if (clearedList.includes(3006)) {
+      const hasHstRiemu = membersList.some(m => m.member_name === 'HST riemu' && m.rarity === 'HST');
+      if (!hasHstRiemu) {
+        const { error: fixErr } = await supabase.from('user_members').insert({
+          user_id: user.id,
+          member_name: 'HST riemu',
+          member_emoji: '🌟',
+          member_description: 'HST Riemu イベント報酬',
+          rarity: 'HST',
+          level: 1,
+          experience: 0,
+          hp: 300,
+          max_hp: 300,
+          current_hp: 300,
+          attack: 100,
+          defense: 50,
+          speed: 60,
+          skill_type: 'riemu_blessing',
+          skill_power: 0,
+          revive_used: false,
+        });
+        if (!fixErr) {
+          const { data: newMembers } = await supabase
+            .from('user_members')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('level', { ascending: false });
+          setMembers((newMembers || []) as Member[]);
+        }
+      }
+    }
 
     setLoading(false);
   }

@@ -1687,8 +1687,8 @@ export default function BattlePage() {
       }
 
       // HST Riemu イベントステージ報酬付与＆クリア記録（1回限り）
-      if (isRiemuEventStage(stageId)) {
-        // ステージIDから付与するレアリティ・名前を決定
+      if (isRiemuEventStage(stageId) && user) {
+        const currentUser = user;
         type Rarity = 'HST' | 'stary' | 'legendary' | 'ultra-rare' | 'super-rare' | 'rare' | 'common';
         const rewardConfig: Record<number, { name: string; emoji: string; rarity: Rarity }> = {
           3001: { name: 'riemu', emoji: '🌟', rarity: 'common' },
@@ -1700,7 +1700,6 @@ export default function BattlePage() {
         };
         const reward = rewardConfig[stageId as (typeof RIEMU_EVENT_STAGES)[number]];
         if (reward) {
-          // ベースステータスはガチャと同じテーブルを使用
           const baseStats: { [key in Rarity]: { hp: number; attack: number; defense: number; speed: number } } = {
             HST:        { hp: 300, attack: 100, defense: 50, speed: 60 },
             stary:      { hp: 200, attack: 65, defense: 30, speed: 40 },
@@ -1712,20 +1711,19 @@ export default function BattlePage() {
           };
           const stats = baseStats[reward.rarity];
 
-          // すでに同じ名前＆レアリティを持っているか軽くチェック（重複付与防止）
           const { data: existing } = await supabase
             .from('user_members')
             .select('id')
-            .eq('user_id', user.id)
+            .eq('user_id', currentUser.id)
             .eq('member_name', reward.name)
             .eq('rarity', reward.rarity)
             .maybeSingle();
 
           if (!existing) {
-            const { error: insertErr } = await supabase
+            const { data: inserted, error: insertErr } = await supabase
               .from('user_members')
               .insert({
-                user_id: user.id,
+                user_id: currentUser.id,
                 member_name: reward.name,
                 member_emoji: reward.emoji,
                 member_description: 'HST Riemu イベント報酬',
@@ -1741,29 +1739,31 @@ export default function BattlePage() {
                 skill_type: reward.rarity === 'legendary' || reward.rarity === 'HST' ? 'riemu_blessing' : null,
                 skill_power: 0,
                 revive_used: false,
-              });
+              })
+              .select('id')
+              .maybeSingle();
 
             if (insertErr) {
               console.error('Riemu イベント報酬付与エラー:', insertErr);
-              alert(`キャラクターの付与に失敗しました: ${insertErr.message}\nもう一度お試しください。`);
-              // 付与失敗時はクリア記録を入れない（再挑戦可能にする）
+              alert(`キャラクターの付与に失敗しました: ${insertErr.message}\nイベントページを開くと自動で付与を試みます。`);
+            } else if (!inserted) {
+              console.error('Riemu イベント報酬: insert 成功だが data が返っていない');
+              alert('キャラクターの付与で不具合がありました。イベントステージページを開いてください。');
             } else {
-              // 付与成功時のみクリア記録（再挑戦禁止）
               await supabase.from('riemu_event_clears').insert({
-                user_id: user.id,
+                user_id: currentUser.id,
                 stage: stageId,
                 rarity: reward.rarity,
               });
-              // UNIQUE違反等のエラーは無視（既に記録済みなら問題なし）
             }
           } else {
-            // 既に持っている場合もクリア記録を入れる（再挑戦禁止のため）
-            await supabase.from('riemu_event_clears').insert({
-              user_id: user.id,
-              stage: stageId,
-              rarity: reward.rarity,
-            });
-            // UNIQUE違反等のエラーは無視
+            try {
+              await supabase.from('riemu_event_clears').insert({
+                user_id: currentUser.id,
+                stage: stageId,
+                rarity: reward.rarity,
+              });
+            } catch (_) {}
           }
         }
       }
