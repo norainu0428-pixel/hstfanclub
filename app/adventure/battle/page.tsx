@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo, isExtraStage, EXTRA_STAGE_END } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, EXTRA_STAGE_END, isTowerStage, getTowerRewardByStage, TOWER_STAGE_START } from '@/utils/stageGenerator';
 import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
@@ -99,6 +99,17 @@ export default function BattlePage() {
 
   useEffect(() => { initBattle(); }, []);
 
+  // 週の開始日を YYYY-MM-DD 文字列で返す（ローカルタイム基準、月曜始まり）
+  function getCurrentWeekStartDate(): string {
+    const now = new Date();
+    const day = now.getDay(); // 0:日曜〜6:土曜
+    const diffToMonday = (day === 0 ? -6 : 1 - day); // 月曜を週の開始とする
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday.toISOString().slice(0, 10);
+  }
+
   // パーティモード時: 解散をリアルタイム検知して即リダイレクト
   useEffect(() => {
     if (!inviteId || !partyStageId) return;
@@ -145,6 +156,30 @@ export default function BattlePage() {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
+    }
+
+    // 覇者の塔: 今週すでにその階をクリア済みなら挑戦不可
+    if (isTowerStage(stageId)) {
+      const weekStart = getCurrentWeekStartDate();
+      const floor = stageId - TOWER_STAGE_START + 1;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('ログインが必要です');
+        router.push('/');
+        return;
+      }
+      const { data: towerClear } = await supabase
+        .from('tower_clears')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('floor', floor)
+        .eq('week_start', weekStart)
+        .maybeSingle();
+      if (towerClear) {
+        alert(`覇者の塔 第${floor}階は今週すでにクリア済みです。\n週が替わると再挑戦できます。`);
+        router.push('/adventure');
+        return;
+      }
     }
 
     // タブセッションチェック: 他のタブが同じバトルを実行中か確認
@@ -1477,7 +1512,12 @@ export default function BattlePage() {
     
     // 報酬計算
     const totalExp = enemies.reduce((sum, e) => sum + e.experience_reward, 0);
-    const totalPoints = enemies.reduce((sum, e) => sum + e.points_reward, 0);
+    const basePoints = enemies.reduce((sum, e) => sum + e.points_reward, 0);
+
+    // 覇者の塔ボーナス（各階ごとの追加ポイント）
+    const towerReward = isTowerStage(stageId) ? getTowerRewardByStage(stageId) : null;
+    const bonusTowerPoints = towerReward?.bonusPoints ?? 0;
+    const totalPoints = basePoints + bonusTowerPoints;
     
     setRewards({ exp: totalExp, points: totalPoints });
     
@@ -1502,6 +1542,9 @@ export default function BattlePage() {
     }
     
     addLog(`戦闘に勝利した！ 経験値+${totalExp} ポイント+${totalPoints}`);
+    if (towerReward && bonusTowerPoints > 0) {
+      addLog(`🎁 ${towerReward.label}: 追加で+${bonusTowerPoints}ptを獲得！`);
+    }
 
     // データベース更新（協力時は自分のメンバーのみ更新）
     if (user) {
@@ -1522,7 +1565,7 @@ export default function BattlePage() {
           .eq('id', member.id);
       }
       
-      // ポイント付与
+      // ポイント付与（覇者の塔ボーナスも含める）
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('points')
@@ -1536,8 +1579,8 @@ export default function BattlePage() {
           .eq('user_id', user.id);
       }
 
-      // 進行状況更新（パーティーモード・エクストラステージでは進行は更新しない）
-      if (!partyStageId && !isExtraStage(stageId)) {
+      // 進行状況更新（パーティーモード・エクストラステージ・覇者の塔では進行は更新しない）
+      if (!partyStageId && !isExtraStage(stageId) && !isTowerStage(stageId)) {
         const { data: progress, error: progressError } = await supabase
           .from('user_progress')
           .select('*')
@@ -1564,6 +1607,23 @@ export default function BattlePage() {
               total_victories: 1
             });
         }
+      }
+
+      // 覇者の塔クリア記録（週単位で1回まで）
+      if (isTowerStage(stageId)) {
+        const weekStart = getCurrentWeekStartDate();
+        const floor = stageId - TOWER_STAGE_START + 1;
+        await supabase
+          .from('tower_clears')
+          .insert({
+            user_id: user.id,
+            floor,
+            stage: stageId,
+            week_start: weekStart
+          })
+          .catch(() => {
+            // UNIQUE制約違反等は無視（再実行された場合でもOK）
+          });
       }
 
       // バトルログ保存（パーティーモードは stage 0 で記録し、ステージ進行判定に影響させない）

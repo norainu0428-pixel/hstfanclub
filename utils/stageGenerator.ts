@@ -3,7 +3,15 @@ import { Enemy } from '@/types/adventure';
 // エクストラステージ（ステージ100クリアで401から挑戦可能、Lv1000まで楽しめる）
 export const EXTRA_STAGE_START = 401;
 export const EXTRA_STAGE_END = 1000;
-export const isExtraStage = (stage: number) => stage >= EXTRA_STAGE_START && stage <= EXTRA_STAGE_END;
+export const isExtraStage = (stage: number) =>
+  stage >= EXTRA_STAGE_START && stage <= EXTRA_STAGE_END;
+
+// 覇者の塔（Tower of Conquerors）
+// 2001〜2100 を「1〜100階」に対応させる
+export const TOWER_STAGE_START = 2001;
+export const TOWER_STAGE_END = 2100;
+export const isTowerStage = (stage: number) =>
+  stage >= TOWER_STAGE_START && stage <= TOWER_STAGE_END;
 
 // ステージ情報
 export interface StageInfo {
@@ -66,7 +74,7 @@ function calculateEnemyStatsByLevel(level: number): { hp: number, attack: number
   };
 }
 
-// ステージ情報を生成
+// ステージ情報を生成（通常ステージ 1-400）
 export function generateStageInfo(stage: number): StageInfo {
   // 推奨レベル: ステージ数に応じて段階的に上がる（400ステージまで対応）
   const recommendedLevel = Math.max(1, Math.floor(stage / 2) + 1);
@@ -257,8 +265,116 @@ export function generateExtraStageInfo(stage: number): StageInfo {
   };
 }
 
+// 覇者の塔ステージ生成（Tower of Conquerors）
+// 2001〜2100 → 1〜100階。推奨レベルは 1階でおおよそ1000付近から始まり、100階で2500までスケール。
+export function generateTowerStageInfo(stage: number): StageInfo {
+  const floor = stage - TOWER_STAGE_START + 1; // 1〜100
+
+  // 既存エクストラステージの終盤（Lv1000付近）からさらに積み上げていくイメージでスケール
+  // 1階: 約1000 / 100階: 2500
+  const recommendedLevel = Math.min(
+    2500,
+    Math.floor(1000 + ((floor - 1) * (2500 - 1000)) / (TOWER_STAGE_END - TOWER_STAGE_START))
+  );
+
+  // 基本ステータス（commonレアの成長式に合わせる）
+  const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
+
+  const enemies: Enemy[] = [];
+
+  // 覇者の塔用の敵タイプ（塔らしいボス感のある敵）
+  const towerEnemyTypes = [
+    { name: '塔の守護者', emoji: '🛡️' },
+    { name: '深淵の騎士', emoji: '⚔️🌑' },
+    { name: '煌黒竜', emoji: '🐉✨' },
+    { name: '時空の支配者', emoji: '⏳👁️' },
+    { name: '覇者の化身', emoji: '👑💀' },
+  ];
+
+  // 上層ほど敵数・強さともに増していく。常に3〜5体。
+  const enemyCount = Math.min(5, 3 + Math.floor(floor / 25)); // 1〜25F:3体, 26〜50F:4体, 51F〜:5体
+
+  for (let i = 0; i < enemyCount; i++) {
+    const isBoss = i === enemyCount - 1;
+
+    // 階層が上がるほど全体倍率も上がる
+    const floorRatio = 1 + (floor - 1) / 60; // 1F付近:1.0台 / 100F付近:2.6前後
+    const bossMultiplier = isBoss ? 2.0 * floorRatio : 1.4 * floorRatio;
+    const enemyPowerRatio = isBoss ? 2.2 * floorRatio : 1.7 * floorRatio;
+
+    const typeIndex = Math.min(
+      towerEnemyTypes.length - 1,
+      Math.floor((floor - 1) / 25) + (isBoss ? 1 : 0)
+    );
+    const enemyType = towerEnemyTypes[typeIndex];
+
+    const hp = Math.floor(baseStats.hp * enemyPowerRatio * (isBoss ? 1.5 : 1.0));
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio * 2.3);
+    const defense = Math.floor(baseStats.defense * enemyPowerRatio * 2.0);
+    const speed = Math.floor(baseStats.speed * enemyPowerRatio * 1.2);
+
+    // 経験値とポイントは、エクストラ終盤よりも明確に上
+    const expBase = 400 + floor * 6;
+    const pointsBase = 30 + Math.floor(floor / 3);
+
+    const enemyName = isBoss
+      ? `${enemyType.name} 第${floor}階の覇者`
+      : `${enemyType.name} 第${floor}階兵`;
+
+    enemies.push({
+      name: enemyName,
+      emoji: enemyType.emoji,
+      hp,
+      max_hp: hp,
+      attack,
+      defense,
+      speed,
+      experience_reward: Math.floor(expBase * bossMultiplier),
+      points_reward: Math.floor(pointsBase * (isBoss ? 1.5 : 1.0)),
+    });
+  }
+
+  return {
+    stage,
+    recommendedLevel,
+    enemies,
+  };
+}
+
+// 覇者の塔 各階クリア報酬
+// ここでは追加ポイントのみを定義し、実際の付与はバトル勝利処理側で行う。
+export function getTowerRewardByStage(stage: number): { floor: number; bonusPoints: number; label: string } | null {
+  if (!isTowerStage(stage)) return null;
+  const floor = stage - TOWER_STAGE_START + 1;
+
+  // ベース: 1階100pt から始まり、階ごとに+20pt。10階ごとにボーナス倍率。
+  let bonusPoints = 100 + (floor - 1) * 20; // 1F=100, 100F=100 + 99*20 = 2080
+  const isMilestone10 = floor % 10 === 0;
+  const isMilestone25 = floor % 25 === 0;
+  const isTopFloor = floor === 100;
+
+  if (isTopFloor) {
+    bonusPoints *= 5; // 最上階は特別に5倍
+  } else if (isMilestone25) {
+    bonusPoints *= 3;
+  } else if (isMilestone10) {
+    bonusPoints *= 2;
+  }
+
+  const label = floor === 1
+    ? '覇者の塔・初登頂ボーナス'
+    : isTopFloor
+    ? '覇者の塔・完全制覇ボーナス'
+    : `覇者の塔 第${floor}階 クリアボーナス`;
+
+  return { floor, bonusPoints: Math.floor(bonusPoints), label };
+}
+
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
+  if (isTowerStage(stage)) {
+    return generateTowerStageInfo(stage);
+  }
   if (isExtraStage(stage)) {
     return generateExtraStageInfo(stage);
   }

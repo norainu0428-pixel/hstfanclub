@@ -59,26 +59,27 @@ export interface UserProgress {
   updated_at: string;
 }
 
-// レベル上限設定
+// レベル上限設定（インフレしすぎないよう全体的に抑えめ）
 export const MAX_LEVELS: { [key: string]: number } = {
-  'HST': 999,
-  'stary': 500,
-  'legendary': 100,
-  'ultra-rare': 80,
-  'super-rare': 60,
-  'rare': 50,
-  'common': 40
+  'HST': 200,
+  'stary': 160,
+  'legendary': 120,
+  'ultra-rare': 100,
+  'super-rare': 80,
+  'rare': 60,
+  'common': 50
 };
 
-// レベルアップ時のステータス上昇
+// レベルアップ時のステータス上昇（成長幅を大幅に縮小）
+// 目安: HP は約数百〜千程度、攻撃・防御・速度は数十〜100前後で頭打ちになるよう調整
 export const LEVEL_UP_STATS: { [key: string]: { hp: number, attack: number, defense: number, speed: number } } = {
-  'HST': { hp: 20, attack: 5, defense: 4, speed: 4 },
-  'stary': { hp: 20, attack: 5, defense: 4, speed: 4 },
-  'legendary': { hp: 15, attack: 4, defense: 3, speed: 3 },
-  'ultra-rare': { hp: 12, attack: 3, defense: 2, speed: 2 },
-  'super-rare': { hp: 10, attack: 2, defense: 2, speed: 2 },
-  'rare': { hp: 8, attack: 2, defense: 1, speed: 1 },
-  'common': { hp: 6, attack: 1, defense: 1, speed: 1 }
+  'HST':       { hp: 6, attack: 1, defense: 1, speed: 1 },
+  'stary':     { hp: 6, attack: 1, defense: 1, speed: 1 },
+  'legendary': { hp: 5, attack: 1, defense: 1, speed: 1 },
+  'ultra-rare':{ hp: 4, attack: 1, defense: 1, speed: 1 },
+  'super-rare':{ hp: 3, attack: 1, defense: 1, speed: 1 },
+  'rare':      { hp: 3, attack: 1, defense: 1, speed: 1 },
+  'common':    { hp: 2, attack: 1, defense: 1, speed: 1 }
 };
 
 // 必要経験値計算
