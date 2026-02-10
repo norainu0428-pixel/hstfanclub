@@ -127,23 +127,45 @@ export default function EquipmentPage() {
   }
 
   async function equip(memberId: string, slot: Slot, userEquipmentId: string | null) {
-    if (!userEquipmentId) {
+    setSelectingSlot(null);
+    try {
+      // 既存の同スロット装備を削除（装着・外すどちらでも先に消す）
       const { data: existing } = await supabase
         .from('member_equipment')
         .select('id')
         .eq('user_member_id', memberId)
         .eq('slot', slot)
         .maybeSingle();
-      if (existing) await supabase.from('member_equipment').delete().eq('id', existing.id);
-    } else {
-      await supabase.from('member_equipment').upsert({
-        user_member_id: memberId,
-        slot,
-        user_equipment_id: userEquipmentId
-      }, { onConflict: 'user_member_id,slot' });
+
+      if (existing?.id) {
+        const { error: delError } = await supabase.from('member_equipment').delete().eq('id', existing.id).select();
+        if (delError) {
+          console.error('装備解除エラー:', delError);
+          alert(`装備の更新に失敗しました: ${delError.message}`);
+          await load();
+          return;
+        }
+      }
+
+      if (userEquipmentId) {
+        const { error: insError } = await supabase.from('member_equipment').insert({
+          user_member_id: memberId,
+          slot,
+          user_equipment_id: userEquipmentId
+        }).select();
+        if (insError) {
+          console.error('装備装着エラー:', insError);
+          alert(`装備の装着に失敗しました: ${insError.message}`);
+          await load();
+          return;
+        }
+      }
+      await load();
+    } catch (e) {
+      console.error(e);
+      alert('装備の更新中にエラーが発生しました');
+      await load();
     }
-    setSelectingSlot(null);
-    load();
   }
 
   if (loading) {
