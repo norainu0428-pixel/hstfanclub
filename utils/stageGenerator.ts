@@ -13,6 +13,12 @@ export const TOWER_STAGE_END = 2100;
 export const isTowerStage = (stage: number) =>
   stage >= TOWER_STAGE_START && stage <= TOWER_STAGE_END;
 
+// HST Riemu イベントステージ
+// 3001〜3006 をイベント用ステージとして扱う
+export const RIEMU_EVENT_STAGES = [3001, 3002, 3003, 3004, 3005, 3006] as const;
+export const isRiemuEventStage = (stage: number) =>
+  RIEMU_EVENT_STAGES.includes(stage as (typeof RIEMU_EVENT_STAGES)[number]);
+
 // ステージ情報
 export interface StageInfo {
   stage: number;
@@ -370,8 +376,86 @@ export function getTowerRewardByStage(stage: number): { floor: number; bonusPoin
   return { floor, bonusPoints: Math.floor(bonusPoints), label };
 }
 
+// HST Riemu イベントステージ生成
+// 6ステージ構成で、それぞれクリア報酬のレアリティが異なる。
+// ステージIDと推奨レベル・レアリティ対応:
+// 3001: Lv1,   riemu, common
+// 3002: Lv60,  riemu, rare
+// 3003: Lv80,  riemu, super-rare
+// 3004: Lv100, riemu, ultra-rare
+// 3005: Lv120, riemu, legendary
+// 3006: Lv500, HST riemu, HST
+export function generateRiemuEventStageInfo(stage: number): StageInfo {
+  const config: Record<number, { recommendedLevel: number }> = {
+    3001: { recommendedLevel: 1 },
+    3002: { recommendedLevel: 60 },
+    3003: { recommendedLevel: 80 },
+    3004: { recommendedLevel: 100 },
+    3005: { recommendedLevel: 120 },
+    3006: { recommendedLevel: 500 },
+  };
+
+  const entry = config[stage];
+  const recommendedLevel = entry?.recommendedLevel ?? 1;
+
+  const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
+
+  const enemies: Enemy[] = [];
+
+  // 難易度ごとに敵数を調整（序盤は1体、後半は最大3体）
+  let enemyCount = 1;
+  if (stage >= 3003 && stage <= 3004) enemyCount = 2;
+  if (stage >= 3005) enemyCount = 3;
+
+  for (let i = 0; i < enemyCount; i++) {
+    const isBoss = i === enemyCount - 1;
+    const floorIndex = stage - 3001; // 0〜5
+
+    // ステージが上がるごとに倍率アップ
+    const powerBase = 1.2 + floorIndex * 0.2; // 1.2〜2.2
+    const enemyPowerRatio = isBoss ? powerBase * 1.8 : powerBase * 1.4;
+
+    const hp = Math.floor(baseStats.hp * enemyPowerRatio * (isBoss ? 1.5 : 1.0));
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio * 2.0);
+    const defense = Math.floor(baseStats.defense * enemyPowerRatio * 1.8);
+    const speed = Math.floor(baseStats.speed * enemyPowerRatio * 1.1);
+
+    const expReward = Math.floor(50 + recommendedLevel * (isBoss ? 2.5 : 1.5));
+    const pointsReward = Math.floor(20 + recommendedLevel / 5) * (isBoss ? 2 : 1);
+
+    const nameBase =
+      stage === 3006
+        ? 'HST riemu'
+        : 'riemu';
+    const enemyName = isBoss
+      ? `${nameBase} イベントボス`
+      : `${nameBase} の影`;
+
+    enemies.push({
+      name: enemyName,
+      emoji: '🌟',
+      hp,
+      max_hp: hp,
+      attack,
+      defense,
+      speed,
+      experience_reward: expReward,
+      points_reward: pointsReward,
+    });
+  }
+
+  return {
+    stage,
+    recommendedLevel,
+    enemies,
+  };
+}
+
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
+  if (isRiemuEventStage(stage)) {
+    return generateRiemuEventStageInfo(stage);
+  }
   if (isTowerStage(stage)) {
     return generateTowerStageInfo(stage);
   }

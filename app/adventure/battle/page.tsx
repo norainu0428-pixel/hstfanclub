@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo, isExtraStage, EXTRA_STAGE_END, isTowerStage, getTowerRewardByStage, TOWER_STAGE_START } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, EXTRA_STAGE_END, isTowerStage, getTowerRewardByStage, TOWER_STAGE_START, isRiemuEventStage, RIEMU_EVENT_STAGES } from '@/utils/stageGenerator';
 import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
@@ -177,6 +177,27 @@ export default function BattlePage() {
         .maybeSingle();
       if (towerClear) {
         alert(`覇者の塔 第${floor}階は今週すでにクリア済みです。\n週が替わると再挑戦できます。`);
+        router.push('/adventure');
+        return;
+      }
+    }
+
+    // HST Riemu イベントステージ: クリア済みなら再挑戦不可
+    if (isRiemuEventStage(stageId)) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('ログインが必要です');
+        router.push('/');
+        return;
+      }
+      const { data: cleared } = await supabase
+        .from('riemu_event_clears')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('stage', stageId)
+        .maybeSingle();
+      if (cleared) {
+        alert('この HST Riemu イベントステージはすでにクリア済みです。もう一度クリアすることはできません。');
         router.push('/adventure');
         return;
       }
@@ -1579,8 +1600,8 @@ export default function BattlePage() {
           .eq('user_id', user.id);
       }
 
-      // 進行状況更新（パーティーモード・エクストラステージ・覇者の塔では進行は更新しない）
-      if (!partyStageId && !isExtraStage(stageId) && !isTowerStage(stageId)) {
+      // 進行状況更新（パーティーモード・エクストラステージ・覇者の塔・Riemuイベントでは進行は更新しない）
+      if (!partyStageId && !isExtraStage(stageId) && !isTowerStage(stageId) && !isRiemuEventStage(stageId)) {
         const { data: progress, error: progressError } = await supabase
           .from('user_progress')
           .select('*')
@@ -1613,17 +1634,91 @@ export default function BattlePage() {
       if (isTowerStage(stageId)) {
         const weekStart = getCurrentWeekStartDate();
         const floor = stageId - TOWER_STAGE_START + 1;
-        await supabase
-          .from('tower_clears')
-          .insert({
-            user_id: user.id,
-            floor,
-            stage: stageId,
-            week_start: weekStart
-          })
-          .catch(() => {
-            // UNIQUE制約違反等は無視（再実行された場合でもOK）
-          });
+        try {
+          await supabase
+            .from('tower_clears')
+            .insert({
+              user_id: user.id,
+              floor,
+              stage: stageId,
+              week_start: weekStart
+            });
+        } catch {
+          // UNIQUE制約違反等は無視（再実行された場合でもOK）
+        }
+      }
+
+      // HST Riemu イベントステージ報酬付与＆クリア記録（1回限り）
+      if (isRiemuEventStage(stageId)) {
+        // ステージIDから付与するレアリティ・名前を決定
+        type Rarity = 'HST' | 'stary' | 'legendary' | 'ultra-rare' | 'super-rare' | 'rare' | 'common';
+        const rewardConfig: Record<number, { name: string; emoji: string; rarity: Rarity }> = {
+          3001: { name: 'riemu', emoji: '🌟', rarity: 'common' },
+          3002: { name: 'riemu', emoji: '🌟', rarity: 'rare' },
+          3003: { name: 'riemu', emoji: '🌟', rarity: 'super-rare' },
+          3004: { name: 'riemu', emoji: '🌟', rarity: 'ultra-rare' },
+          3005: { name: 'riemu', emoji: '🌟', rarity: 'legendary' },
+          3006: { name: 'HST riemu', emoji: '🌟', rarity: 'HST' },
+        };
+        const reward = rewardConfig[stageId as (typeof RIEMU_EVENT_STAGES)[number]];
+        if (reward) {
+          // ベースステータスはガチャと同じテーブルを使用
+          const baseStats: { [key in Rarity]: { hp: number; attack: number; defense: number; speed: number } } = {
+            HST:        { hp: 300, attack: 100, defense: 50, speed: 60 },
+            stary:      { hp: 200, attack: 65, defense: 30, speed: 40 },
+            legendary:  { hp: 150, attack: 45, defense: 20, speed: 25 },
+            'ultra-rare': { hp: 120, attack: 35, defense: 15, speed: 20 },
+            'super-rare': { hp: 100, attack: 28, defense: 12, speed: 15 },
+            rare:       { hp: 80, attack: 22, defense: 10, speed: 12 },
+            common:     { hp: 60, attack: 16, defense: 8, speed: 10 },
+          };
+          const stats = baseStats[reward.rarity];
+
+          // すでに同じ名前＆レアリティを持っているか軽くチェック（重複付与防止）
+          const { data: existing } = await supabase
+            .from('user_members')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('member_name', reward.name)
+            .eq('rarity', reward.rarity)
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase
+              .from('user_members')
+              .insert({
+                user_id: user.id,
+                member_name: reward.name,
+                member_emoji: reward.emoji,
+                member_description: 'HST Riemu イベント報酬',
+                rarity: reward.rarity,
+                level: 1,
+                experience: 0,
+                hp: stats.hp,
+                max_hp: stats.hp,
+                current_hp: stats.hp,
+                attack: stats.attack,
+                defense: stats.defense,
+                speed: stats.speed,
+                // HST 版だけ少し特別なスキルを付与
+                skill_type: reward.rarity === 'HST' ? 'all_heal' : null,
+                skill_power: reward.rarity === 'HST' ? 40 : 0,
+              });
+          }
+
+          // クリア記録（再挑戦禁止用）
+          try {
+            await supabase
+              .from('riemu_event_clears')
+              .insert({
+                user_id: user.id,
+                stage: stageId,
+                rarity: reward.rarity,
+              });
+          } catch {
+            // UNIQUE制約違反などは無視
+          }
+        }
       }
 
       // バトルログ保存（パーティーモードは stage 0 で記録し、ステージ進行判定に影響させない）
