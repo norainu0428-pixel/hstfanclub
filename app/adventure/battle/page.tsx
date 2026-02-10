@@ -131,7 +131,13 @@ export default function BattlePage() {
   // オートバトル: プレイヤーターン時に自動で通常攻撃
   useEffect(() => {
     if (!isPlayerTurn || !isAutoMode || battleResult || loading || party.length === 0) return;
-    const memberIdx = party.findIndex(m => m.hp > 0);
+    // 生存メンバーの中から「攻撃力が一番高いメンバー」を選ぶ
+    const memberIdx = party.reduce((bestIdx, m, idx) => {
+      if (m.hp <= 0) return bestIdx;
+      if (bestIdx === -1) return idx;
+      const best = party[bestIdx];
+      return m.attack > (best.attack ?? 0) ? idx : bestIdx;
+    }, -1 as number);
     const enemyIdx = enemies.findIndex(e => e.hp > 0);
     if (memberIdx < 0 || enemyIdx < 0) return;
     const t = setTimeout(() => {
