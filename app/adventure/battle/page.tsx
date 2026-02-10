@@ -1565,7 +1565,7 @@ export default function BattlePage() {
     // 報酬計算
     const totalExp = enemies.reduce((sum, e) => sum + e.experience_reward, 0);
     const basePoints = enemies.reduce((sum, e) => sum + e.points_reward, 0);
-
+    
     // 覇者の塔ボーナス（各階ごとの追加ポイント）
     const towerReward = isTowerStage(stageId) ? getTowerRewardByStage(stageId) : null;
     const bonusTowerPoints = towerReward?.bonusPoints ?? 0;
@@ -1573,21 +1573,32 @@ export default function BattlePage() {
     
     setRewards({ exp: totalExp, points: totalPoints });
     
-    // ★★★ レベルアップ処理（ステージクリアだけではレベル・ステータスを上げない）★★★
-    // 仕様変更: 通常ステージ・塔・イベントのクリアではレベルアップさせない。
-    // キャラの成長は「進化」「合成」など別の仕組みでのみ行う。
+    // ★★★ レベルアップ処理 ★★★
+    // ステージクリア時に経験値を付与し、レベルアップとステータス上昇を行う。
+    // ただし装備は廃止済みなので、純粋にメンバー本体の成長のみ反映される。
     const allLevelUps: LevelUpResult[] = [];
-    const updatedParty = party.map(member => ({
-      ...member,
-      // 勝利時はHPだけ全回復させる
-      hp: member.max_hp,
-      current_hp: member.max_hp,
-    }));
+    const updatedParty = party.map(member => {
+      const { updatedMember, levelUps } = calculateLevelUp(member, totalExp);
+      allLevelUps.push(...levelUps);
+      // 勝利時はHPを全回復させておく
+      return {
+        ...updatedMember,
+        hp: updatedMember.max_hp,
+        current_hp: updatedMember.max_hp,
+      };
+    });
     
-    // パーティ更新（レベル・攻撃力などはそのまま）
+    // パーティ更新
     setParty(updatedParty);
     
-    // レベルアップメッセージは発生しない（allLevelUps は常に空）
+    // レベルアップメッセージ
+    if (allLevelUps.length > 0) {
+      allLevelUps.forEach(levelUp => {
+        const m = updatedParty.find(mm => mm.id === levelUp.member_id);
+        addLog(`🎉 ${m?.member_emoji} ${m?.member_name} が Lv.${levelUp.new_level} にレベルアップ！`);
+        addLog(`   HP+${levelUp.stat_gains.hp} ATK+${levelUp.stat_gains.attack} DEF+${levelUp.stat_gains.defense} SPD+${levelUp.stat_gains.speed}`);
+      });
+    }
     
     addLog(`戦闘に勝利した！ 経験値+${totalExp} ポイント+${totalPoints}`);
     if (towerReward && bonusTowerPoints > 0) {
@@ -1601,9 +1612,13 @@ export default function BattlePage() {
         await supabase
           .from('user_members')
           .update({
-            // ステージクリアではレベル・基礎ステータスは更新しない
-            // 勝利時はHPだけ全回復させる
-            hp: member.max_hp,
+            level: member.level,
+            experience: member.experience,
+            hp: member.max_hp, // 勝利時はHPを全回復して保存
+            max_hp: member.max_hp,
+            attack: member.attack,
+            defense: member.defense,
+            speed: member.speed,
             current_hp: member.max_hp
           })
           .eq('id', member.id);
