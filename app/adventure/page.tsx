@@ -438,10 +438,10 @@ export default function AdventurePage() {
                 {/* 素材メンバー選択 */}
                 <div className="mb-4">
                   <h3 className="text-lg font-bold mb-2 text-white">
-                    素材メンバー（最大5体）: {materialMembers.length}/5
+                    素材メンバー（最大10体）: {materialMembers.length}/10
                   </h3>
                   <div className="grid grid-cols-5 gap-2">
-                    {Array.from({ length: 5 }).map((_, index) => {
+                    {Array.from({ length: 10 }).map((_, index) => {
                       const material = materialMembers[index];
                       return (
                         <div key={index} className="relative">
@@ -617,10 +617,10 @@ export default function AdventurePage() {
                       } else {
                         if (!baseMember) {
                           setBaseMember(member);
-                        } else if (materialMembers.length < 5) {
+                        } else if (materialMembers.length < 10) {
                           setMaterialMembers(prev => [...prev, member]);
                         } else {
-                          alert('素材メンバーは最大5体までです');
+                          alert('素材メンバーは最大10体までです');
                         }
                       }
                     }}

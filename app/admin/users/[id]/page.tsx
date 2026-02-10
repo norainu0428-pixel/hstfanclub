@@ -165,6 +165,43 @@ export default function UserDetailPage() {
           </div>
         </div>
 
+        {/* 経験値アップコース（レベルアップステージ）残り回数 */}
+        <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
+          <h2 className="text-xl font-bold mb-4">経験値アップコース 残り回数</h2>
+          <p className="text-sm text-gray-600 mb-3">
+            基本は1日5回まで。ここで設定した「ボーナス回数」が毎日加算され、実質の残り回数になります（例: 10にすると1日15回まで挑戦可能）。
+          </p>
+          <div className="flex gap-4 items-center">
+            <label htmlFor="bonusPlaysInput" className="font-bold text-gray-900">ボーナス回数</label>
+            <input
+              type="number"
+              id="bonusPlaysInput"
+              min={0}
+              defaultValue={user.level_training_bonus_plays ?? 0}
+              className="border-2 border-gray-300 rounded-lg px-4 py-2 w-24"
+            />
+            <button
+              onClick={async () => {
+                const input = document.getElementById('bonusPlaysInput') as HTMLInputElement;
+                const value = Math.max(0, parseInt(input.value, 10) || 0);
+                const { error } = await supabase
+                  .from('profiles')
+                  .update({ level_training_bonus_plays: value })
+                  .eq('user_id', userId);
+                if (error) {
+                  alert('更新に失敗しました: ' + error.message);
+                  return;
+                }
+                alert('経験値アップコースのボーナス回数を更新しました。');
+                loadUser();
+              }}
+              className="bg-indigo-500 text-white px-6 py-2 rounded-lg hover:bg-indigo-600"
+            >
+              ボーナス回数を更新
+            </button>
+          </div>
+        </div>
+
         {/* 所持メンバー */}
         <div className="bg-white rounded-xl p-6 shadow-lg">
           <h2 className="text-xl font-bold mb-4">所持メンバー ({members.length}体)</h2>

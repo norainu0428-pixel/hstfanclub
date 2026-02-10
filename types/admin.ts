@@ -18,6 +18,8 @@ export interface UserWithProfile {
   is_disabled?: boolean;
   created_at: string;
   last_sign_in_at?: string;
+  /** 経験値アップコースのボーナス挑戦回数（1日5回に加算される） */
+  level_training_bonus_plays?: number;
 }
 
 export interface PointHistory {

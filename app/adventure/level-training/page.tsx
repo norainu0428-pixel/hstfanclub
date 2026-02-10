@@ -41,7 +41,7 @@ export default function LevelTrainingPage() {
 
     setMembers(membersData || []);
 
-    // 今日のレベルアップステージ挑戦回数をカウント
+    // 今日のレベルアップステージ挑戦回数 + オーナー設定のボーナス回数
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -55,7 +55,17 @@ export default function LevelTrainingPage() {
       .gte('created_at', today.toISOString())
       .lt('created_at', tomorrow.toISOString());
 
-    setRemaining(Math.max(0, DAILY_LIMIT - (count || 0)));
+    const usedToday = count || 0;
+    const baseRemaining = Math.max(0, DAILY_LIMIT - usedToday);
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('level_training_bonus_plays')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const bonus = (profile as { level_training_bonus_plays?: number } | null)?.level_training_bonus_plays ?? 0;
+    setRemaining(baseRemaining + bonus);
     setLoading(false);
   }
 
@@ -103,7 +113,7 @@ export default function LevelTrainingPage() {
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl font-bold mb-2">📘 レベルアップステージ</h1>
           <p className="text-lg opacity-90 mb-2">
-            1日 {DAILY_LIMIT} 回まで挑戦できます（今日はあと <span className="font-bold">{remaining}</span> 回）。
+            1日 {DAILY_LIMIT} 回 + ボーナスで挑戦できます（今日はあと <span className="font-bold">{remaining}</span> 回）。
           </p>
           <p className="text-sm opacity-80">
             あなたの最高レベル: Lv.{maxLevel || 1}
