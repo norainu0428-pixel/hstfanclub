@@ -94,7 +94,12 @@ export default function MemberCard({ member, onClick, selected = false, showStat
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div
                   className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all"
-                  style={{ width: `${(member.hp / member.max_hp) * 100}%` }}
+                  style={{
+                    width: `${member.max_hp > 0
+                      ? Math.min(Math.max((member.hp / member.max_hp) * 100, 0), 100)
+                      : 0
+                    }%`
+                  }}
                 />
               </div>
             </div>
