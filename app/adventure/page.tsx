@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
 import { canEvolve, getEvolvedStats } from '@/utils/evolution';
+import { TOWER_STAGE_START, RIEMU_EVENT_STAGES } from '@/utils/stageGenerator';
 
 export default function AdventurePage() {
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,8 @@ export default function AdventurePage() {
   const [materialMembers, setMaterialMembers] = useState<Member[]>([]);
   const [evolutionMember, setEvolutionMember] = useState<Member | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = searchParams.get('mode'); // 'tower' | 'riemu_event' | null
 
   useEffect(() => {
     loadData();
@@ -135,6 +138,19 @@ export default function AdventurePage() {
       alert('パーティにメンバーを追加してください！');
       return;
     }
+
+    // 覇者の塔 or Riemuイベントモードの場合は専用ステージに直接飛ばす
+    if (mode === 'tower') {
+      router.push(`/adventure/stage/${TOWER_STAGE_START}?party=${partyIds}`);
+      return;
+    }
+    if (mode === 'riemu_event') {
+      const firstEventStage = RIEMU_EVENT_STAGES[0];
+      router.push(`/adventure/stage/${firstEventStage}?party=${partyIds}`);
+      return;
+    }
+
+    // 通常の冒険
     router.push(`/adventure/stages?party=${partyIds}&current=${currentStage}`);
   }
 
