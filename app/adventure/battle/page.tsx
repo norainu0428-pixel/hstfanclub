@@ -1596,25 +1596,21 @@ export default function BattlePage() {
     
     setRewards({ exp: totalExp, points: totalPoints });
     
-    // ★★★ レベルアップ処理 ★★★
+    // ★★★ レベルアップ処理（ステージクリアだけではレベル・ステータスを上げない）★★★
+    // 仕様変更: 通常ステージ・塔・イベントのクリアではレベルアップさせない。
+    // キャラの成長は「進化」「合成」など別の仕組みでのみ行う。
     const allLevelUps: LevelUpResult[] = [];
-    const updatedParty = party.map(member => {
-      const { updatedMember, levelUps } = calculateLevelUp(member, totalExp);
-      allLevelUps.push(...levelUps);
-      return updatedMember;
-    });
+    const updatedParty = party.map(member => ({
+      ...member,
+      // 勝利時はHPだけ全回復させる
+      hp: member.max_hp,
+      current_hp: member.max_hp,
+    }));
     
-    // パーティ更新
+    // パーティ更新（レベル・攻撃力などはそのまま）
     setParty(updatedParty);
     
-    // レベルアップメッセージ
-    if (allLevelUps.length > 0) {
-      allLevelUps.forEach(levelUp => {
-        const member = updatedParty.find(m => m.id === levelUp.member_id);
-        addLog(`🎉 ${member?.member_emoji} ${member?.member_name} が Lv.${levelUp.new_level} にレベルアップ！`);
-        addLog(`   HP+${levelUp.stat_gains.hp} ATK+${levelUp.stat_gains.attack} DEF+${levelUp.stat_gains.defense} SPD+${levelUp.stat_gains.speed}`);
-      });
-    }
+    // レベルアップメッセージは発生しない（allLevelUps は常に空）
     
     addLog(`戦闘に勝利した！ 経験値+${totalExp} ポイント+${totalPoints}`);
     if (towerReward && bonusTowerPoints > 0) {
@@ -1628,14 +1624,10 @@ export default function BattlePage() {
         await supabase
           .from('user_members')
           .update({
-            level: member.level,
-            experience: member.experience,
-            hp: member.max_hp, // 勝利時はHPを全回復
-            max_hp: member.max_hp,
-            attack: member.attack,
-            defense: member.defense,
-            speed: member.speed,
-            current_hp: member.max_hp // current_hpも全回復
+            // ステージクリアではレベル・基礎ステータスは更新しない
+            // 勝利時はHPだけ全回復させる
+            hp: member.max_hp,
+            current_hp: member.max_hp
           })
           .eq('id', member.id);
       }
@@ -1738,7 +1730,7 @@ export default function BattlePage() {
             .maybeSingle();
 
           if (!existing) {
-            await supabase
+            const { error: insertErr } = await supabase
               .from('user_members')
               .insert({
                 user_id: user.id,
@@ -1754,23 +1746,32 @@ export default function BattlePage() {
                 attack: stats.attack,
                 defense: stats.defense,
                 speed: stats.speed,
-                // レジェンド / HST 版にはRiemuの加護を付与
                 skill_type: reward.rarity === 'legendary' || reward.rarity === 'HST' ? 'riemu_blessing' : null,
                 skill_power: 0,
+                revive_used: false,
               });
-          }
 
-          // クリア記録（再挑戦禁止用）
-          try {
-            await supabase
-              .from('riemu_event_clears')
-              .insert({
+            if (insertErr) {
+              console.error('Riemu イベント報酬付与エラー:', insertErr);
+              alert(`キャラクターの付与に失敗しました: ${insertErr.message}\nもう一度お試しください。`);
+              // 付与失敗時はクリア記録を入れない（再挑戦可能にする）
+            } else {
+              // 付与成功時のみクリア記録（再挑戦禁止）
+              await supabase.from('riemu_event_clears').insert({
                 user_id: user.id,
                 stage: stageId,
                 rarity: reward.rarity,
               });
-          } catch {
-            // UNIQUE制約違反などは無視
+              // UNIQUE違反等のエラーは無視（既に記録済みなら問題なし）
+            }
+          } else {
+            // 既に持っている場合もクリア記録を入れる（再挑戦禁止のため）
+            await supabase.from('riemu_event_clears').insert({
+              user_id: user.id,
+              stage: stageId,
+              rarity: reward.rarity,
+            });
+            // UNIQUE違反等のエラーは無視
           }
         }
       }

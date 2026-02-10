@@ -261,6 +261,9 @@ export default function CollectionPage() {
     common: members.filter(m => m.rarity === 'common').length
   };
 
+  // イベント報酬でHST riemuを獲得しているユーザーもHSTを表示（オーナー以外）
+  const showHst = isOwner || rarityCount.HST > 0;
+
   // 検索で絞り込み（名前・絵文字・説明を対象）
   const displayedMembers = useMemo(() => {
     if (!searchQuery.trim()) return members;
@@ -321,8 +324,8 @@ export default function CollectionPage() {
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-2xl">
           <h2 className="text-xl font-bold mb-2">レアリティ別所持数</h2>
           <p className="text-sm text-gray-900 mb-4">★7が最上位、★1が最下位です</p>
-          <div className={`grid grid-cols-2 md:grid-cols-${isOwner ? '7' : '6'} gap-3`}>
-            {isOwner && (
+          <div className={`grid grid-cols-2 md:grid-cols-${showHst ? '7' : '6'} gap-3`}>
+            {showHst && (
               <div className={`${getRarityColorClass('HST')} text-white rounded-lg p-3 text-center`}>
                 <div className="text-2xl font-bold">{rarityCount.HST}</div>
                 <div className="text-xs">{getRarityLabel('HST')}</div>
@@ -390,7 +393,7 @@ export default function CollectionPage() {
                   className="w-full border-2 border-gray-300 rounded-lg px-4 py-2"
                 >
                   <option value="all">すべて</option>
-                  {isOwner && <option value="HST">{getRarityLabel('HST')}</option>}
+                  {showHst && <option value="HST">{getRarityLabel('HST')}</option>}
                   {RARITY_FILTER_OPTIONS.filter(o => o.value !== 'HST').map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
@@ -409,7 +412,7 @@ export default function CollectionPage() {
                 >
                   すべて
                 </button>
-                {isOwner && (
+                {showHst && (
                   <button
                     onClick={() => setFilterRarity('HST')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-bold text-white transition ${getRarityColorClass('HST')} ${
@@ -545,7 +548,7 @@ export default function CollectionPage() {
           {/* レアリティ順の場合はセクション分け表示 */}
           {sortBy === 'rarity' && displayedMembers.length > 0 ? (
             <div className="space-y-6">
-              {(['HST', 'stary', 'legendary', 'ultra-rare', 'super-rare', 'rare', 'common'] as const).filter(r => isOwner || r !== 'HST').map(rarity => {
+              {(['HST', 'stary', 'legendary', 'ultra-rare', 'super-rare', 'rare', 'common'] as const).filter(r => showHst || r !== 'HST').map(rarity => {
                 const inRarity = displayedMembers.filter(m => m.rarity === rarity);
                 if (inRarity.length === 0) return null;
                 return (
