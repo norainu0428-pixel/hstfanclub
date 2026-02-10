@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Member, Enemy, LevelUpResult } from '@/types/adventure';
+import { Member, Enemy, LevelUpResult, INITIAL_STATS } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
 import { getStageInfo, isExtraStage, EXTRA_STAGE_END, isTowerStage, getTowerRewardByStage, TOWER_STAGE_START, TOWER_STAGE_END, isRiemuEventStage, RIEMU_EVENT_STAGES, isLevelTrainingStage } from '@/utils/stageGenerator';
 import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
@@ -1700,16 +1700,7 @@ export default function BattlePage() {
         };
         const reward = rewardConfig[stageId as (typeof RIEMU_EVENT_STAGES)[number]];
         if (reward) {
-          const baseStats: { [key in Rarity]: { hp: number; attack: number; defense: number; speed: number } } = {
-            HST:        { hp: 300, attack: 100, defense: 50, speed: 60 },
-            stary:      { hp: 200, attack: 65, defense: 30, speed: 40 },
-            legendary:  { hp: 150, attack: 45, defense: 20, speed: 25 },
-            'ultra-rare': { hp: 120, attack: 35, defense: 15, speed: 20 },
-            'super-rare': { hp: 100, attack: 28, defense: 12, speed: 15 },
-            rare:       { hp: 80, attack: 22, defense: 10, speed: 12 },
-            common:     { hp: 60, attack: 16, defense: 8, speed: 10 },
-          };
-          const stats = baseStats[reward.rarity];
+          const stats = INITIAL_STATS[reward.rarity] ?? INITIAL_STATS['common'];
 
           const { data: existing } = await supabase
             .from('user_members')

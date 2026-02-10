@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { initializeDailyMissions } from '@/utils/missionTracker';
+import { INITIAL_STATS, LEVEL_UP_STATS } from '@/types/adventure';
 
 type Profile = {
   user_id: string;
@@ -136,29 +137,17 @@ export default function Home() {
       const currentCount = existingStary?.length || 0;
 
       if (currentCount < 3) {
-        // Lv500 STARYのステータス計算
+        // Lv500 STARYのステータス計算（INITIAL_STATS + LEVEL_UP_STATS で統一）
         const level = 500;
-        const levelUps = level - 1; // 499回レベルアップ
-        
-        const baseStats = {
-          hp: 200,
-          attack: 50,
-          defense: 30,
-          speed: 40
-        };
-
-        const growthPerLevel = {
-          hp: 20,
-          attack: 5,
-          defense: 4,
-          speed: 4
-        };
+        const levelUps = level - 1;
+        const baseStats = INITIAL_STATS['stary'];
+        const growth = LEVEL_UP_STATS['stary'];
 
         const finalStats = {
-          hp: baseStats.hp + (levelUps * growthPerLevel.hp),
-          attack: baseStats.attack + (levelUps * growthPerLevel.attack),
-          defense: baseStats.defense + (levelUps * growthPerLevel.defense),
-          speed: baseStats.speed + (levelUps * growthPerLevel.speed)
+          hp: baseStats.hp + levelUps * growth.hp,
+          attack: baseStats.attack + levelUps * growth.attack,
+          defense: baseStats.defense + levelUps * growth.defense,
+          speed: baseStats.speed + levelUps * growth.speed
         };
 
         const staryToAdd = 3 - currentCount;

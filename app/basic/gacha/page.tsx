@@ -12,6 +12,7 @@ import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
 import { getRarityLabel, getRarityShortLabel, getRarityLabelWithEmoji, getRarityColorClass, getRarityBorderColor, normalizeRarity } from '@/utils/rarity';
 import { getSkillName } from '@/utils/skills';
+import { INITIAL_STATS } from '@/types/adventure';
 import Image from 'next/image';
 
 type Rarity = 'HST' | 'stary' | 'common' | 'rare' | 'super-rare' | 'ultra-rare' | 'legendary';
@@ -282,19 +283,9 @@ export default function BasicGachaPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const baseStats: { [key: string]: { hp: number; attack: number; defense: number; speed: number } } = {
-      'HST': { hp: 300, attack: 100, defense: 50, speed: 60 },
-      'stary': { hp: 200, attack: 65, defense: 30, speed: 40 },
-      'legendary': { hp: 150, attack: 45, defense: 20, speed: 25 },
-      'ultra-rare': { hp: 120, attack: 35, defense: 15, speed: 20 },
-      'super-rare': { hp: 100, attack: 28, defense: 12, speed: 15 },
-      'rare': { hp: 80, attack: 22, defense: 10, speed: 12 },
-      'common': { hp: 60, attack: 16, defense: 8, speed: 10 }
-    };
-
     // メンバー保存
     for (const result of results) {
-      const stats = baseStats[result.rarity] ?? baseStats['common'];
+      const stats = INITIAL_STATS[result.rarity] ?? INITIAL_STATS['common'];
       
       const { error: insertErr } = await supabase
         .from('user_members')
