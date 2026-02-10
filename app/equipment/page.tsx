@@ -93,6 +93,7 @@ export default function EquipmentPage() {
         .select(`
           user_member_id,
           slot,
+          user_equipment_id,
           user_equipment(id, definition_id, level, equipment_definitions(*))
         `)
         .in('user_member_id', memberIds);
@@ -102,18 +103,27 @@ export default function EquipmentPage() {
     const byMember: Record<string, { weapon?: any; armor?: any; accessory?: any }> = {};
     (memberEquipData || []).forEach((row: any) => {
       const ue = row.user_equipment;
-      const def = ue?.equipment_definitions != null
+      let def = ue?.equipment_definitions != null
         ? (Array.isArray(ue.equipment_definitions) ? ue.equipment_definitions[0] : ue.equipment_definitions)
         : null;
-      if (!def) return;
-      const item = {
-        id: ue.id,
-        definition_id: ue.definition_id,
-        level: ue.level,
-        def
-      };
+      // リレーションで def が取れない場合、所持装備一覧から補完（RLS等で user_equipment が null のときも表示する）
+      const equipId = row.user_equipment_id ?? row.user_equipment?.id;
+      const fromList = equipId ? list.find((e: any) => e.id === equipId) : null;
+      if (!def && fromList?.def) def = fromList.def;
+      if (!def && ue?.definition_id) {
+        const byDefId = list.find((e: any) => e.definition_id === ue.definition_id);
+        if (byDefId?.def) def = byDefId.def;
+      }
+      const slotKey = row.slot as Slot;
       if (!byMember[row.user_member_id]) byMember[row.user_member_id] = {};
-      byMember[row.user_member_id][row.slot as Slot] = item;
+      if (def) {
+        byMember[row.user_member_id][slotKey] = {
+          id: ue?.id ?? equipId,
+          definition_id: ue?.definition_id ?? fromList?.definition_id,
+          level: ue?.level ?? fromList?.level ?? 1,
+          def
+        };
+      }
     });
 
     const membersWithEquip: MemberWithEquip[] = (membersData || []).map((m: any) => ({
@@ -127,6 +137,7 @@ export default function EquipmentPage() {
   }
 
   async function equip(memberId: string, slot: Slot, userEquipmentId: string | null) {
+    const previousSelecting = selectingSlot;
     setSelectingSlot(null);
     try {
       // 既存の同スロット装備を削除（装着・外すどちらでも先に消す）
@@ -159,10 +170,25 @@ export default function EquipmentPage() {
           await load();
           return;
         }
+        // 楽観的更新: 該当キャラのスロットにすぐ反映
+        const item = userEquipList.find((ue) => ue.id === userEquipmentId);
+        if (item?.def) {
+          setMembers((prev) =>
+            prev.map((m) =>
+              m.id === memberId ? { ...m, [slot]: { id: item.id, definition_id: item.definition_id, level: item.level, def: item.def! } } : m
+            )
+          );
+        }
+      } else {
+        // 外した場合も楽観的更新
+        setMembers((prev) =>
+          prev.map((m) => (m.id === memberId ? { ...m, [slot]: undefined } : m))
+        );
       }
       await load();
     } catch (e) {
       console.error(e);
+      setSelectingSlot(previousSelecting ?? null);
       alert('装備の更新中にエラーが発生しました');
       await load();
     }
