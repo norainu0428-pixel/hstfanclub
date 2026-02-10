@@ -82,14 +82,45 @@ export default function LevelTrainingPage() {
     }
   }
 
-  function startTraining(stageId: number) {
+  async function startTraining(stageId: number) {
     const filled = party.filter(m => m !== null) as Member[];
     if (filled.length === 0) {
       alert('パーティにメンバーを追加してください！');
       return;
     }
-    if (remaining <= 0) {
-      alert(`レベルアップステージは1日${DAILY_LIMIT}回までです。また明日お試しください。`);
+
+    // マルチタブ対策: 開始時にもサーバー側の最新回数でチェックする
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push('/');
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const { count } = await supabase
+      .from('battle_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .in('stage', LEVEL_TRAINING_STAGES as unknown as number[])
+      .gte('created_at', today.toISOString())
+      .lt('created_at', tomorrow.toISOString());
+
+    const usedTodayNow = count || 0;
+    const baseRemainingNow = Math.max(0, DAILY_LIMIT - usedTodayNow);
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('level_training_bonus_plays')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const bonusNow = (profile as { level_training_bonus_plays?: number } | null)?.level_training_bonus_plays ?? 0;
+    const totalRemainingNow = baseRemainingNow + bonusNow;
+
+    if (totalRemainingNow <= 0) {
+      alert(`レベルアップステージは1日${DAILY_LIMIT}回までです（ボーナス含めて上限に達しました）。また明日お試しください。`);
       return;
     }
 

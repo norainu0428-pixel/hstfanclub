@@ -100,19 +100,20 @@ class TabSessionManager {
 
   /**
    * バトルセッションを開始
-   * 他のタブが同じバトルを実行中の場合、falseを返す
+   * 他のタブが同じユーザーでバトル実行中の場合、falseを返す
    */
   public startBattle(userId: string, stageId: number): boolean {
-    const key = `${userId}_${stageId}`;
-    const existingSession = this.activeBattleSessions.get(key);
-    
-    // 他のタブが同じバトルを実行中かチェック（5秒以内のセッションは有効とみなす）
-    if (existingSession && Date.now() - existingSession.timestamp < 5000) {
-      return false;
+    // 他のタブが同じユーザーでバトル中かどうかをチェック（ステージIDは問わない）
+    const now = Date.now();
+    for (const session of this.activeBattleSessions.values()) {
+      if (session.userId === userId && now - session.timestamp < 5000) {
+        return false;
+      }
     }
 
     // このタブをアクティブに設定
     this.isActiveTab = true;
+    const key = `${userId}_${stageId}`;
     this.activeBattleSessions.set(key, {
       userId,
       stageId,
