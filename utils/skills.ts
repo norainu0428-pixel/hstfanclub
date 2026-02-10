@@ -91,6 +91,7 @@ export const SKILL_NAMES: Record<string, string> = {
 
   // 特殊・ユニーク系 76-100
   hst_power: 'HSTパワー',
+  riemu_blessing: 'Riemuの加護',
   time_stop: '時間停止',
   copy: 'コピー',
   damage_reflect: 'ダメージ反射',
@@ -126,6 +127,7 @@ export const SKILLS_NEED_ENEMY_TARGET = new Set([
   'power_strike', 'double_strike', 'triple_strike', 'pierce_attack', 'poison_blade',
   'fire_strike', 'ice_strike', 'thunder_strike', 'dark_strike', 'critical_strike',
   'drain_attack', 'execute', 'finish', 'push', 'restrain', 'intimidate', 'curse_damage',
+  'riemu_blessing',
   'attack_down', 'defense_down', 'poison', 'paralyze', 'sleep', 'confusion', 'freeze',
   'silence', 'slow', 'curse', 'shrink', 'fear', 'blind', 'bleed', 'weaken',
   'insta_kill', 'hp_drain', 'flash', 'dual_wield'

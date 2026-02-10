@@ -272,15 +272,15 @@ export function generateExtraStageInfo(stage: number): StageInfo {
 }
 
 // 覇者の塔ステージ生成（Tower of Conquerors）
-// 2001〜2100 → 1〜100階。推奨レベルは 1階でおおよそ1000付近から始まり、100階で2500までスケール。
+// 2001〜2100 → 1〜100階。
+// 1階は初心者でも勝てるようにかなり抑えめ（推奨Lv300前後）から始まり、100階で2500までスケール。
 export function generateTowerStageInfo(stage: number): StageInfo {
   const floor = stage - TOWER_STAGE_START + 1; // 1〜100
 
-  // 既存エクストラステージの終盤（Lv1000付近）からさらに積み上げていくイメージでスケール
-  // 1階: 約1000 / 100階: 2500
+  // 1階: Lv300 / 100階: Lv2500 になるように線形スケール
   const recommendedLevel = Math.min(
     2500,
-    Math.floor(1000 + ((floor - 1) * (2500 - 1000)) / (TOWER_STAGE_END - TOWER_STAGE_START))
+    Math.floor(300 + ((floor - 1) * (2500 - 300)) / (TOWER_STAGE_END - TOWER_STAGE_START))
   );
 
   // 基本ステータス（commonレアの成長式に合わせる）
@@ -297,16 +297,16 @@ export function generateTowerStageInfo(stage: number): StageInfo {
     { name: '覇者の化身', emoji: '👑💀' },
   ];
 
-  // 上層ほど敵数・強さともに増していく。常に3〜5体。
-  const enemyCount = Math.min(5, 3 + Math.floor(floor / 25)); // 1〜25F:3体, 26〜50F:4体, 51F〜:5体
+  // 上層ほど敵数・強さともに増していく。常に2〜5体。
+  const enemyCount = Math.min(5, 2 + Math.floor(floor / 30)); // 1〜30F:2体, 31〜60F:3体, 61〜90F:4体, 91F〜:5体
 
   for (let i = 0; i < enemyCount; i++) {
     const isBoss = i === enemyCount - 1;
 
-    // 階層が上がるほど全体倍率も上がる
-    const floorRatio = 1 + (floor - 1) / 60; // 1F付近:1.0台 / 100F付近:2.6前後
-    const bossMultiplier = isBoss ? 2.0 * floorRatio : 1.4 * floorRatio;
-    const enemyPowerRatio = isBoss ? 2.2 * floorRatio : 1.7 * floorRatio;
+    // 階層が上がるほど全体倍率も上がるが、序盤はかなり控えめに
+    const floorRatio = 0.7 + (floor - 1) / 80; // 1F付近:0.7台 / 100F付近:約2.0前後
+    const bossMultiplier = isBoss ? 1.6 * floorRatio : 1.2 * floorRatio;
+    const enemyPowerRatio = isBoss ? 1.9 * floorRatio : 1.5 * floorRatio;
 
     const typeIndex = Math.min(
       towerEnemyTypes.length - 1,
@@ -314,10 +314,10 @@ export function generateTowerStageInfo(stage: number): StageInfo {
     );
     const enemyType = towerEnemyTypes[typeIndex];
 
-    const hp = Math.floor(baseStats.hp * enemyPowerRatio * (isBoss ? 1.5 : 1.0));
-    const attack = Math.floor(baseStats.attack * enemyPowerRatio * 2.3);
-    const defense = Math.floor(baseStats.defense * enemyPowerRatio * 2.0);
-    const speed = Math.floor(baseStats.speed * enemyPowerRatio * 1.2);
+    const hp = Math.floor(baseStats.hp * enemyPowerRatio * (isBoss ? 1.4 : 1.0));
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio * 2.0);
+    const defense = Math.floor(baseStats.defense * enemyPowerRatio * 1.6);
+    const speed = Math.floor(baseStats.speed * enemyPowerRatio * 1.1);
 
     // 経験値とポイントは、エクストラ終盤よりも明確に上
     const expBase = 400 + floor * 6;

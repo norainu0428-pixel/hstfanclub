@@ -159,13 +159,12 @@ export default function BattlePage() {
         (!isExtraStage(stageId) && !isTowerStage(stageId) && !isRiemuEventStage(stageId) && stageId > 400))
     ) {
       alert('無効なステージIDです');
-      router.push('/adventure');
+      router.push(isTowerStage(stageId) ? '/adventure/tower' : isRiemuEventStage(stageId) ? '/adventure/riemu-event' : '/adventure');
       return;
     }
 
-    // 覇者の塔: 今週すでにその階をクリア済みなら挑戦不可
+    // 覇者の塔: 一度クリア済みなら再挑戦不可
     if (isTowerStage(stageId)) {
-      const weekStart = getCurrentWeekStartDate();
       const floor = stageId - TOWER_STAGE_START + 1;
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -178,11 +177,10 @@ export default function BattlePage() {
         .select('id')
         .eq('user_id', user.id)
         .eq('floor', floor)
-        .eq('week_start', weekStart)
         .maybeSingle();
       if (towerClear) {
-        alert(`覇者の塔 第${floor}階は今週すでにクリア済みです。\n週が替わると再挑戦できます。`);
-        router.push('/adventure');
+        alert(`覇者の塔 第${floor}階はすでにクリア済みです。再挑戦はできません。`);
+        router.push('/adventure/tower');
         return;
       }
     }
@@ -203,7 +201,7 @@ export default function BattlePage() {
         .maybeSingle();
       if (cleared) {
         alert('この HST Riemu イベントステージはすでにクリア済みです。もう一度クリアすることはできません。');
-        router.push('/adventure');
+        router.push('/adventure/riemu-event');
         return;
       }
     }
@@ -216,7 +214,13 @@ export default function BattlePage() {
         setIsBlockedByOtherTab(true);
         setLoading(false);
         alert('⚠️ 他のタブで同じバトルが実行中です。\n複数のタブで同じバトルを同時に実行することはできません。\n他のタブを閉じてから再度お試しください。');
-        router.push('/adventure');
+        if (isTowerStage(stageId)) {
+          router.push('/adventure/tower');
+        } else if (isRiemuEventStage(stageId)) {
+          router.push('/adventure/riemu-event');
+        } else {
+          router.push('/adventure');
+        }
         return;
       }
     }
@@ -268,7 +272,15 @@ export default function BattlePage() {
     } else {
       if (partyIds.length === 0) {
         alert('パーティが選択されていません');
-        router.push(partyStageId ? '/party' : '/adventure');
+        if (partyStageId) {
+          router.push('/party');
+        } else if (isTowerStage(stageId)) {
+          router.push('/adventure/tower');
+        } else if (isRiemuEventStage(stageId)) {
+          router.push('/adventure/riemu-event');
+        } else {
+          router.push('/adventure');
+        }
         return;
       }
       const { data: partyData } = await supabase
@@ -277,7 +289,13 @@ export default function BattlePage() {
         .in('id', partyIds);
       if (!partyData || partyData.length === 0) {
         alert('パーティメンバーが見つかりません');
-        router.push('/adventure');
+        if (isTowerStage(stageId)) {
+          router.push('/adventure/tower');
+        } else if (isRiemuEventStage(stageId)) {
+          router.push('/adventure/riemu-event');
+        } else {
+          router.push('/adventure');
+        }
         return;
       }
       initializedParty = partyData.map(member => ({
@@ -1114,6 +1132,36 @@ export default function BattlePage() {
         if (nes.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
         break;
       }
+      case 'riemu_blessing': {
+        // Riemuの加護: 敵1体に自分の攻撃力の3倍ダメージ、自分は元の攻撃力分だけ回復
+        if (targetEnemyIndex === undefined || targetEnemyIndex < 0 || targetEnemyIndex >= enemies.length) {
+          alert('敵を選択してください'); setIsPlayerTurn(true); return;
+        }
+        const targetEnemy = enemies[targetEnemyIndex];
+        if (!targetEnemy || targetEnemy.hp <= 0) {
+          alert('無効なターゲットです'); setIsPlayerTurn(true); return;
+        }
+
+        const baseAttack = member.attack;
+        const damage = Math.max(baseAttack * 3 - targetEnemy.defense, Math.floor(baseAttack * 1.5));
+
+        const nes = [...enemies];
+        nes[targetEnemyIndex] = { ...targetEnemy, hp: Math.max(targetEnemy.hp - damage, 0) };
+        setEnemies(nes);
+
+        const healedHp = Math.min(member.hp + baseAttack, member.max_hp);
+        const np = [...newParty];
+        np[memberIndex] = { ...member, hp: healedHp };
+        setParty(np);
+
+        addLog(`🌟 ${member.member_emoji} ${member.member_name}のRiemuの加護！ ${targetEnemy.emoji} ${targetEnemy.name}に${damage}ダメージ、自分のHPが${baseAttack}回復！`);
+
+        if (nes.every(e => e.hp <= 0)) {
+          setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+          return;
+        }
+        break;
+      }
       case 'mirage': {
         setDefenseBoost(prev => ({ ...prev, [member.id]: (prev[member.id] || 0) + 50 }));
         addLog(`🌫️ ${member.member_emoji} ${member.member_name}がミラージュ！回避アップ！`);
@@ -1175,10 +1223,11 @@ export default function BattlePage() {
         addLog(`⚠️ ${member.member_emoji} ${member.member_name}のスキル${member.skill_type}は未実装の挙動です`);
     }
 
-    // クールダウン設定（3ターン）
+    // クールダウン設定（通常3ターン / Riemuの加護は5ターン）
+    const cd = member.skill_type === 'riemu_blessing' ? 5 : 3;
     setSkillCooldown({
       ...skillCooldown,
-      [member.id]: 3
+      [member.id]: cd
     });
 
     const usedTimeStop = member.skill_type === 'time_stop';
@@ -1705,9 +1754,9 @@ export default function BattlePage() {
                 attack: stats.attack,
                 defense: stats.defense,
                 speed: stats.speed,
-                // HST 版だけ少し特別なスキルを付与
-                skill_type: reward.rarity === 'HST' ? 'all_heal' : null,
-                skill_power: reward.rarity === 'HST' ? 40 : 0,
+                // レジェンド / HST 版にはRiemuの加護を付与
+                skill_type: reward.rarity === 'legendary' || reward.rarity === 'HST' ? 'riemu_blessing' : null,
+                skill_power: 0,
               });
           }
 
@@ -2308,13 +2357,42 @@ export default function BattlePage() {
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(partyStageId ? `/party/stages?party=${partyIds.join(',')}` : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? `/adventure/stages?party=${partyIds.join(',')}&extra=1` : `/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`)}
+                      onClick={() => {
+                        if (partyStageId) {
+                          router.push(`/party/stages?party=${partyIds.join(',')}`);
+                        } else if (isTowerStage(stageId)) {
+                          // 覇者の塔: 次の階があればそのままバトルへ
+                          const nextStage = stageId + 1;
+                          if (nextStage <= TOWER_STAGE_END) {
+                            router.push(`/adventure/stage/${nextStage}?party=${partyIds.join(',')}`);
+                          } else {
+                            router.push('/adventure/tower');
+                          }
+                        } else if (isRiemuEventStage(stageId)) {
+                          // Riemuイベント: 一覧に戻る
+                          router.push('/adventure/riemu-event');
+                        } else if (isExtraStage(stageId) && stageId >= EXTRA_STAGE_END) {
+                          router.push(`/adventure/stages?party=${partyIds.join(',')}&extra=1`);
+                        } else {
+                          router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`);
+                        }
+                      }}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
                     >
                       {partyStageId ? 'ステージ一覧へ' : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? 'ステージ選択へ' : '次のステージへ'}
                     </button>
                     <button
-                      onClick={() => router.push(partyStageId ? '/party' : '/adventure')}
+                      onClick={() => {
+                        if (partyStageId) {
+                          router.push('/party');
+                        } else if (isTowerStage(stageId)) {
+                          router.push('/adventure/tower');
+                        } else if (isRiemuEventStage(stageId)) {
+                          router.push('/adventure/riemu-event');
+                        } else {
+                          router.push('/adventure');
+                        }
+                      }}
                       className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
                     >
                       パーティ編成に戻る
@@ -2344,13 +2422,29 @@ export default function BattlePage() {
                   
                   <div className="flex gap-3">
                     <button
-                      onClick={() => router.push(partyStageId ? `/adventure/battle?party_stage_id=${partyStageId}&party=${partyIds.join(',')}` : `/adventure/stage/${stageId}?party=${partyIds.join(',')}`)}
+                      onClick={() =>
+                        router.push(
+                          partyStageId
+                            ? `/adventure/battle?party_stage_id=${partyStageId}&party=${partyIds.join(',')}`
+                            : `/adventure/stage/${stageId}?party=${partyIds.join(',')}`
+                        )
+                      }
                       className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-lg font-bold text-lg hover:opacity-90 shadow-lg transform hover:scale-105 transition-all"
                     >
                       🔄 リトライ
                     </button>
                     <button
-                      onClick={() => router.push(partyStageId ? '/party' : '/adventure')}
+                      onClick={() => {
+                        if (partyStageId) {
+                          router.push('/party');
+                        } else if (isTowerStage(stageId)) {
+                          router.push('/adventure/tower');
+                        } else if (isRiemuEventStage(stageId)) {
+                          router.push('/adventure/riemu-event');
+                        } else {
+                          router.push('/adventure');
+                        }
+                      }}
                       className="flex-1 bg-gray-200 text-gray-700 px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-300 shadow-lg transform hover:scale-105 transition-all"
                     >
                       🏠 パーティ編成に戻る

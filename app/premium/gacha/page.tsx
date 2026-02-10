@@ -60,7 +60,7 @@ const HST_MEMBERS = {
     { name: 'smile', emoji: '😊', description: 'チームリーダー', skill_type: 'attack_boost', skill_power: 18 },
     { name: 'zerom', emoji: '⚡', description: 'エースプレイヤー', skill_type: 'heal', skill_power: 45 },
     { name: 'shunkoro', emoji: '🔥', description: 'ストラテジスト', skill_type: 'defense_boost', skill_power: 12 },
-    { name: 'riemu', emoji: '🌟', description: '癒しの力', skill_type: 'all_heal', skill_power: 30 }
+    { name: 'riemu', emoji: '🌟', description: '癒しの力', skill_type: 'riemu_blessing', skill_power: 0 }
   ],
   superRare: [
     { name: 'smile', emoji: '😊', description: 'チームリーダー', skill_type: 'attack_boost', skill_power: 15 },

@@ -6,17 +6,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { Member } from '@/types/adventure';
 import { TOWER_STAGE_START, TOWER_STAGE_END, getStageInfo } from '@/utils/stageGenerator';
 
-// 週の開始日を YYYY-MM-DD 文字列で返す（ローカルタイム基準、月曜始まり）
-function getCurrentWeekStartDate(): string {
-  const now = new Date();
-  const day = now.getDay(); // 0:日曜〜6:土曜
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-  return monday.toISOString().slice(0, 10);
-}
-
 export default function TowerPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -42,13 +31,11 @@ export default function TowerPage() {
       .order('level', { ascending: false });
     setMembers((membersData || []) as Member[]);
 
-    // 今週クリア済みの塔階層を取得
-    const weekStart = getCurrentWeekStartDate();
+    // クリア済みの塔階層を取得（永続）
     const { data: clears } = await supabase
       .from('tower_clears')
       .select('floor')
-      .eq('user_id', user.id)
-      .eq('week_start', weekStart);
+      .eq('user_id', user.id);
     setClearedFloors((clears || []).map(c => c.floor));
 
     setLoading(false);
@@ -74,7 +61,7 @@ export default function TowerPage() {
       return;
     }
     if (clearedFloors.includes(floor)) {
-      alert(`覇者の塔 第${floor}階は今週すでにクリア済みです。週が替わると再挑戦できます。`);
+      alert(`覇者の塔 第${floor}階はすでにクリア済みです。再挑戦はできません。`);
       return;
     }
     const partyIds = filled.map(m => m.id).join(',');
@@ -95,7 +82,7 @@ export default function TowerPage() {
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-2">🏯 覇者の塔</h1>
         <p className="text-white/80 mb-6 text-sm">
-          強力なパーティを編成して、1階から100階までの塔を制覇しよう！各階は週に1回までクリアできます。
+          強力なパーティを編成して、1階から100階までの塔を制覇しよう！各階は1回だけクリアできます。
         </p>
 
         {/* パーティ編成 */}

@@ -25,6 +25,7 @@ const NAME_TO_HST_FILE: Record<string, string> = {
   stary: 'STARYさん.jpg',
   maiku: 'Maikuさん.jpg',
   riemu: 'Riemuさん.jpg',
+  'hst riemu': 'Riemuさん.jpg',
   shunkoro: 'Shunkoroさん.jpg',
 };
 
