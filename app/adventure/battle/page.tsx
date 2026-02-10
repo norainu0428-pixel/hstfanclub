@@ -1499,7 +1499,6 @@ export default function BattlePage() {
     addLog(`戦闘に勝利した！ 経験値+${totalExp} ポイント+${totalPoints}`);
 
     // データベース更新（協力時は自分のメンバーのみ更新）
-    const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const membersToUpdate = mineIds.length > 0 ? updatedParty.filter(m => mineIds.includes(m.id)) : updatedParty;
       for (const member of membersToUpdate) {
