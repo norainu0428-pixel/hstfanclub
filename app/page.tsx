@@ -488,13 +488,7 @@ export default function Home() {
             <span className="text-3xl block mb-1">✨</span>
             <span className="text-sm">イベントステージ</span>
           </button>
-          <button 
-            onClick={() => router.push('/equipment')}
-            className="rounded-2xl p-4 bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition touch-target"
-          >
-            <span className="text-3xl block mb-1">🛡️</span>
-            <span className="text-sm">装備</span>
-          </button>
+          {/* 装備機能はバグ多発のため廃止 */}
           
           {(profile.membership_tier === 'basic' || profile.membership_tier === 'premium' || profile.role === 'member' || profile.role === 'owner' || profile.role === 'staff' || !profile.membership_tier) && (
             <>

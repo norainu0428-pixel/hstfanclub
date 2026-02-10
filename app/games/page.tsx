@@ -96,14 +96,7 @@ export default function GamesPage() {
             <span className="text-sm">PvP</span>
           </div>
 
-          {/* 装備 */}
-          <div
-            className="rounded-2xl p-4 bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-left shadow-lg active:scale-[0.98] transition cursor-pointer"
-            onClick={() => router.push('/equipment')}
-          >
-            <span className="text-3xl block mb-1">🛡️</span>
-            <span className="text-sm">装備</span>
-          </div>
+          {/* 装備機能はバグ多発のため廃止 */}
 
           {/* ランキング */}
           <div

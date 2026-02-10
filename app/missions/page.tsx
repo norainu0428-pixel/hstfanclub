@@ -242,10 +242,7 @@ export default function MissionsPage() {
             <span className="text-2xl block mb-1">🏆</span>
             <span className="text-sm text-white">ランキング</span>
           </Link>
-          <Link href="/equipment" className="rounded-2xl p-4 bg-white/5 border border-white/10 font-bold text-left active:scale-[0.98] transition">
-            <span className="text-2xl block mb-1">🛡️</span>
-            <span className="text-sm text-white">装備</span>
-          </Link>
+          {/* 装備機能はバグ多発のため廃止 */}
           <Link href="/" className="rounded-2xl p-4 bg-white/5 border border-white/10 font-bold text-left active:scale-[0.98] transition">
             <span className="text-2xl block mb-1">🏠</span>
             <span className="text-sm text-white">ホーム</span>

@@ -311,37 +311,8 @@ export default function BattlePage() {
       }));
     }
 
-    // 装備ボーナスを適用
-    const memberIds = initializedParty.map((m) => m.id);
-    const { data: memberEquipRows } = await supabase
-      .from('member_equipment')
-      .select('user_member_id, user_equipment(equipment_definitions(hp_bonus, attack_bonus, defense_bonus, speed_bonus))')
-      .in('user_member_id', memberIds);
-    const bonusesByMember: Record<string, { hp: number; attack: number; defense: number; speed: number }> = {};
-    (memberEquipRows || []).forEach((row: any) => {
-      const raw = row.user_equipment?.equipment_definitions;
-      const def = raw != null ? (Array.isArray(raw) ? raw[0] : raw) : null;
-      if (!def) return;
-      const id = row.user_member_id;
-      if (!bonusesByMember[id]) bonusesByMember[id] = { hp: 0, attack: 0, defense: 0, speed: 0 };
-      bonusesByMember[id].hp += def.hp_bonus ?? 0;
-      bonusesByMember[id].attack += def.attack_bonus ?? 0;
-      bonusesByMember[id].defense += def.defense_bonus ?? 0;
-      bonusesByMember[id].speed += def.speed_bonus ?? 0;
-    });
-    const partyWithEquip: Member[] = initializedParty.map((m) => {
-      const b = bonusesByMember[m.id] || { hp: 0, attack: 0, defense: 0, speed: 0 };
-      const maxHp = (m.max_hp ?? m.hp) + b.hp;
-      const hp = (m.hp ?? m.max_hp) + b.hp;
-      return {
-        ...m,
-        hp,
-        max_hp: maxHp,
-        attack: (m.attack ?? 0) + b.attack,
-        defense: (m.defense ?? 0) + b.defense,
-        speed: (m.speed ?? 0) + b.speed
-      };
-    });
+    // 装備機能廃止に伴い、装備ボーナスは適用しない
+    const partyWithEquip: Member[] = initializedParty;
     
     const initialHp: { [key: string]: number } = {};
     partyWithEquip.forEach(member => {
@@ -1801,26 +1772,7 @@ export default function BattlePage() {
           points_earned: totalPoints
         });
 
-      // エクストラステージ勝利時：1%で武器ドロップ（本当に低確率）
-      if (!partyStageId && isExtraStage(stageId)) {
-        const dropRoll = Math.random() * 100;
-        if (dropRoll < 1) {
-          const { data: weaponDefs } = await supabase
-            .from('equipment_definitions')
-            .select('id, name, icon')
-            .eq('slot', 'weapon')
-            .limit(20);
-          if (weaponDefs && weaponDefs.length > 0) {
-            const pick = weaponDefs[Math.floor(Math.random() * weaponDefs.length)];
-            await supabase.from('user_equipment').insert({
-              user_id: user.id,
-              definition_id: pick.id,
-              level: 1
-            });
-            setDroppedWeapon(`${pick.icon} ${pick.name}`);
-          }
-        }
-      }
+      // 装備機能廃止: エクストラステージの武器ドロップも無効化
 
       // ミッション進捗更新
       await updateMissionProgress(user.id, 'battle_win', 1);
@@ -2040,7 +1992,12 @@ export default function BattlePage() {
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
                         className="bg-gradient-to-r from-red-500 to-pink-500 h-3 rounded-full transition-all"
-                        style={{ width: `${(member.hp / member.max_hp) * 100}%` }}
+                        style={{
+                          width: `${member.max_hp > 0
+                            ? Math.min(Math.max((member.hp / member.max_hp) * 100, 0), 100)
+                            : 0
+                          }%`
+                        }}
                       />
                     </div>
                   </div>
@@ -2247,7 +2204,12 @@ export default function BattlePage() {
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
                         className="bg-gradient-to-r from-orange-500 to-red-500 h-3 rounded-full transition-all"
-                        style={{ width: `${(enemy.hp / enemy.max_hp) * 100}%` }}
+                        style={{
+                          width: `${enemy.max_hp > 0
+                            ? Math.min(Math.max((enemy.hp / enemy.max_hp) * 100, 0), 100)
+                            : 0
+                          }%`
+                        }}
                       />
                     </div>
                   </div>
