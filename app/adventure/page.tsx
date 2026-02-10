@@ -232,9 +232,32 @@ export default function AdventurePage() {
       return;
     }
 
+    // 進化コスト: 100万ポイント
+    const EVOLUTION_COST = 1_000_000;
+
     try {
+      // 所持ポイントを確認
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('進化用ポイント取得エラー:', profileError);
+        alert('進化に必要なポイントの取得に失敗しました。時間をおいて再度お試しください。');
+        return;
+      }
+
+      const currentPoints = profile?.points ?? 0;
+      if (currentPoints < EVOLUTION_COST) {
+        alert(`進化には ${EVOLUTION_COST.toLocaleString()} pt が必要です。\n現在の所持pt: ${currentPoints.toLocaleString()} pt`);
+        return;
+      }
+
       const evolved = getEvolvedStats(evolutionMember);
-      const { error } = await supabase
+      // メンバー更新とポイント消費を順番に実行
+      const { error: updateMemberError } = await supabase
         .from('user_members')
         .update({
           hp: evolved.hp,
@@ -249,9 +272,16 @@ export default function AdventurePage() {
         .eq('id', evolutionMember.id)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (updateMemberError) throw updateMemberError;
 
-      alert(`✨ 進化成功！\n${evolutionMember.member_name}が進化した！\n全ステータスが約30%アップ！`);
+      const { error: pointsError } = await supabase
+        .from('profiles')
+        .update({ points: currentPoints - EVOLUTION_COST })
+        .eq('user_id', user.id);
+
+      if (pointsError) throw pointsError;
+
+      alert(`✨ 進化成功！\n${evolutionMember.member_name}が進化した！\n全ステータスが約30%アップ！\n${EVOLUTION_COST.toLocaleString()} pt を消費しました。`);
       setEvolutionMember(null);
       setEvolutionMode(false);
       await loadData();

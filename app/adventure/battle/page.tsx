@@ -1566,8 +1566,8 @@ export default function BattlePage() {
         }
       }
 
-      // バトルログ保存（パーティーモードは stage 0 で記録）
-      const logStage = partyStageId ? (partyStageInfo?.order ?? 0) : stageId;
+      // バトルログ保存（パーティーモードは stage 0 で記録し、ステージ進行判定に影響させない）
+      const logStage = partyStageId ? 0 : stageId;
       await supabase
         .from('battle_logs')
         .insert({
