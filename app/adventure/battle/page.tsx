@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Member, Enemy, LevelUpResult } from '@/types/adventure';
 import { calculateLevelUp } from '@/utils/levelup';
-import { getStageInfo, isExtraStage, EXTRA_STAGE_END, isTowerStage, getTowerRewardByStage, TOWER_STAGE_START, TOWER_STAGE_END, isRiemuEventStage, RIEMU_EVENT_STAGES } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, EXTRA_STAGE_END, isTowerStage, getTowerRewardByStage, TOWER_STAGE_START, TOWER_STAGE_END, isRiemuEventStage, RIEMU_EVENT_STAGES, isLevelTrainingStage } from '@/utils/stageGenerator';
 import { getSkillName, SKILLS_NEED_ENEMY_TARGET, SKILLS_NEED_ALLY_TARGET } from '@/utils/skills';
 import { updateMissionProgress } from '@/utils/missionTracker';
 import { getPlateImageUrl } from '@/utils/plateImage';
@@ -162,7 +162,7 @@ export default function BattlePage() {
       !partyStageId &&
       (isNaN(stageId) ||
         stageId < 1 ||
-        (!isExtraStage(stageId) && !isTowerStage(stageId) && !isRiemuEventStage(stageId) && stageId > 400))
+        (!isExtraStage(stageId) && !isTowerStage(stageId) && !isRiemuEventStage(stageId) && !isLevelTrainingStage(stageId) && stageId > 400))
     ) {
       alert('無効なステージIDです');
       router.push(isTowerStage(stageId) ? '/adventure/tower' : isRiemuEventStage(stageId) ? '/adventure/riemu-event' : '/adventure');
@@ -220,9 +220,9 @@ export default function BattlePage() {
         setIsBlockedByOtherTab(true);
         setLoading(false);
         alert('⚠️ 他のタブで同じバトルが実行中です。\n複数のタブで同じバトルを同時に実行することはできません。\n他のタブを閉じてから再度お試しください。');
-        if (isTowerStage(stageId)) {
+      if (isTowerStage(stageId)) {
           router.push('/adventure/tower');
-        } else if (isRiemuEventStage(stageId)) {
+      } else if (isRiemuEventStage(stageId)) {
           router.push('/adventure/riemu-event');
         } else {
           router.push('/adventure');
@@ -1638,8 +1638,8 @@ export default function BattlePage() {
           .eq('user_id', user.id);
       }
 
-      // 進行状況更新（パーティーモード・エクストラステージ・覇者の塔・Riemuイベントでは進行は更新しない）
-      if (!partyStageId && !isExtraStage(stageId) && !isTowerStage(stageId) && !isRiemuEventStage(stageId)) {
+      // 進行状況更新（パーティーモード・エクストラステージ・覇者の塔・Riemuイベント・レベルアップ専用では進行は更新しない）
+      if (!partyStageId && !isExtraStage(stageId) && !isTowerStage(stageId) && !isRiemuEventStage(stageId) && !isLevelTrainingStage(stageId)) {
         const { data: progress, error: progressError } = await supabase
           .from('user_progress')
           .select('*')

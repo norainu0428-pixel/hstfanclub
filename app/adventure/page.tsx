@@ -562,6 +562,12 @@ export default function AdventurePage() {
                 >
                   コレクション
                 </button>
+                <button
+                  onClick={() => router.push('/adventure/level-training')}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-lg text-xl font-bold hover:from-blue-600 hover:to-indigo-700 transition shadow-lg"
+                >
+                  📘 レベルアップステージ
+                </button>
               </div>
             </>
           )}

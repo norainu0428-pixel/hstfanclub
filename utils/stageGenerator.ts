@@ -19,6 +19,12 @@ export const RIEMU_EVENT_STAGES = [3001, 3002, 3003, 3004, 3005, 3006] as const;
 export const isRiemuEventStage = (stage: number) =>
   RIEMU_EVENT_STAGES.includes(stage as (typeof RIEMU_EVENT_STAGES)[number]);
 
+// レベルアップ専用ステージ
+// 3101: 初級, 3102: 中級, 3103: 上級
+export const LEVEL_TRAINING_STAGES = [3101, 3102, 3103] as const;
+export const isLevelTrainingStage = (stage: number) =>
+  LEVEL_TRAINING_STAGES.includes(stage as (typeof LEVEL_TRAINING_STAGES)[number]);
+
 // ステージ情報
 export interface StageInfo {
   stage: number;
@@ -451,8 +457,69 @@ export function generateRiemuEventStageInfo(stage: number): StageInfo {
   };
 }
 
+// レベルアップ専用ステージ生成
+// 3101: 初級（Lv1〜50向け）、3102: 中級（Lv1〜100向け）、3103: 上級（Lv200〜300向け）
+export function generateLevelTrainingStageInfo(stage: number): StageInfo {
+  const config: Record<number, { recommendedLevel: number; enemyCount: number }> = {
+    3101: { recommendedLevel: 20, enemyCount: 3 },  // 初級
+    3102: { recommendedLevel: 60, enemyCount: 4 },  // 中級
+    3103: { recommendedLevel: 240, enemyCount: 5 }, // 上級
+  };
+
+  const entry = config[stage] ?? config[3101];
+  const recommendedLevel = entry.recommendedLevel;
+  const enemyCount = entry.enemyCount;
+
+  const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
+
+  const enemies: Enemy[] = [];
+
+  for (let i = 0; i < enemyCount; i++) {
+    const isBoss = i === enemyCount - 1;
+
+    // 初級・中級は比較的やさしめ、上級はかなり高火力
+    const stageIndex = stage === 3103 ? 2 : stage === 3102 ? 1 : 0;
+    const basePower = [1.0, 1.4, 1.8][stageIndex]; // 初級1.0, 中級1.4, 上級1.8
+    const enemyPowerRatio = isBoss ? basePower * 1.4 : basePower * 1.1;
+
+    const hp = Math.floor(baseStats.hp * enemyPowerRatio);
+    const attack = Math.floor(baseStats.attack * enemyPowerRatio * 2.0);
+    const defense = Math.floor(baseStats.defense * enemyPowerRatio * 1.6);
+    const speed = Math.floor(baseStats.speed * enemyPowerRatio);
+
+    // レベルアップ用なので経験値多め・ポイントは控えめ
+    const expRewardBase = stage === 3103 ? 400 : stage === 3102 ? 250 : 120;
+    const expReward = Math.floor(expRewardBase * (isBoss ? 1.8 : 1.0));
+    const pointsReward = 1; // ここではポイント目的ではないので固定で少量
+
+    const nameBase = stage === 3103 ? 'レベル上げ上級' : stage === 3102 ? 'レベル上げ中級' : 'レベル上げ初級';
+    const enemyName = isBoss ? `${nameBase} ボス` : `${nameBase} 敵`;
+
+    enemies.push({
+      name: enemyName,
+      emoji: isBoss ? '💪' : '⚔️',
+      hp,
+      max_hp: hp,
+      attack,
+      defense,
+      speed,
+      experience_reward: expReward,
+      points_reward: pointsReward,
+    });
+  }
+
+  return {
+    stage,
+    recommendedLevel,
+    enemies,
+  };
+}
+
 // 特定のステージ情報を取得
 export function getStageInfo(stage: number): StageInfo {
+  if (isLevelTrainingStage(stage)) {
+    return generateLevelTrainingStageInfo(stage);
+  }
   if (isRiemuEventStage(stage)) {
     return generateRiemuEventStageInfo(stage);
   }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
-import { getStageInfo, isExtraStage } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, isLevelTrainingStage } from '@/utils/stageGenerator';
 
 export default function StagePage() {
   const params = useParams();
@@ -109,8 +109,20 @@ export default function StagePage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">{isExtraStage(stageId) ? `⭐ エクストラ ステージ ${stageId}` : `ステージ ${stageId}`}</h1>
-          <p className="text-lg opacity-90 mb-4">{isExtraStage(stageId) ? '最強スキル持ちの強敵・勝利時わずかな確率で武器ドロップ' : '敵が現れた！'}</p>
+          <h1 className="text-4xl font-bold mb-2">
+            {isLevelTrainingStage(stageId)
+              ? `📘 レベルアップステージ ${stageId}`
+              : isExtraStage(stageId)
+              ? `⭐ エクストラ ステージ ${stageId}`
+              : `ステージ ${stageId}`}
+          </h1>
+          <p className="text-lg opacity-90 mb-4">
+            {isLevelTrainingStage(stageId)
+              ? 'レベルアップ専用の特別ステージです。経験値が多く、ポイントは控えめです。'
+              : isExtraStage(stageId)
+              ? '最強スキル持ちの強敵が登場する高難度ステージ'
+              : '敵が現れた！'}
+          </p>
           <div className="bg-white/20 rounded-lg px-6 py-3 inline-block">
             <div className="text-xl font-bold mb-1">
               推奨レベル: {stageInfo.recommendedLevel}
