@@ -1082,9 +1082,14 @@ export default function BattlePage() {
         const cost = Math.floor(member.max_hp * 0.15);
         const gained = Math.floor(member.attack * 0.5) + (member.skill_power || 20);
         const np = [...newParty];
-        np[memberIndex] = { ...member, hp: Math.max(member.hp - cost, 0), attack: member.attack + gained };
+        // HP だけ実ステータスに反映し、攻撃力アップは一時的なバフとして扱う
+        np[memberIndex] = { ...member, hp: Math.max(member.hp - cost, 0) };
         setParty(np);
-        addLog(`🔄 ${member.member_emoji} ${member.member_name}の転換！HPを消費して攻撃アップ！`);
+        setAttackBoost(prev => ({
+          ...prev,
+          [member.id]: (prev[member.id] || 0) + gained
+        }));
+        addLog(`🔄 ${member.member_emoji} ${member.member_name}の転換！HPを消費して攻撃が一時的に${gained}アップ！`);
         break;
       }
       case 'copy': {
