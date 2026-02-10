@@ -487,8 +487,12 @@ export function generateLevelTrainingStageInfo(stage: number): StageInfo {
     const defense = Math.floor(baseStats.defense * enemyPowerRatio * 1.6);
     const speed = Math.floor(baseStats.speed * enemyPowerRatio);
 
-    // レベルアップ用なので経験値多め・ポイントは控えめ
-    const expRewardBase = stage === 3103 ? 400 : stage === 3102 ? 250 : 120;
+    // レベルアップ用なので経験値をかなり多めに（上級で合計 ~40万EXP）
+    // 初級: 合計 ~2万, 中級: 合計 ~10万, 上級: 合計 ~40万 になるように調整
+    const expRewardBase =
+      stage === 3103 ? 70000 : // 上級: 5体 * (4体+ボス1.8倍) ≒ 5.8 * 70000 ≒ 406,000
+      stage === 3102 ? 21000 : // 中級: 4体 * (3体+ボス1.8倍) ≒ 4.8 * 21000 ≒ 100,800
+      5500;                    // 初級: 3体 * (2体+ボス1.8倍) ≒ 3.8 * 5500 ≒ 20,900
     const expReward = Math.floor(expRewardBase * (isBoss ? 1.8 : 1.0));
     const pointsReward = 1; // ここではポイント目的ではないので固定で少量
 
