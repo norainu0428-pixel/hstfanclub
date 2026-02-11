@@ -70,16 +70,18 @@ export const MAX_LEVELS: { [key: string]: number } = {
   'common': 50
 };
 
-// レベルアップ時のステータス上昇（成長幅を大幅に縮小）
-// 目安: HP は約数百〜千程度、攻撃・防御・速度は数十〜100前後で頭打ちになるよう調整
+// レベルアップ時のステータス上昇
+// 「1しか上がらない」状態から、各ステータスがレベルアップごとにおおよそ 5〜10 前後上がるように調整
+// 高レベル帯ではかなり数値が伸びるため、インフレ前提のバランスになります
 export const LEVEL_UP_STATS: { [key: string]: { hp: number, attack: number, defense: number, speed: number } } = {
-  'HST':       { hp: 6, attack: 1, defense: 1, speed: 1 },
-  'stary':     { hp: 6, attack: 1, defense: 1, speed: 1 },
-  'legendary': { hp: 5, attack: 1, defense: 1, speed: 1 },
-  'ultra-rare':{ hp: 4, attack: 1, defense: 1, speed: 1 },
-  'super-rare':{ hp: 3, attack: 1, defense: 1, speed: 1 },
-  'rare':      { hp: 3, attack: 1, defense: 1, speed: 1 },
-  'common':    { hp: 2, attack: 1, defense: 1, speed: 1 }
+  // 高レアほど伸びやすい
+  'HST':       { hp: 10, attack: 10, defense: 8, speed: 8 },
+  'stary':     { hp: 9,  attack: 9,  defense: 7, speed: 7 },
+  'legendary': { hp: 8,  attack: 8,  defense: 6, speed: 6 },
+  'ultra-rare':{ hp: 7,  attack: 7,  defense: 5, speed: 5 },
+  'super-rare':{ hp: 6,  attack: 6,  defense: 4, speed: 4 },
+  'rare':      { hp: 5,  attack: 5,  defense: 3, speed: 3 },
+  'common':    { hp: 4,  attack: 4,  defense: 2, speed: 2 }
 };
 
 /**
