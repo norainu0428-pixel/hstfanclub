@@ -120,6 +120,8 @@ export function generateStageInfo(stage: number): StageInfo {
   const baseStats = calculateEnemyStatsByLevel(recommendedLevel);
   
   const enemies: Enemy[] = [];
+  // 初心者向けにステージ1だけ難易度をかなり下げる
+  const difficultyAdjust = stage === 1 ? 0.5 : 1;
   
   for (let i = 0; i < enemyCount; i++) {
     // 敵の種類をステージに応じて選択（400ステージまで対応）
@@ -143,7 +145,8 @@ export function generateStageInfo(stage: number): StageInfo {
     // 推奨レベルに基づいてステータスを計算（敵はプレイヤーより明確に強く）
     // 通常敵は推奨レベルの140%、ボスは1.6倍×multiplier（かなり手強い）
     // 攻撃・防御は2倍で手応えある難易度に
-    const enemyPowerRatio = isBoss ? 1.6 * multiplier : 1.4;
+    const baseEnemyPowerRatio = isBoss ? 1.6 * multiplier : 1.4;
+    const enemyPowerRatio = baseEnemyPowerRatio * difficultyAdjust;
     
     const hp = Math.floor(baseStats.hp * enemyPowerRatio);
     const attack = Math.floor(baseStats.attack * enemyPowerRatio * 2);
