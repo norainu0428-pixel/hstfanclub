@@ -235,31 +235,31 @@ export default function StagePage() {
 
         {/* パーティ情報 */}
         <div className="bg-white rounded-2xl p-8 mb-6 shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-center">{inviteId ? '協力パーティ' : 'あなたのパーティ'}</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-900">{inviteId ? '協力パーティ' : 'あなたのパーティ'}</h2>
           <div className={`grid gap-4 ${party.length > 3 ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6' : 'grid-cols-1 md:grid-cols-3'}`}>
             {party.map(member => (
-              <div key={member.id} className="bg-gradient-to-br from-blue-50 to-purple-50 border-4 border-blue-400 rounded-xl p-4">
+              <div key={member.id} className="bg-gradient-to-br from-blue-50 to-purple-50 border-4 border-blue-400 rounded-xl p-4 text-gray-900">
                 <div className="text-center mb-3">
                   <div className="text-4xl mb-2">{member.member_emoji}</div>
-                  <div className="font-bold">{member.member_name}</div>
-                  <div className="text-sm text-gray-900">Lv.{member.level}</div>
+                  <div className="font-bold text-gray-900">{member.member_name}</div>
+                  <div className="text-sm font-semibold text-gray-800">Lv.{member.level}</div>
                 </div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-900">HP:</span>
+                    <span className="text-gray-800 font-medium">HP:</span>
                     <span className="font-bold text-red-600">{member.hp}/{member.max_hp}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-900">ATK:</span>
-                    <span className="font-bold">{member.attack}</span>
+                    <span className="text-gray-800 font-medium">ATK:</span>
+                    <span className="font-bold text-gray-900">{member.attack}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-900">DEF:</span>
-                    <span className="font-bold">{member.defense}</span>
+                    <span className="text-gray-800 font-medium">DEF:</span>
+                    <span className="font-bold text-gray-900">{member.defense}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-900">SPD:</span>
-                    <span className="font-bold">{member.speed}</span>
+                    <span className="text-gray-800 font-medium">SPD:</span>
+                    <span className="font-bold text-gray-900">{member.speed}</span>
                   </div>
                 </div>
               </div>

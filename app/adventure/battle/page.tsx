@@ -1948,7 +1948,7 @@ export default function BattlePage() {
         {/* バトルフィールド */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* パーティ側 */}
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl text-gray-900">
             <h2 className="text-xl font-bold mb-4 text-center text-blue-600">あなたのパーティ</h2>
             <div className="space-y-3">
               {party.map((member, index) => (
@@ -1960,7 +1960,7 @@ export default function BattlePage() {
                       setPendingEnemyTargetMember(null);
                     }
                   }}
-                  className={`border-2 rounded-lg p-4 transition cursor-pointer ${
+                  className={`border-2 rounded-lg p-4 transition cursor-pointer text-gray-900 ${
                     selectedMember === index ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                   } ${member.hp <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400'}`}
                 >
@@ -1981,19 +1981,19 @@ export default function BattlePage() {
                         <div className="text-3xl">{member.member_emoji}</div>
                       );
                     })()}
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="font-bold text-lg text-gray-900">{member.member_name}</div>
-                      <div className="text-sm text-gray-900 font-semibold">Lv.{member.level}</div>
+                      <div className="text-sm font-semibold text-gray-800">Lv.{member.level}</div>
                     </div>
-                    <div className="text-right text-sm">
-                      <div className="text-gray-700 font-semibold">ATK: {member.attack}</div>
-                      <div className="text-gray-700 font-semibold">DEF: {member.defense}</div>
+                    <div className="text-right text-sm flex-shrink-0">
+                      <div className="font-bold text-gray-900">ATK: {member.attack}</div>
+                      <div className="font-bold text-gray-900">DEF: {member.defense}</div>
                     </div>
                   </div>
                   <div className="mb-1">
-                    <div className="flex justify-between text-xs mb-1">
+                    <div className="flex justify-between text-xs mb-1 font-medium text-gray-800">
                       <span>HP</span>
-                      <span>{member.hp}/{member.max_hp}</span>
+                      <span className="font-bold text-gray-900">{member.hp}/{member.max_hp}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
