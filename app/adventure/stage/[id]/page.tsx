@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Member } from '@/types/adventure';
-import { getStageInfo, isExtraStage, isLevelTrainingStage } from '@/utils/stageGenerator';
+import { getStageInfo, isExtraStage, isLevelTrainingStage, LEVEL_TRAINING_STAGES } from '@/utils/stageGenerator';
+
+// レベルアップ専用ステージの1日あたりの基本挑戦回数
+const LEVEL_TRAINING_DAILY_LIMIT = 5;
 
 export default function StagePage() {
   const params = useParams();
@@ -33,6 +36,46 @@ export default function StagePage() {
       alert('無効なステージIDです');
       router.push('/adventure');
       return;
+    }
+
+    // レベルアップ専用ステージの場合は、直接URL叩きなどで無限に挑戦できないようサーバー側で回数チェック
+    if (isLevelTrainingStage(stageId)) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/');
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      const { count } = await supabase
+        .from('battle_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .in('stage', LEVEL_TRAINING_STAGES as unknown as number[])
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString());
+
+      const usedToday = count || 0;
+      const baseRemaining = Math.max(0, LEVEL_TRAINING_DAILY_LIMIT - usedToday);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('level_training_bonus_plays')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const bonus = (profile as { level_training_bonus_plays?: number } | null)?.level_training_bonus_plays ?? 0;
+      const totalRemaining = baseRemaining + bonus;
+
+      if (totalRemaining <= 0) {
+        alert(`レベルアップステージは1日${LEVEL_TRAINING_DAILY_LIMIT}回までです（ボーナス含めて上限に達しました）。また明日お試しください。`);
+        router.push('/adventure/level-training');
+        return;
+      }
     }
     
     if (inviteId) {
