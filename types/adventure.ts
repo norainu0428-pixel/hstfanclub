@@ -62,7 +62,7 @@ export interface UserProgress {
 // レベル上限設定（インフレしすぎないよう全体的に抑えめ）
 export const MAX_LEVELS: { [key: string]: number } = {
   'HST': 200,
-  'stary': 400,
+  'stary': 600,
   'legendary': 120,
   'ultra-rare': 100,
   'super-rare': 80,
