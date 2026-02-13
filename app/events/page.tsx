@@ -222,7 +222,8 @@ export default function EventsPage() {
       }
       return { rarity: def.rarity, rate, ten_pull_rate: tenPull };
     });
-    setRates(finalRates);
+    // 覚醒はガチャでは絶対に出さない（オーナー配布専用）
+    setRates(finalRates.filter(x => x.rarity !== '覚醒'));
 
     setLoading(false);
   }

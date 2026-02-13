@@ -327,7 +327,7 @@ export default function PremiumGachaPage() {
 
     // メンバー保存（覚醒STARYはガチャでは絶対に付与しない）
     for (const result of results) {
-      if (result.rarity === '覚醒' || result.member.name === '覚醒STARY') {
+      if (result.member.name === '覚醒STARY') {
         throw new Error('このキャラはガチャでは入手できません');
       }
       const stats = INITIAL_STATS[result.rarity] ?? INITIAL_STATS['common'];
