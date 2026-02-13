@@ -4,6 +4,8 @@ import "./globals.css";
 /** メンテナンス時は一般ユーザーにメンテ画面を表示（オーナー・スタッフは通過） */
 import MaintenanceGate from "@/components/MaintenanceGate";
 import BottomNav from "@/components/BottomNav";
+/** 複数タブで開くことを防ぎ、1タブのみでプレイ可能にする */
+import SingleTabGuard from "@/components/SingleTabGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,10 +40,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white`}
       >
-        <MaintenanceGate>
-          <div className="pb-20">{children}</div>
-          <BottomNav />
-        </MaintenanceGate>
+        <SingleTabGuard>
+          <MaintenanceGate>
+            <div className="pb-20">{children}</div>
+            <BottomNav />
+          </MaintenanceGate>
+        </SingleTabGuard>
       </body>
     </html>
   );
