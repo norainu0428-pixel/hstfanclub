@@ -1568,7 +1568,13 @@ export default function BattlePage() {
               setEnemies(prev => {
                 const idx = prev.findIndex((e, i) => enemyKey(e, i) === eKey);
                 if (idx >= 0 && prev[idx].hp > 0) {
-                  return prev.map((e, i) => i === idx ? { ...e, hp: Math.max(e.hp - 2000, 0) } : e);
+                  const next = prev.map((e, i) => i === idx ? { ...e, hp: Math.max(e.hp - 2000, 0) } : e);
+                  if (next.every(e => e.hp <= 0)) {
+                    setTimeout(() => {
+                      if (!victoryProcessedRef.current && !battleResult) handleVictory();
+                    }, 400);
+                  }
+                  return next;
                 }
                 return prev;
               });
