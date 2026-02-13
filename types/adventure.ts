@@ -1,7 +1,17 @@
 export type Rarity = '覚醒' | 'HST' | 'stary' | 'legendary' | 'ultra-rare' | 'super-rare' | 'rare' | 'common';
 
-/** テスト用・ユーザーに非表示にするメンバー名（コレクション・パーティ選択で除外、ガチャにも出さない） */
+/** オーナーのみ所持表示するメンバー名。ガチャには絶対に出さない。 */
+export const OWNER_ONLY_MEMBER_NAMES = ['覚醒STARY'] as const;
+
+/** 非オーナーに非表示にするメンバー名（オーナーには表示）。ガチャには絶対に出さない。 */
 export const HIDDEN_MEMBER_NAMES: string[] = ['覚醒STARY'];
+
+/** メンバーを現在ユーザーに表示してよいか。オーナー限定は isOwner のときのみ true。 */
+export function isMemberVisibleToUser(memberName: string, isOwner: boolean): boolean {
+  if (!HIDDEN_MEMBER_NAMES.includes(memberName)) return true;
+  if (OWNER_ONLY_MEMBER_NAMES.includes(memberName as (typeof OWNER_ONLY_MEMBER_NAMES)[number]) && isOwner) return true;
+  return false;
+}
 
 export interface Member {
   id: string;

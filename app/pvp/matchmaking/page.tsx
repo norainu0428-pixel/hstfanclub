@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Member } from '@/types/adventure';
+import { Member, isMemberVisibleToUser } from '@/types/adventure';
 
 interface PendingInvite {
   id: string;
@@ -34,14 +34,14 @@ export default function MatchmakingPage() {
       return;
     }
 
-    // メンバー読み込み
-    const { data: members } = await supabase
-      .from('user_members')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('level', { ascending: false });
-
-    setParty(members || []);
+    // メンバー読み込み（オーナー限定キャラはオーナーのみ表示）
+    const [membersResult, profileResult] = await Promise.all([
+      supabase.from('user_members').select('*').eq('user_id', user.id).order('level', { ascending: false }),
+      supabase.from('profiles').select('role').eq('user_id', user.id).maybeSingle()
+    ]);
+    const { data: members } = membersResult;
+    const isOwner = profileResult.data?.role === 'owner';
+    setParty((members || []).filter((m: Member) => isMemberVisibleToUser(m.member_name, isOwner)));
 
     // フレンド名取得
     if (friendId) {

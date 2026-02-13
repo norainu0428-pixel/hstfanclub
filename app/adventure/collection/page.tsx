@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { Member, HIDDEN_MEMBER_NAMES } from '@/types/adventure';
+import { Member, isMemberVisibleToUser } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
 import { getRarityLabel, getRarityColorClass, RARITY_FILTER_OPTIONS } from '@/utils/rarity';
@@ -106,7 +106,7 @@ export default function CollectionPage() {
         const orderB = rarityOrder[b.rarity] ?? 999;
         return orderA - orderB;
       });
-      const filtered = sorted.filter((m: Member) => !HIDDEN_MEMBER_NAMES.includes(m.member_name));
+      const filtered = sorted.filter((m: Member) => isMemberVisibleToUser(m.member_name, currentIsOwner));
       
       // HSTメンバーを確認
       const hstMembers = filtered.filter(m => m.rarity === 'HST');
@@ -147,8 +147,8 @@ export default function CollectionPage() {
       return;
     }
 
-    // テスト用非表示メンバーを除外
-    const list = (data || []).filter((m: Member) => !HIDDEN_MEMBER_NAMES.includes(m.member_name));
+    // 非表示メンバーを除外（オーナー限定はオーナーのみ表示）
+    const list = (data || []).filter((m: Member) => isMemberVisibleToUser(m.member_name, currentIsOwner));
     const hstMembers = list.filter(m => m.rarity === 'HST');
     console.log('HSTメンバー:', hstMembers);
     console.log('フィルタリング前のメンバー数:', (data || []).length);

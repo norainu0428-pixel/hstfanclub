@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { Member, HIDDEN_MEMBER_NAMES } from '@/types/adventure';
+import { Member, isMemberVisibleToUser } from '@/types/adventure';
 import { LEVEL_TRAINING_STAGES } from '@/utils/stageGenerator';
 import MemberCard from '@/components/adventure/MemberCard';
 
@@ -15,6 +15,7 @@ export default function LevelTrainingPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [party, setParty] = useState<(Member | null)[]>([null, null, null]);
   const [remaining, setRemaining] = useState<number>(DAILY_LIMIT);
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     load();
@@ -27,11 +28,13 @@ export default function LevelTrainingPage() {
       return;
     }
 
-    const { data: membersData, error: membersError } = await supabase
-      .from('user_members')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('level', { ascending: false });
+    const [membersResult, profileResult] = await Promise.all([
+      supabase.from('user_members').select('*').eq('user_id', user.id).order('level', { ascending: false }),
+      supabase.from('profiles').select('role').eq('user_id', user.id).maybeSingle()
+    ]);
+    const { data: membersData, error: membersError } = membersResult;
+    const isOwnerRole = profileResult.data?.role === 'owner';
+    setIsOwner(isOwnerRole);
 
     if (membersError) {
       console.error('メンバー取得エラー:', membersError);
@@ -39,7 +42,7 @@ export default function LevelTrainingPage() {
       return;
     }
 
-    setMembers((membersData || []).filter(m => !HIDDEN_MEMBER_NAMES.includes(m.member_name)));
+    setMembers((membersData || []).filter(m => isMemberVisibleToUser(m.member_name, isOwnerRole)));
 
     // 今日のレベルアップステージ挑戦回数 + オーナー設定のボーナス回数
     const today = new Date();

@@ -232,6 +232,9 @@ export default function EventsPage() {
     if (!user) return;
 
     for (const r of results) {
+      if (r.rarity === '覚醒' || r.member.name === '覚醒STARY') {
+        throw new Error('このキャラはガチャでは入手できません');
+      }
       const statsKey = normalizeRarity(r.rarity) || 'common';
       const stats = INITIAL_STATS[statsKey] ?? INITIAL_STATS['common'];
       const { error: insertErr } = await supabase

@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Member } from '@/types/adventure';
+import { Member, isMemberVisibleToUser } from '@/types/adventure';
 import PartySlotCard from '@/components/party/PartySlotCard';
 
 interface PartyInviteSummary {
@@ -59,9 +59,10 @@ export default function PartyPage() {
         .in('status', ['pending', 'accepted'])
     ]);
 
-    setIsOwner(profileResult.data?.role === 'owner');
+    const isOwnerRole = profileResult.data?.role === 'owner';
+    setIsOwner(isOwnerRole);
     const membersData = membersResult.data || [];
-    setMembers(membersData);
+    setMembers(membersData.filter((m: Member) => isMemberVisibleToUser(m.member_name, isOwnerRole)));
 
     const partyInviteRows = (inviteResult.data || []).filter((r: { invite_mode?: string }) => r.invite_mode === 'party');
     if (partyInviteRows.length > 0) {
