@@ -5,6 +5,9 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStageInfo, EXTRA_STAGE_START, EXTRA_STAGE_END, isExtraStage } from '@/utils/stageGenerator';
 
+// ステージ100未クリアでもエクストラの1ステージ目(401)だけ解放する特別対応ユーザー
+const EXTRA_STAGE_FIRST_UNLOCK_USER_ID = '7d2ffd6b-79fc-409e-afa1-24e69d0e6a04';
+
 export default function StagesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -17,6 +20,7 @@ export default function StagesPage() {
   const currentStage = (isNaN(parsedStage) || parsedStage < 1 || parsedStage > 400) ? 1 : Math.min(EXTRA_STAGE_END, Math.max(1, parsedStage));
   const [unlockedStages, setUnlockedStages] = useState<number[]>([]);
   const [clearedStages, setClearedStages] = useState<number[]>([]);
+  const [canAccessExtraStages, setCanAccessExtraStages] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const stagesPerPage = 100; // 1ページあたり100ステージ表示
   const extraStagesPerPage = 50; // エクストラは50ずつ
@@ -52,6 +56,10 @@ export default function StagesPage() {
     }
     setClearedStages(Array.from(cleared));
 
+    // エクストラにアクセス可能か（100クリア または 特別対応ユーザー）
+    const canExtra = cleared.has(100) || user.id === EXTRA_STAGE_FIRST_UNLOCK_USER_ID;
+    setCanAccessExtraStages(canExtra);
+
     // 解放ステージ（通常）は user_progress.current_stage を基準にする
     const currentStageFromProgress = progressResult.data?.current_stage ?? 1;
     const nextUnlocked = Math.min(400, Math.max(1, currentStageFromProgress));
@@ -59,7 +67,8 @@ export default function StagesPage() {
     for (let i = 1; i <= nextUnlocked; i++) {
       unlocked.push(i);
     }
-    if (cleared.has(100)) {
+    // エクストラ: 100クリア時 または 特別対応ユーザーは401だけ最初に解放し、以降は1ステージクリアで次を解放
+    if (canExtra) {
       let maxExtraConsecutive = EXTRA_STAGE_START - 1;
       for (let s = EXTRA_STAGE_START; s <= EXTRA_STAGE_END; s++) {
         if (!cleared.has(s)) break;
@@ -101,7 +110,7 @@ export default function StagesPage() {
 
   const totalNormalPages = Math.ceil(400 / stagesPerPage);
   const totalExtraPages = Math.ceil((EXTRA_STAGE_END - EXTRA_STAGE_START + 1) / extraStagesPerPage);
-  const isExtraMode = extraView && clearedStages.includes(100);
+  const isExtraMode = extraView && canAccessExtraStages;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4">
@@ -113,7 +122,7 @@ export default function StagesPage() {
         </div>
 
         {/* エクストラ案内 or 通常に戻る */}
-        {clearedStages.includes(100) && (
+        {canAccessExtraStages && (
           <div className="mb-4">
             {!isExtraMode ? (
               <button
