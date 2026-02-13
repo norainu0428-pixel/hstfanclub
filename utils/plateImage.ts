@@ -9,7 +9,7 @@ const NAME_TO_ROOT_FILE: Record<string, string> = {
   smile: 'Smile',
   'hst smile': 'Smile',
   stary: 'STARY',
-  '覚醒stary': '覚醒STARY.png', // テスト用・ユーザー非表示（提供アイコン）
+  '覚醒stary': '覚醒STARY.jpg', // オーナー配布専用（plateフォルダに覚醒STARY.jpgを配置）
   maiku: 'Maiku',
   riemu: 'riemu',
   karu: 'Karu',
@@ -24,7 +24,7 @@ const NAME_TO_HST_FILE: Record<string, string> = {
   smile: 'Smileさん.jpg',
   'hst smile': 'Smileさん.jpg',
   stary: 'STARYさん.jpg',
-  '覚醒stary': '覚醒STARY.png', // テスト用・ユーザー非表示
+  '覚醒stary': '覚醒STARY.jpg',
   maiku: 'Maikuさん.jpg',
   riemu: 'Riemuさん.jpg',
   'hst riemu': 'Riemuさん.jpg',
