@@ -1,5 +1,5 @@
--- 指定ユーザーに「覚醒STARY」Lv.200（レベルMAX）を1体付与する
--- ステータス: INITIAL_STATS['覚醒'] + 199 × LEVEL_UP_STATS['覚醒']
+-- 指定ユーザー（def6fc15）に「覚醒STARY」Lv.9999（レベルMAX）を1体付与する
+-- ステータス: INITIAL_STATS['覚醒'] + 9998 × LEVEL_UP_STATS['覚醒']
 -- Supabase SQL Editor で実行してください。
 
 INSERT INTO user_members (
@@ -25,14 +25,14 @@ INSERT INTO user_members (
   '🌠',
   '覚醒した伝説のマスコット（レベルMAX）',
   '覚醒',
-  200,
+  9999,
   0,
-  3490,
-  3490,
-  3490,
-  2490,
-  1842,
-  1772,
+  101480,
+  101480,
+  101480,
+  104980,
+  80234,
+  80164,
   'hst_start',
   0,
   false
