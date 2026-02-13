@@ -115,11 +115,28 @@ export const SKILL_NAMES: Record<string, string> = {
   summon: 'サモン',
   aura: 'オーラ',
   last_awaken: '最終覚醒',
+  hst_start: 'HST始動', // 覚醒STARY専用
 };
+
+/** スキル説明（一部スキルのみ。未定義は空文字） */
+export const SKILL_DESCRIPTIONS: Record<string, string> = {
+  hst_start: '1ターン無敵・防御力一時的に50000上昇。相手3体を即死。',
+};
+
+/** 覚醒STARYのアビリティ説明（潜在能力） */
+export const AWAKENED_STARY_ABILITIES = [
+  '敵の即死スキルを無効化',
+  '自分を攻撃した敵に2000ダメージ（反動）',
+];
 
 export function getSkillName(skillType: string | null | undefined): string {
   if (!skillType) return '';
   return SKILL_NAMES[skillType] || skillType;
+}
+
+export function getSkillDescription(skillType: string | null | undefined): string {
+  if (!skillType) return '';
+  return SKILL_DESCRIPTIONS[skillType] ?? '';
 }
 
 /** 敵をターゲットに必要とするスキル */

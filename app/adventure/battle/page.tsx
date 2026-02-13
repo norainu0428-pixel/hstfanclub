@@ -54,16 +54,22 @@ export default function BattlePage() {
   const [enemyDefDown, setEnemyDefDown] = useState<{ [key: string]: { amount: number; turns: number } }>({});
   const [timeStop, setTimeStop] = useState(false);
   const [originalHp, setOriginalHp] = useState<{ [key: string]: number }>({}); // バトル開始時のHP（復元用）
+  const [invincibleMembers, setInvincibleMembers] = useState<{ [key: string]: boolean }>({}); // 1ターン無敵（覚醒STARYスキル等）
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
   const [isAutoMode, setIsAutoMode] = useState(false); // オートバトル
   const [isBlockedByOtherTab, setIsBlockedByOtherTab] = useState(false); // 他のタブで実行中のフラグ
   const barrierRef = useRef<{ [key: string]: number }>({});
+  const invincibleRef = useRef<{ [key: string]: boolean }>({});
   const tabSessionRef = useRef<ReturnType<typeof getTabSessionManager> | null>(null);
+  const victoryProcessedRef = useRef(false); // 勝利処理を1回だけ行うための同期的フラグ
 
   useEffect(() => {
     barrierRef.current = barrier;
   }, [barrier]);
+  useEffect(() => {
+    invincibleRef.current = invincibleMembers;
+  }, [invincibleMembers]);
 
   // タブセッション管理の初期化
   useEffect(() => {
@@ -1196,8 +1202,45 @@ export default function BattlePage() {
         addLog(`🛡️ ${member.member_emoji} ${member.member_name}が不屈！`);
         break;
       }
+      case 'hst_start': {
+        // 覚醒STARY専用: 1ターン無敵・防御50000・相手3体を確実に即死
+        setInvincibleMembers(prev => ({ ...prev, [member.id]: true }));
+        setDefenseBoost(prev => ({ ...prev, [member.id]: 50000 }));
+        addLog(`🌟 ${member.member_emoji} ${member.member_name}のHST始動！ 1ターン無敵・防御力50000上昇！`);
+        // 最新の敵リストで生存の先頭3体を必ず即死（関数型更新で確実に反映）
+        setEnemies(prev => {
+          const alive = prev.map((e, i) => ({ e, i })).filter(({ e }) => e.hp > 0);
+          const toKillIndices = new Set(alive.slice(0, 3).map(({ i }) => i));
+          const next = prev.map((e, i) => toKillIndices.has(i) ? { ...e, hp: 0 } : e);
+          const killedNames = alive.slice(0, 3).map(({ e }) => e.name).join('・');
+          if (killedNames) {
+            setTimeout(() => addLog(`💀 相手3体を即死！ ${killedNames}`), 100);
+          }
+          if (next.every(e => e.hp <= 0)) {
+            setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+          }
+          return next;
+        });
+        break;
+      }
       default:
-        addLog(`⚠️ ${member.member_emoji} ${member.member_name}のスキル${member.skill_type}は未実装の挙動です`);
+        // HST始動（覚醒STARY）: 表記ゆれやDB差異で case に来ない場合のフォールバック
+        if (member.skill_type?.trim() === 'hst_start') {
+          setInvincibleMembers(prev => ({ ...prev, [member.id]: true }));
+          setDefenseBoost(prev => ({ ...prev, [member.id]: 50000 }));
+          addLog(`🌟 ${member.member_emoji} ${member.member_name}のHST始動！ 1ターン無敵・防御力50000上昇！`);
+          setEnemies(prev => {
+            const alive = prev.map((e, i) => ({ e, i })).filter(({ e }) => e.hp > 0);
+            const toKillIndices = new Set(alive.slice(0, 3).map(({ i }) => i));
+            const next = prev.map((e, i) => toKillIndices.has(i) ? { ...e, hp: 0 } : e);
+            const killedNames = alive.slice(0, 3).map(({ e }) => e.name).join('・');
+            if (killedNames) setTimeout(() => addLog(`💀 相手3体を即死！ ${killedNames}`), 100);
+            if (next.every(e => e.hp <= 0)) setTimeout(() => { if (!isProcessingVictory && !battleResult) handleVictory(); }, 1000);
+            return next;
+          });
+        } else {
+          addLog(`⚠️ ${member.member_emoji} ${member.member_name}のスキル${member.skill_type}は未実装の挙動です`);
+        }
     }
 
     // クールダウン設定（通常3ターン / Riemuの加護は5ターン）
@@ -1322,6 +1365,7 @@ export default function BattlePage() {
         setIsPlayerTurn(true);
         setSelectedMember(null);
         setPendingEnemyTargetMember(null);
+        setInvincibleMembers({}); // 1ターン無敵を解除
       }, 500);
       return;
     }
@@ -1389,6 +1433,7 @@ export default function BattlePage() {
                 setIsPlayerTurn(true);
                 setSelectedMember(null);
                 setPendingEnemyTargetMember(null);
+                setInvincibleMembers({}); // 1ターン無敵を解除
                 // リジェネ処理（プレイヤーターン開始時）
                 setRegen(currentRegen => {
                   const nextRegen: { [key: string]: { amount: number; turns: number } } = {};
@@ -1458,14 +1503,24 @@ export default function BattlePage() {
             let damage = Math.max(baseDamage + Math.floor(Math.random() * 10), 1);
             let skillLog = '';
 
+            // 無敵（覚醒STARYスキル等）の場合はダメージ0
+            if (invincibleRef.current[target.id]) {
+              damage = 0;
+              skillLog = ' 無敵で無効！';
+            }
             // 敵スキル効果（攻撃系・回復以外）
             const enemySkill = (enemy as { skill_type?: string; skill_power?: number }).skill_type;
             const enemyPower = (enemy as { skill_type?: string; skill_power?: number }).skill_power || 100;
-            if (enemySkill === 'insta_kill') {
-              const chance = Math.min(enemyPower, 20) / 100;
-              if (Math.random() < chance) {
-                damage = target.hp;
-                skillLog = ` ${getSkillName(enemySkill)}発動！`;
+            if (damage > 0 && enemySkill === 'insta_kill') {
+              // 覚醒STARYアビリティ: 敵の即死スキルを無効化
+              if (target.member_name !== '覚醒STARY') {
+                const chance = Math.min(enemyPower, 20) / 100;
+                if (Math.random() < chance) {
+                  damage = target.hp;
+                  skillLog = ` ${getSkillName(enemySkill)}発動！`;
+                }
+              } else {
+                skillLog = ' 即死は覚醒STARYに無効！';
               }
             } else if (enemySkill === 'critical_strike') {
               damage = Math.floor(damage * 2);
@@ -1508,6 +1563,18 @@ export default function BattlePage() {
             const barrierText = absorbed > 0 ? `（バリアで${absorbed}吸収）` : '';
             addLog(`${enemy.emoji} ${enemy.name}の攻撃${skillLog}${boostText}${barrierText}！ ${target.member_emoji} ${target.member_name}に${damage}ダメージ！`);
 
+            // 覚醒STARYアビリティ: STARYを攻撃した敵に2000ダメージ
+            if (target.member_name === '覚醒STARY') {
+              setEnemies(prev => {
+                const idx = prev.findIndex((e, i) => enemyKey(e, i) === eKey);
+                if (idx >= 0 && prev[idx].hp > 0) {
+                  return prev.map((e, i) => i === idx ? { ...e, hp: Math.max(e.hp - 2000, 0) } : e);
+                }
+                return prev;
+              });
+              addLog(`${enemy.emoji} ${enemy.name}が覚醒STARYを攻撃した反動で2000ダメージ！`);
+            }
+
             // パーティのHPを更新
             setParty(partyState => {
               const updatedParty = partyState.map(m => 
@@ -1543,18 +1610,15 @@ export default function BattlePage() {
   }
 
   async function handleVictory() {
-    // 重複実行を防止
+    // 重複実行を防止（ref を同期的に立てて、二重付与・二重ログを防ぐ）
+    if (victoryProcessedRef.current) return;
     if (isProcessingVictory || battleResult || isBlockedByOtherTab) return;
+    victoryProcessedRef.current = true;
     
-    // 他のタブで実行中の場合、処理をブロック
     const { data: { user } } = await supabase.auth.getUser();
     if (user && tabSessionRef.current) {
-      // 他のタブが同じバトルを実行中かチェック
       if (tabSessionRef.current.isBattleActive(user.id, stageId)) {
-        // このタブがブロックされている場合、処理をスキップ
-        if (isBlockedByOtherTab) {
-          return;
-        }
+        if (isBlockedByOtherTab) return;
       }
     }
     

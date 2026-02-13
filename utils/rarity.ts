@@ -4,10 +4,11 @@
  * ランク: ★7(最上位) ～ ★1(最下位)
  */
 
-export type RarityType = 'HST' | 'stary' | 'legendary' | 'ultra-rare' | 'super-rare' | 'rare' | 'common';
+export type RarityType = '覚醒' | 'HST' | 'stary' | 'legendary' | 'ultra-rare' | 'super-rare' | 'rare' | 'common';
 
-// レア度（高いほどレア・7が最上位）
+// レア度（高いほどレア・8が最上位）
 export const RARITY_RANK: Record<string, number> = {
+  '覚醒': 8,
   'HST': 7,
   'stary': 6,
   'legendary': 5,
@@ -17,8 +18,9 @@ export const RARITY_RANK: Record<string, number> = {
   'common': 1
 };
 
-// ランク星表示（★7～★1）
+// ランク星表示（★8～★1）
 const RARITY_STAR: Record<string, string> = {
+  '覚醒': '★8',
   'HST': '★7',
   'stary': '★6',
   'legendary': '★5',
@@ -33,13 +35,13 @@ export function normalizeRarity(rarity: string): string {
   if (!rarity || typeof rarity !== 'string') return rarity;
   const n = rarity.trim().toLowerCase();
   const map: Record<string, string> = {
-    'hst': 'HST', 'stary': 'stary', 'STARY': 'stary',
+    '覚醒': '覚醒', 'hst': 'HST', 'stary': 'stary', 'STARY': 'stary',
     'レジェンド': 'legendary', 'legendary': 'legendary',
     'ウルトラレア': 'ultra-rare', 'ultra-rare': 'ultra-rare', 'ultrare': 'ultra-rare', 'ultra_rare': 'ultra-rare',
     'スーパーレア': 'super-rare', 'super-rare': 'super-rare', 'superrare': 'super-rare', 'super_rare': 'super-rare',
     'レア': 'rare', 'rare': 'rare',
     'コモン': 'common', 'common': 'common', 'ノーマル': 'common',
-    '★1': 'common', '★2': 'rare', '★3': 'super-rare', '★4': 'ultra-rare', '★5': 'legendary', '★6': 'stary', '★7': 'HST'
+    '★1': 'common', '★2': 'rare', '★3': 'super-rare', '★4': 'ultra-rare', '★5': 'legendary', '★6': 'stary', '★7': 'HST', '★8': '覚醒'
   };
   return map[n] ?? map[rarity] ?? rarity;
 }
@@ -51,6 +53,7 @@ export function normalizeRarity(rarity: string): string {
 export function getRarityLabel(rarity: string): string {
   const key = normalizeRarity(rarity);
   const labels: Record<string, string> = {
+    '覚醒': '★8 覚醒',
     'HST': '★7 HST（最上位）',
     'stary': '★6 STARY（伝説）',
     'legendary': '★5 レジェンド',
@@ -76,6 +79,7 @@ export function getRarityShortLabel(rarity: string): string {
  */
 export function getRarityMediumLabel(rarity: string): string {
   const labels: Record<string, string> = {
+    '覚醒': '★8 覚醒',
     'HST': '★7 HST',
     'stary': '★6 STARY',
     'legendary': '★5 レジェンド',
@@ -94,6 +98,7 @@ export function getRarityMediumLabel(rarity: string): string {
 export function getRarityLabelWithEmoji(rarity: string): string {
   const key = normalizeRarity(rarity);
   const labels: Record<string, string> = {
+    '覚醒': '🌟 ★8 覚醒',
     'HST': '👑 ★7 HST（最上位）',
     'stary': '🌠 ★6 STARY（伝説）',
     'legendary': '🏆 ★5 レジェンド',
@@ -111,6 +116,7 @@ export function getRarityLabelWithEmoji(rarity: string): string {
 export function getRarityColorClass(rarity: string): string {
   const key = normalizeRarity(rarity);
   switch (key) {
+    case '覚醒': return 'bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500';
     case 'HST': return 'bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600';
     case 'stary': return 'bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500';
     case 'legendary': return 'bg-gradient-to-r from-yellow-400 to-orange-500';
@@ -128,6 +134,7 @@ export function getRarityColorClass(rarity: string): string {
 export function getRarityGradientPart(rarity: string): string {
   const key = normalizeRarity(rarity);
   switch (key) {
+    case '覚醒': return 'from-amber-400 via-yellow-500 to-orange-500';
     case 'HST': return 'from-yellow-600 via-orange-600 to-red-600';
     case 'stary': return 'from-pink-500 via-purple-500 to-blue-500';
     case 'legendary': return 'from-yellow-400 to-orange-500';
@@ -145,6 +152,7 @@ export function getRarityGradientPart(rarity: string): string {
 export function getRarityBorderColor(rarity: string): string {
   const key = normalizeRarity(rarity);
   const colors: Record<string, string> = {
+    '覚醒': '#fbbf24',
     'HST': '#f59e0b',
     'stary': '#ec4899',
     'legendary': '#f59e0b',
@@ -161,6 +169,7 @@ export function getRarityBorderColor(rarity: string): string {
  * ランク順（高い→低い）
  */
 export const RARITY_FILTER_OPTIONS = [
+  { value: '覚醒', label: '★8 覚醒' },
   { value: 'HST', label: '★7 HST（最上位）' },
   { value: 'stary', label: '★6 STARY（伝説）' },
   { value: 'legendary', label: '★5 レジェンド' },

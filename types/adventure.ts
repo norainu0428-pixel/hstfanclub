@@ -1,4 +1,7 @@
-export type Rarity = 'HST' | 'stary' | 'legendary' | 'ultra-rare' | 'super-rare' | 'rare' | 'common';
+export type Rarity = '覚醒' | 'HST' | 'stary' | 'legendary' | 'ultra-rare' | 'super-rare' | 'rare' | 'common';
+
+/** テスト用・ユーザーに非表示にするメンバー名（コレクション・パーティ選択で除外、ガチャにも出さない） */
+export const HIDDEN_MEMBER_NAMES: string[] = ['覚醒STARY'];
 
 export interface Member {
   id: string;
@@ -61,6 +64,7 @@ export interface UserProgress {
 
 // レベル上限設定（インフレしすぎないよう全体的に抑えめ）
 export const MAX_LEVELS: { [key: string]: number } = {
+  '覚醒': 9999,
   'HST': 200,
   'stary': 600,
   'legendary': 120,
@@ -74,7 +78,7 @@ export const MAX_LEVELS: { [key: string]: number } = {
 // 「1しか上がらない」状態から、各ステータスがレベルアップごとにおおよそ 5〜10 前後上がるように調整
 // 高レベル帯ではかなり数値が伸びるため、インフレ前提のバランスになります
 export const LEVEL_UP_STATS: { [key: string]: { hp: number, attack: number, defense: number, speed: number } } = {
-  // 高レアほど伸びやすい
+  '覚醒':     { hp: 10, attack: 10, defense: 8, speed: 8 },
   'HST':       { hp: 10, attack: 10, defense: 8, speed: 8 },
   'stary':     { hp: 9,  attack: 9,  defense: 7, speed: 7 },
   'legendary': { hp: 8,  attack: 8,  defense: 6, speed: 6 },
@@ -89,6 +93,7 @@ export const LEVEL_UP_STATS: { [key: string]: { hp: number, attack: number, defe
  * すたーりー(stary): hp 200, attack 65, defense 30, speed 40 を基準にし、他はここを参照すること。
  */
 export const INITIAL_STATS: { [key: string]: { hp: number; attack: number; defense: number; speed: number } } = {
+  '覚醒':     { hp: 1500, attack: 500, defense: 250, speed: 180 },
   'HST':       { hp: 300, attack: 100, defense: 50, speed: 60 },
   'stary':     { hp: 200, attack: 65, defense: 30, speed: 40 },
   'legendary': { hp: 150, attack: 45, defense: 20, speed: 25 },

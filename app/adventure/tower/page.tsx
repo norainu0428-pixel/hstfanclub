@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { Member } from '@/types/adventure';
+import { Member, HIDDEN_MEMBER_NAMES } from '@/types/adventure';
 import { TOWER_STAGE_START, TOWER_STAGE_END, getStageInfo } from '@/utils/stageGenerator';
 
 export default function TowerPage() {
@@ -29,7 +29,7 @@ export default function TowerPage() {
       .select('*')
       .eq('user_id', user.id)
       .order('level', { ascending: false });
-    setMembers((membersData || []) as Member[]);
+    setMembers(((membersData || []) as Member[]).filter(m => !HIDDEN_MEMBER_NAMES.includes(m.member_name)));
 
     // クリア済みの塔階層を取得（永続）
     const { data: clears } = await supabase

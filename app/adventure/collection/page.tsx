@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { Member } from '@/types/adventure';
+import { Member, HIDDEN_MEMBER_NAMES } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
 import { getRarityLabel, getRarityColorClass, RARITY_FILTER_OPTIONS } from '@/utils/rarity';
@@ -92,6 +92,7 @@ export default function CollectionPage() {
       }
 
       const rarityOrder: { [key: string]: number } = {
+        '覚醒': -2,
         'HST': -1,
         'stary': 0,
         'legendary': 1,
@@ -105,17 +106,18 @@ export default function CollectionPage() {
         const orderB = rarityOrder[b.rarity] ?? 999;
         return orderA - orderB;
       });
+      const filtered = sorted.filter((m: Member) => !HIDDEN_MEMBER_NAMES.includes(m.member_name));
       
       // HSTメンバーを確認
-      const hstMembers = sorted.filter(m => m.rarity === 'HST');
+      const hstMembers = filtered.filter(m => m.rarity === 'HST');
       console.log('HSTメンバー:', hstMembers);
       console.log('フィルタリング前のメンバー数:', sorted.length);
       
-      setMembers(sorted);
+      setMembers(filtered);
 
       // 全員のHPを全回復（HPがmax_hp未満のメンバーのみ更新、並列処理）
-      if (sorted && sorted.length > 0) {
-        const membersToHeal = sorted.filter(m => m.hp < m.max_hp || m.current_hp < m.max_hp);
+      if (filtered && filtered.length > 0) {
+        const membersToHeal = filtered.filter(m => m.hp < m.max_hp || m.current_hp < m.max_hp);
         if (membersToHeal.length > 0) {
           // 並列で更新
           await Promise.all(
@@ -145,16 +147,17 @@ export default function CollectionPage() {
       return;
     }
 
-    // HSTメンバーを確認
-    const hstMembers = (data || []).filter(m => m.rarity === 'HST');
+    // テスト用非表示メンバーを除外
+    const list = (data || []).filter((m: Member) => !HIDDEN_MEMBER_NAMES.includes(m.member_name));
+    const hstMembers = list.filter(m => m.rarity === 'HST');
     console.log('HSTメンバー:', hstMembers);
     console.log('フィルタリング前のメンバー数:', (data || []).length);
     
-    setMembers(data || []);
+    setMembers(list);
 
     // 全員のHPを全回復（HPがmax_hp未満のメンバーのみ更新、並列処理）
-    if (data && data.length > 0) {
-      const membersToHeal = data.filter(m => m.hp < m.max_hp || m.current_hp < m.max_hp);
+    if (list && list.length > 0) {
+      const membersToHeal = list.filter(m => m.hp < m.max_hp || m.current_hp < m.max_hp);
       if (membersToHeal.length > 0) {
         // 並列で更新
         await Promise.all(
@@ -252,6 +255,7 @@ export default function CollectionPage() {
   }
 
   const rarityCount = {
+    覚醒: members.filter(m => m.rarity === '覚醒').length,
     HST: members.filter(m => m.rarity === 'HST').length,
     stary: members.filter(m => m.rarity === 'stary').length,
     legendary: members.filter(m => m.rarity === 'legendary').length,
@@ -548,7 +552,7 @@ export default function CollectionPage() {
           {/* レアリティ順の場合はセクション分け表示 */}
           {sortBy === 'rarity' && displayedMembers.length > 0 ? (
             <div className="space-y-6">
-              {(['HST', 'stary', 'legendary', 'ultra-rare', 'super-rare', 'rare', 'common'] as const).filter(r => showHst || r !== 'HST').map(rarity => {
+              {(['覚醒', 'HST', 'stary', 'legendary', 'ultra-rare', 'super-rare', 'rare', 'common'] as const).filter(r => (r === '覚醒' && rarityCount.覚醒 > 0) || (r === 'HST' && showHst) || r !== 'HST' && r !== '覚醒').map(rarity => {
                 const inRarity = displayedMembers.filter(m => m.rarity === rarity);
                 if (inRarity.length === 0) return null;
                 return (

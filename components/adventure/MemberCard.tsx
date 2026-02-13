@@ -36,6 +36,13 @@ export default function MemberCard({ member, onClick, selected = false, showStat
         );
       })()}
 
+      {/* 覚醒専用バッジ */}
+      {member.rarity === '覚醒' && (
+        <div className={`absolute top-12 right-2 px-2 py-1 rounded-full bg-gradient-to-r ${getRarityGradientPart('覚醒')} text-white text-xs font-bold animate-pulse`}>
+          🌟 覚醒
+        </div>
+      )}
+
       {/* HST専用バッジ */}
       {member.rarity === 'HST' && (
         <div className={`absolute top-12 right-2 px-2 py-1 rounded-full bg-gradient-to-r ${getRarityGradientPart('HST')} text-white text-xs font-bold animate-pulse`}>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Member } from '@/types/adventure';
+import { Member, HIDDEN_MEMBER_NAMES } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
 import { canEvolve, getEvolvedStats } from '@/utils/evolution';
@@ -66,7 +66,7 @@ export default function AdventurePage() {
       return;
     }
 
-    setMembers(membersData || []);
+    setMembers((membersData || []).filter(m => !HIDDEN_MEMBER_NAMES.includes(m.member_name)));
 
     // 進行状況の設定
     if (progressResult.data) {

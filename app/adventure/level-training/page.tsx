@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import { Member } from '@/types/adventure';
+import { Member, HIDDEN_MEMBER_NAMES } from '@/types/adventure';
 import { LEVEL_TRAINING_STAGES } from '@/utils/stageGenerator';
 import MemberCard from '@/components/adventure/MemberCard';
 
@@ -39,7 +39,7 @@ export default function LevelTrainingPage() {
       return;
     }
 
-    setMembers(membersData || []);
+    setMembers((membersData || []).filter(m => !HIDDEN_MEMBER_NAMES.includes(m.member_name)));
 
     // 今日のレベルアップステージ挑戦回数 + オーナー設定のボーナス回数
     const today = new Date();

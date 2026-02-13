@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { Member } from '@/types/adventure';
+import { Member, HIDDEN_MEMBER_NAMES } from '@/types/adventure';
 import { RIEMU_EVENT_STAGES, getStageInfo } from '@/utils/stageGenerator';
 import { getRarityMediumLabel } from '@/utils/rarity';
 
@@ -30,7 +30,7 @@ export default function RiemuEventPage() {
       .select('*')
       .eq('user_id', user.id)
       .order('level', { ascending: false });
-    let membersList = (membersData || []) as Member[];
+    let membersList = ((membersData || []) as Member[]).filter(m => !HIDDEN_MEMBER_NAMES.includes(m.member_name));
     setMembers(membersList);
 
     const { data: clears } = await supabase
@@ -68,7 +68,7 @@ export default function RiemuEventPage() {
             .select('*')
             .eq('user_id', user.id)
             .order('level', { ascending: false });
-          setMembers((newMembers || []) as Member[]);
+          setMembers(((newMembers || []) as Member[]).filter(m => !HIDDEN_MEMBER_NAMES.includes(m.member_name)));
         }
       }
     }

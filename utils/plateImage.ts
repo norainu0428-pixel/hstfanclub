@@ -4,13 +4,14 @@
  * - それ以外は plate/ 直下の画像を使用
  */
 
-// member_name -> ファイル名（拡張子除く）のマッピング
+// member_name -> ファイル名（拡張子含む場合はそのまま、なければ .png）
 const NAME_TO_ROOT_FILE: Record<string, string> = {
   smile: 'Smile',
   'hst smile': 'Smile',
   stary: 'STARY',
+  '覚醒stary': '覚醒STARY.png', // テスト用・ユーザー非表示（提供アイコン）
   maiku: 'Maiku',
-  riemu: 'riemu', // 小文字のファイル名
+  riemu: 'riemu',
   karu: 'Karu',
   rura: 'Rura',
   shunkoro: 'Shunkoro',
@@ -23,6 +24,7 @@ const NAME_TO_HST_FILE: Record<string, string> = {
   smile: 'Smileさん.jpg',
   'hst smile': 'Smileさん.jpg',
   stary: 'STARYさん.jpg',
+  '覚醒stary': '覚醒STARY.png', // テスト用・ユーザー非表示
   maiku: 'Maikuさん.jpg',
   riemu: 'Riemuさん.jpg',
   'hst riemu': 'Riemuさん.jpg',
@@ -38,6 +40,14 @@ const NAME_TO_HST_FILE: Record<string, string> = {
 export function getPlateImageUrl(memberName: string, rarity: string): string | null {
   const normalizedName = (memberName || '').trim().toLowerCase();
 
+  if (rarity === '覚醒') {
+    const rootFile = NAME_TO_ROOT_FILE[normalizedName];
+    if (rootFile) {
+      return rootFile.includes('.') ? `/plate/${rootFile}` : `/plate/${rootFile}.png`;
+    }
+    return null;
+  }
+
   if (rarity === 'HST') {
     // HSTレアリティの時のみ plate/HST/ を使用
     const hstFile = NAME_TO_HST_FILE[normalizedName];
@@ -47,10 +57,10 @@ export function getPlateImageUrl(memberName: string, rarity: string): string | n
     return null;
   }
 
-  // 通常は plate/ 直下を使用
+  // 通常は plate/ 直下を使用（拡張子付きの場合はそのまま、なければ .png）
   const rootFile = NAME_TO_ROOT_FILE[normalizedName];
   if (rootFile) {
-    return `/plate/${rootFile}.png`;
+    return rootFile.includes('.') ? `/plate/${rootFile}` : `/plate/${rootFile}.png`;
   }
   return null;
 }
