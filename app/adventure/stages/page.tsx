@@ -16,8 +16,10 @@ export default function StagesPage() {
   const currentStageParam = searchParams.get('current') || '1';
   const extraView = searchParams.get('extra') === '1';
   const parsedStage = parseInt(currentStageParam);
-  
-  const currentStage = (isNaN(parsedStage) || parsedStage < 1 || parsedStage > 400) ? 1 : Math.min(EXTRA_STAGE_END, Math.max(1, parsedStage));
+  // 通常ステージは 1–400、エクストラは 401–1000。401+ を 1 にしていたためエクストラが巻き戻って見えていたので修正
+  const currentStage = extraView
+    ? (isNaN(parsedStage) || parsedStage < EXTRA_STAGE_START ? EXTRA_STAGE_START : Math.min(EXTRA_STAGE_END, Math.max(EXTRA_STAGE_START, parsedStage)))
+    : (isNaN(parsedStage) || parsedStage < 1 ? 1 : Math.min(400, parsedStage > 400 ? 400 : parsedStage));
   const [unlockedStages, setUnlockedStages] = useState<number[]>([]);
   const [clearedStages, setClearedStages] = useState<number[]>([]);
   const [canAccessExtraStages, setCanAccessExtraStages] = useState(false);

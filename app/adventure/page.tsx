@@ -7,7 +7,7 @@ import { Member, isMemberVisibleToUser } from '@/types/adventure';
 import MemberCard from '@/components/adventure/MemberCard';
 import { calculateLevelUp } from '@/utils/levelup';
 import { canEvolve, getEvolvedStats } from '@/utils/evolution';
-import { TOWER_STAGE_START, RIEMU_EVENT_STAGES } from '@/utils/stageGenerator';
+import { TOWER_STAGE_START, RIEMU_EVENT_STAGES, EXTRA_STAGE_START } from '@/utils/stageGenerator';
 
 export default function AdventurePage() {
   const [loading, setLoading] = useState(true);
@@ -150,8 +150,10 @@ export default function AdventurePage() {
       return;
     }
 
-    // 通常の冒険
-    router.push(`/adventure/stages?party=${partyIds}&current=${currentStage}`);
+    // 通常の冒険（エクストラ進行中なら extra=1 でステージ選択を開く）
+    const params = new URLSearchParams({ party: partyIds, current: String(currentStage) });
+    if (currentStage >= EXTRA_STAGE_START) params.set('extra', '1');
+    router.push(`/adventure/stages?${params.toString()}`);
   }
 
   // 合成実行
