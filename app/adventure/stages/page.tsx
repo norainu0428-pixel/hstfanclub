@@ -25,7 +25,14 @@ export default function StagesPage() {
   const stagesPerPage = 100; // 1ページあたり100ステージ表示
   const extraStagesPerPage = 50; // エクストラは50ずつ
 
+  // リロード時は冒険の最初（パーティ編成）に戻す（リロードによる無限周回対策）
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const nav = performance.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type === 'reload') {
+      router.replace('/adventure');
+      return;
+    }
     loadUnlockedStages();
   }, []);
 

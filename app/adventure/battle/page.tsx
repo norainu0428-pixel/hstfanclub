@@ -103,7 +103,16 @@ export default function BattlePage() {
     };
   }, [stageId, battleResult, loading]);
 
-  useEffect(() => { initBattle(); }, []);
+  // リロード時は冒険の最初（パーティ編成）に戻す（リロードによる無限周回対策）
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const nav = performance.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type === 'reload') {
+      router.replace('/adventure');
+      return;
+    }
+    initBattle();
+  }, []);
 
   // 週の開始日を YYYY-MM-DD 文字列で返す（ローカルタイム基準、月曜始まり）
   function getCurrentWeekStartDate(): string {

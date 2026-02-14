@@ -23,7 +23,14 @@ export default function StagePage() {
   const [loading, setLoading] = useState(true);
   const [hostPartyIds, setHostPartyIds] = useState<string[]>([]);
 
+  // リロード時は冒険の最初（パーティ編成）に戻す（リロードによる無限周回対策）
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const nav = performance.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type === 'reload') {
+      router.replace('/adventure');
+      return;
+    }
     loadParty();
   }, []);
 
