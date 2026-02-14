@@ -103,16 +103,7 @@ export default function BattlePage() {
     };
   }, [stageId, battleResult, loading]);
 
-  // リロード時は冒険の最初（パーティ編成）に戻す（リロードによる無限周回対策）
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const nav = performance.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined;
-    if (nav?.type === 'reload') {
-      router.replace('/adventure');
-      return;
-    }
-    initBattle();
-  }, []);
+  useEffect(() => { initBattle(); }, []);
 
   // 週の開始日を YYYY-MM-DD 文字列で返す（ローカルタイム基準、月曜始まり）
   function getCurrentWeekStartDate(): string {
@@ -1577,13 +1568,7 @@ export default function BattlePage() {
               setEnemies(prev => {
                 const idx = prev.findIndex((e, i) => enemyKey(e, i) === eKey);
                 if (idx >= 0 && prev[idx].hp > 0) {
-                  const next = prev.map((e, i) => i === idx ? { ...e, hp: Math.max(e.hp - 2000, 0) } : e);
-                  if (next.every(e => e.hp <= 0)) {
-                    setTimeout(() => {
-                      if (!victoryProcessedRef.current && !battleResult) handleVictory();
-                    }, 400);
-                  }
-                  return next;
+                  return prev.map((e, i) => i === idx ? { ...e, hp: Math.max(e.hp - 2000, 0) } : e);
                 }
                 return prev;
               });
