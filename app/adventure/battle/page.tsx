@@ -57,6 +57,7 @@ export default function BattlePage() {
   const [invincibleMembers, setInvincibleMembers] = useState<{ [key: string]: boolean }>({}); // 1ターン無敵（覚醒STARYスキル等）
   const [loading, setLoading] = useState(true);
   const [isProcessingVictory, setIsProcessingVictory] = useState(false); // 勝利処理中のフラグ
+  const [victorySaveFailedReason, setVictorySaveFailedReason] = useState<'not_logged_in' | 'db_error' | null>(null); // クリア記録が保存できなかった理由（次のステージへを出さない）
   const [isAutoMode, setIsAutoMode] = useState(false); // オートバトル
   const [isBlockedByOtherTab, setIsBlockedByOtherTab] = useState(false); // 他のタブで実行中のフラグ
   const barrierRef = useRef<{ [key: string]: number }>({});
@@ -1623,8 +1624,12 @@ export default function BattlePage() {
     }
     
     setIsProcessingVictory(true);
-    
+    setVictorySaveFailedReason(null);
     setBattleResult('victory');
+    if (!user) {
+      setVictorySaveFailedReason('not_logged_in');
+      addLog('⚠️ ログイン状態が取得できませんでした。クリア記録は保存されません。');
+    }
     
     // 報酬計算
     const totalExp = enemies.reduce((sum, e) => sum + e.experience_reward, 0);
@@ -1688,7 +1693,8 @@ export default function BattlePage() {
         });
       if (logError) {
         console.error('battle_logs 保存エラー:', logError);
-        addLog('⚠️ クリア記録の保存に失敗しました。画面を閉じずにしばらくお待ちください。');
+        setVictorySaveFailedReason('db_error');
+        addLog('⚠️ クリア記録の保存に失敗しました。「次のステージへ」は押さず、パーティ編成に戻って再度挑戦してください。');
       }
 
       const membersToUpdate = mineIds.length > 0 ? updatedParty.filter(m => mineIds.includes(m.id)) : updatedParty;
@@ -2402,9 +2408,19 @@ export default function BattlePage() {
                       )}
                     </div>
                   </div>
+                  {victorySaveFailedReason && (
+                    <div className="mb-4 p-4 rounded-xl bg-red-100 border-2 border-red-500 text-red-800 font-bold text-center">
+                      {victorySaveFailedReason === 'not_logged_in' && (
+                        <>⚠️ クリア記録を保存できませんでした（ログイン状態の取得に失敗）。<br />「次のステージへ」は押さず、一度トップに戻って再ログインしてから再度挑戦してください。</>
+                      )}
+                      {victorySaveFailedReason === 'db_error' && (
+                        <>⚠️ クリア記録の保存に失敗しました。<br />「次のステージへ」は押さず、パーティ編成に戻って再度このステージに挑戦してください。</>
+                      )}
+                    </div>
+                  )}
                   <div className="flex gap-3">
                     <button
-                      disabled={isProcessingVictory}
+                      disabled={isProcessingVictory || !!victorySaveFailedReason}
                       onClick={() => {
                         if (partyStageId) {
                           router.push(`/party/stages?party=${partyIds.join(',')}`);
@@ -2429,7 +2445,7 @@ export default function BattlePage() {
                       }}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {isProcessingVictory ? '保存中...' : partyStageId ? 'ステージ一覧へ' : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? 'ステージ選択へ' : '次のステージへ'}
+                      {victorySaveFailedReason ? 'クリア未保存のため進めません' : isProcessingVictory ? '保存中...' : partyStageId ? 'ステージ一覧へ' : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? 'ステージ選択へ' : '次のステージへ'}
                     </button>
                     <button
                       disabled={isProcessingVictory}

@@ -291,8 +291,24 @@ export default function Home() {
   }, []); // 依存配列は空
 
   useEffect(() => {
-    supabase.from('announcements').select('id, title, body').eq('is_active', true).order('created_at', { ascending: false })
-      .then(({ data }) => setAnnouncements(data || []));
+    supabase
+      .from('announcements')
+      .select('id, title, body')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          // テーブル未作成や 400 等で失敗してもトップは表示する（supabase_announcements.sql の実行を推奨）
+          console.warn('お知らせの取得に失敗しました:', error.message, error.code);
+          setAnnouncements([]);
+          return;
+        }
+        setAnnouncements(data || []);
+      })
+      .catch((err) => {
+        console.warn('お知らせの取得で例外:', err);
+        setAnnouncements([]);
+      });
   }, []);
 
   console.log('=== レンダリング: loading =', loading);
