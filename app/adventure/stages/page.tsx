@@ -24,14 +24,16 @@ export default function StagesPage() {
   const [clearedStages, setClearedStages] = useState<number[]>([]);
   const [canAccessExtraStages, setCanAccessExtraStages] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  /** エクストラで次に挑戦すべきステージ（battle_logs から算出）。URL の current は通常のみで、エクストラはここを使う */
+  const [nextExtraStage, setNextExtraStage] = useState<number | null>(null);
   const stagesPerPage = 100; // 1ページあたり100ステージ表示
   const extraStagesPerPage = 50; // エクストラは50ずつ
 
   useEffect(() => {
-    loadUnlockedStages();
-  }, []);
+    loadUnlockedStages(extraView);
+  }, [extraView]);
 
-  async function loadUnlockedStages() {
+  async function loadUnlockedStages(extraViewParam: boolean) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -70,22 +72,28 @@ export default function StagesPage() {
       unlocked.push(i);
     }
     // エクストラ: 100クリア時 または 特別対応ユーザーは401だけ最初に解放し、以降は1ステージクリアで次を解放
+    let nextExtra: number | null = null;
     if (canExtra) {
       let maxExtraConsecutive = EXTRA_STAGE_START - 1;
       for (let s = EXTRA_STAGE_START; s <= EXTRA_STAGE_END; s++) {
         if (!cleared.has(s)) break;
         maxExtraConsecutive = s;
       }
-      const nextExtra = Math.min(EXTRA_STAGE_END, maxExtraConsecutive + 1);
+      nextExtra = Math.min(EXTRA_STAGE_END, maxExtraConsecutive + 1);
       for (let i = EXTRA_STAGE_START; i <= nextExtra; i++) {
         unlocked.push(i);
       }
+      setNextExtraStage(nextExtra);
+    } else {
+      setNextExtraStage(null);
     }
     setUnlockedStages(unlocked);
-    
-    const page = extraView
-      ? Math.ceil((currentStage - EXTRA_STAGE_START + 1) / extraStagesPerPage) || 1
-      : Math.ceil(Math.min(currentStage, 400) / stagesPerPage) || 1;
+    // エクストラ表示時は「次に挑戦するステージ」でページを決める（URL の current は 401 のままの人が多いため）
+    const page = extraViewParam && nextExtra != null
+      ? Math.ceil((nextExtra - EXTRA_STAGE_START + 1) / extraStagesPerPage) || 1
+      : extraViewParam
+        ? Math.ceil((currentStage - EXTRA_STAGE_START + 1) / extraStagesPerPage) || 1
+        : Math.ceil(Math.min(currentStage, 400) / stagesPerPage) || 1;
     setCurrentPage(page);
   }
 
@@ -191,7 +199,7 @@ export default function StagesPage() {
               const stageInfo = getStageInfo(stage);
               const isUnlocked = unlockedStages.includes(stage);
               const isCleared = clearedStages.includes(stage);
-              const isCurrent = stage === currentStage;
+              const isCurrent = isExtraMode ? stage === (nextExtraStage ?? currentStage) : stage === currentStage;
               const isBoss = !isExtraMode && stage % 10 === 0;
               const isMegaBoss = !isExtraMode && stage % 100 === 0;
               const isUltimateBoss = !isExtraMode && stage % 200 === 0;

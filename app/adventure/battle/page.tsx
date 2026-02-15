@@ -1671,6 +1671,26 @@ export default function BattlePage() {
 
     // データベース更新（協力時は自分のメンバーのみ更新）
     if (user) {
+      try {
+      // ★ クリア記録を最優先で保存（エクストラ等で「クリア判定にならない」不具合を防ぐ）
+      const logStage = partyStageId ? 0 : stageId;
+      const { error: logError } = await supabase
+        .from('battle_logs')
+        .insert({
+          user_id: user.id,
+          stage: logStage,
+          party_members: updatedParty.map(m => ({ id: m.id, name: m.member_name, level: m.level })),
+          enemy_type: enemies[0]?.name || 'Unknown',
+          result: 'victory',
+          turns_taken: turn,
+          experience_gained: totalExp,
+          points_earned: totalPoints
+        });
+      if (logError) {
+        console.error('battle_logs 保存エラー:', logError);
+        addLog('⚠️ クリア記録の保存に失敗しました。画面を閉じずにしばらくお待ちください。');
+      }
+
       const membersToUpdate = mineIds.length > 0 ? updatedParty.filter(m => mineIds.includes(m.id)) : updatedParty;
       for (const member of membersToUpdate) {
         await supabase
@@ -1823,24 +1843,7 @@ export default function BattlePage() {
         }
       }
 
-      // バトルログ保存（パーティーモードは stage 0 で記録し、ステージ進行判定に影響させない）
-      const logStage = partyStageId ? 0 : stageId;
-      await supabase
-        .from('battle_logs')
-        .insert({
-          user_id: user.id,
-          stage: logStage,
-          party_members: updatedParty.map(m => ({ 
-            id: m.id, 
-            name: m.member_name,
-            level: m.level
-          })),
-          enemy_type: enemies[0]?.name || 'Unknown',
-          result: 'victory',
-          turns_taken: turn,
-          experience_gained: totalExp,
-          points_earned: totalPoints
-        });
+      // バトルログは上で最優先保存済み
 
       // 装備機能廃止: エクストラステージの武器ドロップも無効化
 
@@ -1858,6 +1861,11 @@ export default function BattlePage() {
       if (tabSessionRef.current) {
         tabSessionRef.current.endBattle(user.id, stageId);
       }
+      } finally {
+        setIsProcessingVictory(false);
+      }
+    } else {
+      setIsProcessingVictory(false);
     }
     
     // ★ レベルアップ情報をステートに保存（演出用）
@@ -2396,6 +2404,7 @@ export default function BattlePage() {
                   </div>
                   <div className="flex gap-3">
                     <button
+                      disabled={isProcessingVictory}
                       onClick={() => {
                         if (partyStageId) {
                           router.push(`/party/stages?party=${partyIds.join(',')}`);
@@ -2412,15 +2421,18 @@ export default function BattlePage() {
                           router.push('/adventure/riemu-event');
                         } else if (isExtraStage(stageId) && stageId >= EXTRA_STAGE_END) {
                           router.push(`/adventure/stages?party=${partyIds.join(',')}&extra=1`);
+                        } else if (isExtraStage(stageId)) {
+                          router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}&extra=1`);
                         } else {
                           router.push(`/adventure/stage/${stageId + 1}?party=${partyIds.join(',')}`);
                         }
                       }}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90"
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {partyStageId ? 'ステージ一覧へ' : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? 'ステージ選択へ' : '次のステージへ'}
+                      {isProcessingVictory ? '保存中...' : partyStageId ? 'ステージ一覧へ' : isExtraStage(stageId) && stageId >= EXTRA_STAGE_END ? 'ステージ選択へ' : '次のステージへ'}
                     </button>
                     <button
+                      disabled={isProcessingVictory}
                       onClick={() => {
                         if (partyStageId) {
                           router.push('/party');
@@ -2432,7 +2444,7 @@ export default function BattlePage() {
                           router.push('/adventure');
                         }
                       }}
-                      className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
+                      className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       パーティ編成に戻る
                     </button>

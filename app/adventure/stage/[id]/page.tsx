@@ -276,7 +276,16 @@ export default function StagePage() {
             ⚔️ 戦闘開始！
           </button>
           <button
-            onClick={() => router.push(inviteId ? `/adventure/stages?invite_id=${inviteId}&current=1` : '/adventure')}
+            onClick={() => {
+              if (inviteId) {
+                router.push(`/adventure/stages?invite_id=${inviteId}&current=1`);
+              } else if (isExtraStage(stageId)) {
+                const q = new URLSearchParams({ party: partyIdsParam || '_', extra: '1', current: String(stageId) });
+                router.push(`/adventure/stages?${q.toString()}`);
+              } else {
+                router.push('/adventure');
+              }
+            }}
             className="bg-white text-gray-900 px-8 py-5 rounded-full text-xl font-bold border-2 border-gray-300 hover:bg-gray-50 transition"
           >
             戻る
